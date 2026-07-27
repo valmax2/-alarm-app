@@ -1,44 +1,44 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Questo file fornisce indicazioni a Claude Code (claude.ai/code) per lavorare con il codice di questo repository.
 
-## Project overview
+## Panoramica del progetto
 
-`alarm_app` ("Sveglia Demo" / bedside-clock-apk) is a Flutter demo app for an alarm-clock ring screen with two unlock modes: solving a math puzzle or a swipe-to-unlock gesture. Android is the only configured platform (no `ios/`, `web/`, etc. directories exist). UI strings and code comments are written in Italian.
+`alarm_app` ("Sveglia Demo" / bedside-clock-apk) è un'app demo Flutter per una schermata di sveglia con due modalità di sblocco: risolvere un enigma matematico o uno swipe. Android è l'unica piattaforma configurata (non esistono cartelle `ios/`, `web/`, ecc.). Le stringhe UI e i commenti nel codice sono scritti in italiano.
 
-## Commands
+## Comandi
 
 ```bash
-flutter pub get              # install dependencies
-flutter analyze              # static analysis / lint (flutter_lints via analysis_options.yaml)
-flutter test                 # run all tests
-flutter test test/widget_test.dart                    # run a single test file
-flutter test --plain-name "AlarmDemoApp shows the alarm ring screen"  # run a single test by name
-flutter run                  # run the app on a connected device/emulator
-flutter build apk --release  # build the release APK (same command CI uses)
+flutter pub get              # installa le dipendenze
+flutter analyze              # analisi statica / lint (flutter_lints via analysis_options.yaml)
+flutter test                 # esegue tutti i test
+flutter test test/widget_test.dart                    # esegue un singolo file di test
+flutter test --plain-name "AlarmDemoApp shows the alarm ring screen"  # esegue un singolo test per nome
+flutter run                  # esegue l'app su un dispositivo/emulatore connesso
+flutter build apk --release  # compila l'APK di release (stesso comando usato dalla CI)
 ```
 
-CI (`.github/workflows/build_apk.yml`) runs on pushes to `main`/`master`: `flutter pub get` then `flutter build apk --release`, uploading `build/app/outputs/flutter-apk/app-release.apk` as artifact `bedside-clock-apk`. There is no separate lint/test CI job — `flutter analyze` and `flutter test` should be run locally before pushing.
+La CI (`.github/workflows/build_apk.yml`) viene eseguita ad ogni push su `main`/`master`: lancia `flutter pub get` e poi `flutter build apk --release`, caricando `build/app/outputs/flutter-apk/app-release.apk` come artifact `bedside-clock-apk`. Non esiste un job CI separato per lint/test — `flutter analyze` e `flutter test` vanno eseguiti localmente prima del push.
 
-## Architecture
+## Architettura
 
-The app is intentionally small, with all Dart source under `lib/`:
+L'app è volutamente minimale, con tutto il codice Dart sotto `lib/`:
 
-- `lib/main.dart` — entry point. `AlarmDemoApp` is a `MaterialApp` (dark theme) whose `home` is directly an `AlarmRingScreen`; there is no routing/navigation stack. The `onDismissed`/`onSnoozed` callbacks passed here are just `debugPrint` stubs — in a real app these would stop the alarm sound/reschedule it.
-- `lib/alarm_ring_screen.dart` — the entire feature. `AlarmRingScreen` is a `StatefulWidget` that takes `alarmTitle`, `onDismissed`, and `onSnoozed` as inputs and owns all state for the ring/unlock UI:
-  - `UnlockMode` enum (`swipe` | `mathPuzzle`) toggled via a `SegmentedButton` in the header; switching modes resets swipe drag state.
-  - Math puzzle mode: `_generateMathPuzzle()` generates a random addition problem and 4 shuffled multiple-choice options (3 wrong, 1 correct); `_checkAnswer()` calls `widget.onDismissed()` on a correct pick, or flashes red and regenerates a new puzzle after a delay on a wrong pick.
-  - Swipe mode: a `GestureDetector`-driven draggable circle (`_dragPosition`, bounded by `_maxDragWidth`) that calls `widget.onDismissed()` once dragged past 85% of the track, otherwise springs back to 0.
-  - A pulsing scale animation (`_pulseController`/`_pulseAnimation`) runs continuously on the clock display.
-  - A "RINVIA (9 MIN)" (snooze) button always calls `widget.onSnoozed(9)`.
+- `lib/main.dart` — entry point. `AlarmDemoApp` è una `MaterialApp` (tema scuro) la cui `home` è direttamente una `AlarmRingScreen`; non c'è uno stack di navigazione/routing. Le callback `onDismissed`/`onSnoozed` passate qui sono solo stub con `debugPrint` — in un'app reale fermerebbero il suono della sveglia/la rinvierebbero.
+- `lib/alarm_ring_screen.dart` — l'intera feature. `AlarmRingScreen` è uno `StatefulWidget` che riceve `alarmTitle`, `onDismissed` e `onSnoozed` come parametri e gestisce tutto lo stato della UI di sveglia/sblocco:
+  - Enum `UnlockMode` (`swipe` | `mathPuzzle`) selezionabile tramite un `SegmentedButton` nell'header; il cambio modalità resetta lo stato dello swipe.
+  - Modalità enigma matematico: `_generateMathPuzzle()` genera un'addizione casuale e 4 opzioni a scelta multipla mescolate (3 sbagliate, 1 corretta); `_checkAnswer()` chiama `widget.onDismissed()` se la risposta è corretta, oppure lampeggia in rosso e rigenera un nuovo enigma dopo un breve ritardo se è sbagliata.
+  - Modalità swipe: un cerchio trascinabile gestito da `GestureDetector` (`_dragPosition`, limitato da `_maxDragWidth`) che chiama `widget.onDismissed()` una volta trascinato oltre l'85% del percorso, altrimenti torna a 0.
+  - Un'animazione di pulsazione (`_pulseController`/`_pulseAnimation`) gira continuamente sull'orologio visualizzato.
+  - Il pulsante "RINVIA (9 MIN)" (snooze) chiama sempre `widget.onSnoozed(9)`.
 
-Since both unlock flows and all display logic live in one widget/file, most changes to alarm-screen behavior only require editing `lib/alarm_ring_screen.dart`.
+Poiché entrambi i flussi di sblocco e tutta la logica di visualizzazione risiedono in un unico widget/file, la maggior parte delle modifiche al comportamento della schermata sveglia richiede di modificare solo `lib/alarm_ring_screen.dart`.
 
-## Tests
+## Test
 
-`test/widget_test.dart` pumps `AlarmDemoApp` at a fixed tall viewport (480x900) — required because the ring screen layout is designed for phone-sized screens and overflows on the default test surface — and asserts the alarm title renders. Follow this same viewport-setup pattern for any new widget tests of `AlarmRingScreen`.
+`test/widget_test.dart` monta `AlarmDemoApp` con un viewport fisso e alto (480x900) — necessario perché il layout della schermata sveglia è pensato per schermi in formato telefono e va in overflow con la superficie di test predefinita — e verifica che il titolo della sveglia venga renderizzato. Segui lo stesso schema di impostazione del viewport per eventuali nuovi widget test di `AlarmRingScreen`.
 
-## Conventions
+## Convenzioni
 
-- Android `applicationId`/`namespace` is still the template default `com.example.alarm_app` (see `android/app/build.gradle`) and release builds are signed with the debug keystore — both are marked `TODO` in the gradle file and unset for this demo project.
-- Dart SDK constraint: `>=3.0.0 <4.0.0` (see `pubspec.yaml`).
+- `applicationId`/`namespace` Android sono ancora il default del template `com.example.alarm_app` (vedi `android/app/build.gradle`) e le build di release sono firmate con il keystore di debug — entrambi sono marcati `TODO` nel file gradle e non ancora impostati per questo progetto demo.
+- Vincolo Dart SDK: `>=3.0.0 <4.0.0` (vedi `pubspec.yaml`).
