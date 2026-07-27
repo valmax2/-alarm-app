@@ -1,0 +1,38 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch: # Ti permette di avviare la build manualmente da GitHub
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Scarica il tuo codice sorgente
+      - uses: actions/checkout@v4
+
+      # 2. Configura Java
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      # 3. Configura l'ambiente Flutter
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      # 4. Scarica le dipendenze
+      - run: flutter pub get
+
+      # 5. Compila l'APK in modalità release
+      - run: flutter build apk --release
+
+      # 6. Carica l'APK tra gli allegati scaricabili della build
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bedside-clock-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
