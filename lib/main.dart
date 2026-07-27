@@ -1,29 +1,51 @@
 import 'package:flutter/material.dart';
-import 'alarm_ring_screen.dart';
+import 'package:provider/provider.dart';
 
-void main() {
-  runApp(const AlarmDemoApp());
+import 'models/clock_settings.dart';
+import 'screens/clock_screen.dart';
+import 'services/alarm_checker_service.dart';
+import 'services/radio_player_service.dart';
+import 'services/settings_repository.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final settings = await SettingsRepository.loadSettings();
+  settings.addListener(() {
+    SettingsRepository.saveSettings(settings);
+  });
+
+  final radioService = RadioPlayerService();
+  await radioService.init();
+
+  runApp(BedsideClockApp(settings: settings, radioService: radioService));
 }
 
-class AlarmDemoApp extends StatelessWidget {
-  const AlarmDemoApp({super.key});
+class BedsideClockApp extends StatelessWidget {
+  final ClockSettings settings;
+  final RadioPlayerService radioService;
+
+  const BedsideClockApp({
+    super.key,
+    required this.settings,
+    required this.radioService,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Sveglia Demo',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(),
-      home: AlarmRingScreen(
-        alarmTitle: 'Sveglia Mattutina',
-        onDismissed: () {
-          // Qui in un'app reale fermeresti il suono della sveglia
-          debugPrint('Sveglia spenta!');
-        },
-        onSnoozed: (minutes) {
-          // Qui in un'app reale rimanderesti la sveglia di N minuti
-          debugPrint('Sveglia rinviata di $minutes minuti');
-        },
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<ClockSettings>.value(value: settings),
+        ChangeNotifierProvider<RadioPlayerService>.value(value: radioService),
+        ChangeNotifierProvider<AlarmCheckerService>(
+          create: (_) => AlarmCheckerService(settings),
+        ),
+      ],
+      child: MaterialApp(
+        title: 'Orologio Radio',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData.dark(useMaterial3: true),
+        home: const ClockScreen(),
       ),
     );
   }

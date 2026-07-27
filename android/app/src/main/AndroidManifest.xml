@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
-        android:label="alarm_app"
+        android:label="Orologio Radio"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

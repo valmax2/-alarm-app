@@ -1,5 +1,5 @@
-name: alarm_app
-description: "App demo sveglia con sblocco tramite enigma matematico o swipe"
+name: bedside_clock
+description: "Orologio da comodino con radio internet, temi giorno/notte e protezione anti burn-in"
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -10,6 +10,10 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.6
+  just_audio: ^0.9.0
+  audio_session: ^0.1.0
+  shared_preferences: ^2.0.0
+  provider: ^6.0.0
 
 dev_dependencies:
   flutter_test:
