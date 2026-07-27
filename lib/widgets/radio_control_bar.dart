@@ -77,13 +77,20 @@ class RadioControlBar extends StatelessWidget {
             height: 40,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: stations.length + 1,
+              itemCount: stations.length + 2,
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
-                if (index == stations.length) {
+                if (index == 0) {
+                  return _DiscoverChip(
+                    loading: radio.isDiscovering,
+                    onTap: radio.isDiscovering ? null : () => radio.discoverNearbyStations(),
+                  );
+                }
+                final stationIndex = index - 1;
+                if (stationIndex == stations.length) {
                   return _AddChip(onTap: () => _showAddStationDialog(context));
                 }
-                final RadioStation station = stations[index];
+                final RadioStation station = stations[stationIndex];
                 final bool active = radio.currentStation?.url == station.url;
                 return _StationChip(
                   station: station,
@@ -95,6 +102,20 @@ class RadioControlBar extends StatelessWidget {
               },
             ),
           ),
+          if (radio.nearbyRegion != null && radio.nearbyStations.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Stazioni trovate per: ${radio.nearbyRegion}',
+              style: const TextStyle(color: Colors.white38, fontSize: 11),
+            ),
+          ],
+          if (radio.discoveryError != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              radio.discoveryError!,
+              style: const TextStyle(color: Colors.redAccent, fontSize: 11),
+            ),
+          ],
           const SizedBox(height: 10),
           Row(
             children: [
@@ -181,6 +202,41 @@ class _StationChip extends StatelessWidget {
             fontWeight: active ? FontWeight.bold : FontWeight.normal,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DiscoverChip extends StatelessWidget {
+  final bool loading;
+  final VoidCallback? onTap;
+  const _DiscoverChip({required this.loading, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        alignment: Alignment.center,
+        child: loading
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70),
+              )
+            : const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.near_me, color: Colors.white70, size: 15),
+                  SizedBox(width: 6),
+                  Text('Vicino a te', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                ],
+              ),
       ),
     );
   }

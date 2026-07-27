@@ -3,23 +3,49 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../models/radio_station.dart';
+import 'radio_discovery_service.dart';
 import 'settings_repository.dart';
 
 /// Gestisce la riproduzione dello stream radio internet.
 class RadioPlayerService extends ChangeNotifier {
   final AudioPlayer _player = AudioPlayer();
+  final RadioDiscoveryService _discovery = RadioDiscoveryService();
 
   List<RadioStation> customStations = [];
+  List<RadioStation> nearbyStations = [];
+  String? nearbyRegion;
   RadioStation? currentStation;
   bool isLoading = false;
+  bool isDiscovering = false;
   String? errorMessage;
+  String? discoveryError;
 
   bool get isPlaying => _player.playing;
 
   List<RadioStation> get allStations => [
         ...presetRadioStations,
         ...customStations,
+        ...nearbyStations,
       ];
+
+  Future<void> discoverNearbyStations() async {
+    isDiscovering = true;
+    discoveryError = null;
+    notifyListeners();
+    try {
+      final result = await _discovery.findStationsNearby();
+      nearbyStations = result.stations;
+      nearbyRegion = result.region;
+      if (result.stations.isEmpty) {
+        discoveryError = 'Nessuna stazione trovata per la tua zona.';
+      }
+    } catch (e) {
+      discoveryError = e.toString();
+    } finally {
+      isDiscovering = false;
+      notifyListeners();
+    }
+  }
 
   Future<void> init() async {
     final session = await AudioSession.instance;
