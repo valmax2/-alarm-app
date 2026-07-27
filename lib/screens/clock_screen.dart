@@ -7,8 +7,8 @@ import '../models/clock_settings.dart';
 import '../services/alarm_checker_service.dart';
 import '../widgets/burn_in_protector.dart';
 import '../widgets/clock_face/clock_face.dart';
+import '../widgets/collapsible_radio_bar.dart';
 import '../widgets/gradient_button.dart';
-import '../widgets/radio_control_bar.dart';
 import 'alarm_ring_screen.dart';
 import 'settings_screen.dart';
 
@@ -174,7 +174,7 @@ class _ClockScreenState extends State<ClockScreen> {
                   ),
                 ),
               ),
-              const RadioControlBar(),
+              const CollapsibleRadioBar(),
             ],
           ),
         ),
