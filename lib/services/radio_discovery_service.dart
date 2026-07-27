@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
@@ -13,10 +15,16 @@ class RadioDiscoveryException implements Exception {
   String toString() => message;
 }
 
-/// Trova stazioni radio internet vicine usando la posizione del telefono:
-/// GPS -> regione (geocoding) -> ricerca su Radio Browser (radio-browser.info),
-/// un indice pubblico e gratuito di stream radio. Nessun link da inserire
-/// manualmente.
+class _Candidate {
+  final RadioStation station;
+  final bool lastCheckOk;
+  _Candidate(this.station, this.lastCheckOk);
+}
+
+/// Trova e verifica stazioni radio internet usando l'indice pubblico e
+/// gratuito Radio Browser (radio-browser.info). Ogni stazione restituita
+/// viene controllata dal vivo (connessione reale allo stream) prima di
+/// essere proposta, così i link non funzionanti non arrivano all'utente.
 class RadioDiscoveryService {
   static const List<String> _apiHosts = [
     'https://de1.api.radio-browser.info',
@@ -59,7 +67,7 @@ class RadioDiscoveryService {
     return region;
   }
 
-  Future<List<RadioStation>> _search(String host, Map<String, String> query) async {
+  Future<List<_Candidate>> _rawSearch(String host, Map<String, String> query) async {
     final uri = Uri.parse('$host/json/stations/search').replace(queryParameters: query);
     final response = await http
         .get(uri, headers: {'User-Agent': 'bedside_clock_app/1.0'})
@@ -75,18 +83,19 @@ class RadioDiscoveryService {
           final url = (item['url_resolved'] as String?)?.trim().isNotEmpty == true
               ? item['url_resolved'] as String
               : (item['url'] as String? ?? '');
-          return RadioStation(name: name, url: url, isCustom: true);
+          final lastCheckOk = item['lastcheckok'] == 1 || item['lastcheckok'] == true;
+          return _Candidate(RadioStation(name: name, url: url, isCustom: true), lastCheckOk);
         })
-        .where((s) => s.name.isNotEmpty && s.url.isNotEmpty)
+        .where((c) => c.station.name.isNotEmpty && c.station.url.isNotEmpty)
         .toList();
   }
 
   /// Prova gli host mirror di Radio Browser in ordine finché uno risponde.
-  Future<List<RadioStation>> _searchWithFallbackHosts(Map<String, String> query) async {
+  Future<List<_Candidate>> _searchWithFallbackHosts(Map<String, String> query) async {
     Object? lastError;
     for (final host in _apiHosts) {
       try {
-        return await _search(host, query);
+        return await _rawSearch(host, query);
       } catch (e) {
         lastError = e;
       }
@@ -94,34 +103,89 @@ class RadioDiscoveryService {
     throw RadioDiscoveryException('Impossibile contattare il servizio radio: $lastError');
   }
 
-  /// Cerca stazioni italiane della regione rilevata dalla posizione.
-  /// Se non ce ne sono per quella regione, ripiega sulle stazioni
-  /// nazionali italiane più popolari.
+  /// Apre davvero una connessione allo stream per pochi istanti per
+  /// verificare che risponda. Non scarica l'audio: chiude subito dopo
+  /// aver ricevuto lo stato della risposta.
+  static Future<bool> _isStreamReachable(String url) async {
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 5);
+    try {
+      final uri = Uri.parse(url);
+      if (uri.scheme != 'http' && uri.scheme != 'https') return false;
+      final request = await client.getUrl(uri).timeout(const Duration(seconds: 5));
+      request.headers.set(HttpHeaders.userAgentHeader, 'bedside_clock_app/1.0');
+      final response = await request.close().timeout(const Duration(seconds: 5));
+      return response.statusCode >= 200 && response.statusCode < 300;
+    } catch (_) {
+      return false;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  /// Filtra i candidati tenendo solo quelli effettivamente raggiungibili in
+  /// questo momento, verificati in parallelo. Chi risultava già "non ok"
+  /// secondo Radio Browser (`lastcheckok`) non viene nemmeno controllato.
+  Future<List<RadioStation>> _verifyWorking(List<_Candidate> candidates, {int maxResults = 15}) async {
+    final toCheck = candidates.where((c) => c.lastCheckOk).toList();
+    final results = await Future.wait(
+      toCheck.map((c) async {
+        final ok = await _isStreamReachable(c.station.url);
+        return ok ? c.station : null;
+      }),
+    );
+    return results.whereType<RadioStation>().take(maxResults).toList();
+  }
+
+  /// Cerca stazioni italiane della regione rilevata dalla posizione,
+  /// verificandole dal vivo. Se non ce ne sono di funzionanti per quella
+  /// regione, ripiega sulle stazioni nazionali italiane più popolari.
   Future<RadioDiscoveryResult> findStationsNearby() async {
     final region = await _resolveRegion();
 
     final byRegion = await _searchWithFallbackHosts({
       'country': 'Italy',
       'state': region,
-      'limit': '25',
+      'limit': '30',
       'order': 'clickcount',
       'reverse': 'true',
       'hidebroken': 'true',
     });
+    final workingByRegion = await _verifyWorking(byRegion);
 
-    if (byRegion.isNotEmpty) {
-      return RadioDiscoveryResult(region: region, stations: byRegion);
+    if (workingByRegion.isNotEmpty) {
+      return RadioDiscoveryResult(region: region, stations: workingByRegion);
     }
 
     final national = await _searchWithFallbackHosts({
       'country': 'Italy',
-      'limit': '25',
+      'limit': '30',
       'order': 'clickcount',
       'reverse': 'true',
       'hidebroken': 'true',
     });
+    final workingNational = await _verifyWorking(national);
 
-    return RadioDiscoveryResult(region: region, stations: national, fellBackToNational: true);
+    return RadioDiscoveryResult(
+      region: region,
+      stations: workingNational,
+      fellBackToNational: true,
+    );
+  }
+
+  /// Cerca stazioni per nome (es. "Radio DJ") ovunque nel mondo, restituendo
+  /// solo quelle il cui stream risponde davvero in questo momento.
+  Future<List<RadioStation>> searchByName(String query) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return [];
+
+    final candidates = await _searchWithFallbackHosts({
+      'name': trimmed,
+      'limit': '20',
+      'order': 'clickcount',
+      'reverse': 'true',
+      'hidebroken': 'true',
+    });
+    return _verifyWorking(candidates, maxResults: 8);
   }
 }
 

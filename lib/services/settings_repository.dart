@@ -9,6 +9,7 @@ import '../models/radio_station.dart';
 class SettingsRepository {
   static const _settingsKey = 'clock_settings_v1';
   static const _customStationsKey = 'custom_radio_stations_v1';
+  static const _favoriteStationsKey = 'favorite_radio_stations_v1';
 
   static Future<ClockSettings> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
@@ -39,6 +40,23 @@ class SettingsRepository {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(
       _customStationsKey,
+      stations.map((s) => jsonEncode(s.toJson())).toList(),
+    );
+  }
+
+  static Future<List<RadioStation>> loadFavoriteStations() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getStringList(_favoriteStationsKey);
+    if (raw == null) return [];
+    return raw
+        .map((s) => RadioStation.fromJson(jsonDecode(s) as Map<String, dynamic>))
+        .toList();
+  }
+
+  static Future<void> saveFavoriteStations(List<RadioStation> stations) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      _favoriteStationsKey,
       stations.map((s) => jsonEncode(s.toJson())).toList(),
     );
   }

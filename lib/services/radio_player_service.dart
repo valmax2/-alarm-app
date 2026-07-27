@@ -13,12 +13,16 @@ class RadioPlayerService extends ChangeNotifier {
 
   List<RadioStation> customStations = [];
   List<RadioStation> nearbyStations = [];
+  List<RadioStation> favoriteStations = [];
+  List<RadioStation> searchResults = [];
   String? nearbyRegion;
   RadioStation? currentStation;
   bool isLoading = false;
   bool isDiscovering = false;
+  bool isSearching = false;
   String? errorMessage;
   String? discoveryError;
+  String? searchError;
 
   bool get isPlaying => _player.playing;
 
@@ -27,6 +31,19 @@ class RadioPlayerService extends ChangeNotifier {
         ...customStations,
         ...nearbyStations,
       ];
+
+  bool isFavorite(RadioStation station) =>
+      favoriteStations.any((s) => s.url == station.url);
+
+  Future<void> toggleFavorite(RadioStation station) async {
+    if (isFavorite(station)) {
+      favoriteStations = favoriteStations.where((s) => s.url != station.url).toList();
+    } else {
+      favoriteStations = [...favoriteStations, station];
+    }
+    await SettingsRepository.saveFavoriteStations(favoriteStations);
+    notifyListeners();
+  }
 
   Future<void> discoverNearbyStations() async {
     isDiscovering = true;
@@ -37,7 +54,7 @@ class RadioPlayerService extends ChangeNotifier {
       nearbyStations = result.stations;
       nearbyRegion = result.region;
       if (result.stations.isEmpty) {
-        discoveryError = 'Nessuna stazione trovata per la tua zona.';
+        discoveryError = 'Nessuna stazione funzionante trovata per la tua zona.';
       }
     } catch (e) {
       discoveryError = e.toString();
@@ -47,6 +64,37 @@ class RadioPlayerService extends ChangeNotifier {
     }
   }
 
+  /// Cerca stazioni per nome (es. "Radio DJ") e verifica che lo stream
+  /// risponda davvero prima di proporlo.
+  Future<void> searchStations(String query) async {
+    isSearching = true;
+    searchError = null;
+    searchResults = [];
+    notifyListeners();
+    try {
+      final results = await _discovery.searchByName(query);
+      searchResults = results;
+      if (results.isEmpty) {
+        searchError = 'Nessuna stazione funzionante trovata per "$query".';
+      }
+    } catch (e) {
+      searchError = e.toString();
+    } finally {
+      isSearching = false;
+      notifyListeners();
+    }
+  }
+
+  /// Salva la stazione nella lista personale e la avvia subito ("la installa").
+  Future<void> installAndPlay(RadioStation station) async {
+    if (!customStations.any((s) => s.url == station.url)) {
+      customStations = [...customStations, RadioStation(name: station.name, url: station.url, isCustom: true)];
+      await SettingsRepository.saveCustomStations(customStations);
+      notifyListeners();
+    }
+    await play(station);
+  }
+
   Future<void> init() async {
     final session = await AudioSession.instance;
     await session.configure(const AudioSessionConfiguration.music());
@@ -54,6 +102,7 @@ class RadioPlayerService extends ChangeNotifier {
     _player.playerStateStream.listen((_) => notifyListeners());
 
     customStations = await SettingsRepository.loadCustomStations();
+    favoriteStations = await SettingsRepository.loadFavoriteStations();
     notifyListeners();
   }
 

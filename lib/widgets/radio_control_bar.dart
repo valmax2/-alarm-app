@@ -56,12 +56,128 @@ class RadioControlBar extends StatelessWidget {
     );
   }
 
+  Future<void> _showSearchDialog(BuildContext context) async {
+    final controller = TextEditingController();
+    final radio = context.read<RadioPlayerService>();
+
+    void doSearch() {
+      final query = controller.text.trim();
+      if (query.isNotEmpty) radio.searchStations(query);
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A24),
+        title: const Text('Cerca una radio', style: TextStyle(color: Colors.white)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      autofocus: true,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(labelText: 'Es. Radio DJ'),
+                      onSubmitted: (_) => doSearch(),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.search, color: Colors.white70),
+                    onPressed: doSearch,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Verifico solo stazioni con lo stream attualmente attivo.',
+                style: TextStyle(color: Colors.white38, fontSize: 11),
+              ),
+              const SizedBox(height: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 280),
+                child: Consumer<RadioPlayerService>(
+                  builder: (context, radio, _) {
+                    if (radio.isSearching) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 28),
+                        child: Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      );
+                    }
+                    if (radio.searchError != null) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Text(
+                          radio.searchError!,
+                          style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+                        ),
+                      );
+                    }
+                    if (radio.searchResults.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Text(
+                          'Scrivi il nome di una radio e tocca cerca.',
+                          style: TextStyle(color: Colors.white38, fontSize: 13),
+                        ),
+                      );
+                    }
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: radio.searchResults.length,
+                      itemBuilder: (context, index) {
+                        final station = radio.searchResults[index];
+                        return ListTile(
+                          dense: true,
+                          title: Text(station.name, style: const TextStyle(color: Colors.white)),
+                          leading: const Icon(Icons.wifi_tethering, color: Colors.greenAccent, size: 18),
+                          trailing: IconButton(
+                            icon: Icon(
+                              radio.isFavorite(station) ? Icons.star : Icons.star_border,
+                              color: Colors.amber,
+                            ),
+                            onPressed: () => radio.toggleFavorite(station),
+                          ),
+                          onTap: () {
+                            radio.installAndPlay(station);
+                            Navigator.of(dialogContext).pop();
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Chiudi'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final radio = context.watch<RadioPlayerService>();
     final settings = context.watch<ClockSettings>();
     final accent = settings.accentColor;
     final stations = radio.allStations;
+    final favorites = radio.favoriteStations;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -73,11 +189,34 @@ class RadioControlBar extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (favorites.isNotEmpty) ...[
+            SizedBox(
+              height: 40,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: favorites.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final station = favorites[index];
+                  final active = radio.currentStation?.url == station.url;
+                  return _StationChip(
+                    station: station,
+                    active: active,
+                    accent: Colors.amber,
+                    isFavorite: true,
+                    onTap: () => radio.play(station),
+                    onToggleFavorite: () => radio.toggleFavorite(station),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           SizedBox(
             height: 40,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: stations.length + 2,
+              itemCount: stations.length + 3,
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
                 if (index == 0) {
@@ -86,7 +225,10 @@ class RadioControlBar extends StatelessWidget {
                     onTap: radio.isDiscovering ? null : () => radio.discoverNearbyStations(),
                   );
                 }
-                final stationIndex = index - 1;
+                if (index == 1) {
+                  return _SearchChip(onTap: () => _showSearchDialog(context));
+                }
+                final stationIndex = index - 2;
                 if (stationIndex == stations.length) {
                   return _AddChip(onTap: () => _showAddStationDialog(context));
                 }
@@ -96,7 +238,9 @@ class RadioControlBar extends StatelessWidget {
                   station: station,
                   active: active,
                   accent: accent,
+                  isFavorite: radio.isFavorite(station),
                   onTap: () => radio.play(station),
+                  onToggleFavorite: () => radio.toggleFavorite(station),
                   onRemove: station.isCustom ? () => radio.removeCustomStation(station) : null,
                 );
               },
@@ -105,7 +249,7 @@ class RadioControlBar extends StatelessWidget {
           if (radio.nearbyRegion != null && radio.nearbyStations.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              'Stazioni trovate per: ${radio.nearbyRegion}',
+              'Stazioni verificate per: ${radio.nearbyRegion}',
               style: const TextStyle(color: Colors.white38, fontSize: 11),
             ),
           ],
@@ -171,14 +315,18 @@ class _StationChip extends StatelessWidget {
   final RadioStation station;
   final bool active;
   final Color accent;
+  final bool isFavorite;
   final VoidCallback onTap;
+  final VoidCallback onToggleFavorite;
   final VoidCallback? onRemove;
 
   const _StationChip({
     required this.station,
     required this.active,
     required this.accent,
+    required this.isFavorite,
     required this.onTap,
+    required this.onToggleFavorite,
     this.onRemove,
   });
 
@@ -188,19 +336,36 @@ class _StationChip extends StatelessWidget {
       onTap: onTap,
       onLongPress: onRemove,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: active ? accent.withValues(alpha: 0.85) : Colors.white.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(20),
         ),
-        alignment: Alignment.center,
-        child: Text(
-          station.name,
-          style: TextStyle(
-            color: active ? Colors.black : Colors.white70,
-            fontSize: 12,
-            fontWeight: active ? FontWeight.bold : FontWeight.normal,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              station.name,
+              style: TextStyle(
+                color: active ? Colors.black : Colors.white70,
+                fontSize: 12,
+                fontWeight: active ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+            const SizedBox(width: 4),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onToggleFavorite,
+              child: Padding(
+                padding: const EdgeInsets.all(2),
+                child: Icon(
+                  isFavorite ? Icons.star : Icons.star_border,
+                  size: 15,
+                  color: isFavorite ? Colors.amber : (active ? Colors.black45 : Colors.white38),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -237,6 +402,34 @@ class _DiscoverChip extends StatelessWidget {
                   Text('Vicino a te', style: TextStyle(color: Colors.white70, fontSize: 12)),
                 ],
               ),
+      ),
+    );
+  }
+}
+
+class _SearchChip extends StatelessWidget {
+  final VoidCallback onTap;
+  const _SearchChip({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        alignment: Alignment.center,
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.search, color: Colors.white70, size: 15),
+            SizedBox(width: 6),
+            Text('Cerca', style: TextStyle(color: Colors.white70, fontSize: 12)),
+          ],
+        ),
       ),
     );
   }
