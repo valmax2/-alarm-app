@@ -1,8 +1,29 @@
 import 'package:flutter/material.dart';
 
-enum DayNightMode { day, night, auto }
+enum ClockBrightness { normal, medium, low }
 
-enum ClockFaceStyle { digital, dots, segments }
+enum ClockFaceStyle { digital, dots, segments, neon, minimal, flip }
+
+const Map<ClockBrightness, double> clockBrightnessValues = {
+  ClockBrightness.normal: 1.0,
+  ClockBrightness.medium: 0.5,
+  ClockBrightness.low: 0.12,
+};
+
+const Map<ClockBrightness, String> clockBrightnessLabels = {
+  ClockBrightness.normal: 'Normale',
+  ClockBrightness.medium: 'Media',
+  ClockBrightness.low: 'Poco luminosa',
+};
+
+const Map<ClockFaceStyle, String> clockFaceStyleLabels = {
+  ClockFaceStyle.digital: 'Android',
+  ClockFaceStyle.dots: 'Pallini',
+  ClockFaceStyle.segments: 'Linee',
+  ClockFaceStyle.neon: 'Neon',
+  ClockFaceStyle.minimal: 'Minimal',
+  ClockFaceStyle.flip: 'Flip',
+};
 
 /// Palette di colori d'accento selezionabili per testo/pulsanti.
 const List<Color> accentPalette = [
@@ -30,7 +51,7 @@ const Map<String, String?> fontFamilyMap = {
 };
 
 class ClockSettings extends ChangeNotifier {
-  DayNightMode dayNightMode;
+  ClockBrightness brightness;
   ClockFaceStyle clockFaceStyle;
   String fontChoice;
   double fontSizeScale;
@@ -40,6 +61,9 @@ class ClockSettings extends ChangeNotifier {
   bool showSeconds;
   bool showDate;
   bool antiBurnInEnabled;
+  double panelOpacity;
+  double dotSpacingScale;
+  double segmentThicknessScale;
 
   // Sveglia
   bool alarmEnabled;
@@ -50,7 +74,7 @@ class ClockSettings extends ChangeNotifier {
   String? alarmRadioStationUrl;
 
   ClockSettings({
-    this.dayNightMode = DayNightMode.night,
+    this.brightness = ClockBrightness.normal,
     this.clockFaceStyle = ClockFaceStyle.digital,
     this.fontChoice = 'Predefinito',
     this.fontSizeScale = 1.0,
@@ -60,6 +84,9 @@ class ClockSettings extends ChangeNotifier {
     this.showSeconds = false,
     this.showDate = true,
     this.antiBurnInEnabled = true,
+    this.panelOpacity = 0.35,
+    this.dotSpacingScale = 1.0,
+    this.segmentThicknessScale = 1.0,
     this.alarmEnabled = false,
     this.alarmHour = 7,
     this.alarmMinute = 0,
@@ -72,15 +99,16 @@ class ClockSettings extends ChangeNotifier {
 
   String? get resolvedFontFamily => fontFamilyMap[fontChoice];
 
-  bool get isNight {
-    switch (dayNightMode) {
-      case DayNightMode.day:
-        return false;
-      case DayNightMode.night:
-        return true;
-      case DayNightMode.auto:
-        final hour = DateTime.now().hour;
-        return hour >= 20 || hour < 7;
+  double get brightnessValue => clockBrightnessValues[brightness]!;
+
+  ClockBrightness get nextBrightness {
+    switch (brightness) {
+      case ClockBrightness.normal:
+        return ClockBrightness.medium;
+      case ClockBrightness.medium:
+        return ClockBrightness.low;
+      case ClockBrightness.low:
+        return ClockBrightness.normal;
     }
   }
 
@@ -90,7 +118,7 @@ class ClockSettings extends ChangeNotifier {
   }
 
   Map<String, dynamic> toJson() => {
-        'dayNightMode': dayNightMode.index,
+        'brightness': brightness.index,
         'clockFaceStyle': clockFaceStyle.index,
         'fontChoice': fontChoice,
         'fontSizeScale': fontSizeScale,
@@ -100,6 +128,9 @@ class ClockSettings extends ChangeNotifier {
         'showSeconds': showSeconds,
         'showDate': showDate,
         'antiBurnInEnabled': antiBurnInEnabled,
+        'panelOpacity': panelOpacity,
+        'dotSpacingScale': dotSpacingScale,
+        'segmentThicknessScale': segmentThicknessScale,
         'alarmEnabled': alarmEnabled,
         'alarmHour': alarmHour,
         'alarmMinute': alarmMinute,
@@ -110,8 +141,9 @@ class ClockSettings extends ChangeNotifier {
 
   static ClockSettings fromJson(Map<String, dynamic> json) {
     return ClockSettings(
-      dayNightMode: DayNightMode.values[json['dayNightMode'] as int? ?? 1],
-      clockFaceStyle: ClockFaceStyle.values[json['clockFaceStyle'] as int? ?? 0],
+      brightness: ClockBrightness.values[json['brightness'] as int? ?? 0],
+      clockFaceStyle: ClockFaceStyle.values[(json['clockFaceStyle'] as int? ?? 0)
+          .clamp(0, ClockFaceStyle.values.length - 1)],
       fontChoice: json['fontChoice'] as String? ?? 'Predefinito',
       fontSizeScale: (json['fontSizeScale'] as num?)?.toDouble() ?? 1.0,
       fontBold: json['fontBold'] as bool? ?? true,
@@ -120,6 +152,9 @@ class ClockSettings extends ChangeNotifier {
       showSeconds: json['showSeconds'] as bool? ?? false,
       showDate: json['showDate'] as bool? ?? true,
       antiBurnInEnabled: json['antiBurnInEnabled'] as bool? ?? true,
+      panelOpacity: (json['panelOpacity'] as num?)?.toDouble() ?? 0.35,
+      dotSpacingScale: (json['dotSpacingScale'] as num?)?.toDouble() ?? 1.0,
+      segmentThicknessScale: (json['segmentThicknessScale'] as num?)?.toDouble() ?? 1.0,
       alarmEnabled: json['alarmEnabled'] as bool? ?? false,
       alarmHour: json['alarmHour'] as int? ?? 7,
       alarmMinute: json['alarmMinute'] as int? ?? 0,

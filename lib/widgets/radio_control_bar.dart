@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -182,7 +184,7 @@ class RadioControlBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.35),
+        color: Colors.black.withValues(alpha: settings.panelOpacity),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
@@ -286,15 +288,10 @@ class RadioControlBar extends StatelessWidget {
                   style: const TextStyle(color: Colors.white70, fontSize: 13),
                 ),
               ),
-              const Icon(Icons.volume_down, color: Colors.white38, size: 18),
-              SizedBox(
-                width: 90,
-                child: Slider(
-                  value: radio.volume.clamp(0.0, 1.0),
-                  activeColor: accent,
-                  inactiveColor: Colors.white24,
-                  onChanged: radio.setVolume,
-                ),
+              _VolumeControl(
+                volume: radio.volume,
+                accent: accent,
+                onChanged: radio.setVolume,
               ),
             ],
           ),
@@ -307,6 +304,97 @@ class RadioControlBar extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Icona del volume che, al tocco, apre una barra grande e comoda da
+/// trascinare; si richiude da sola qualche istante dopo l'ultima modifica.
+class _VolumeControl extends StatefulWidget {
+  final double volume;
+  final Color accent;
+  final ValueChanged<double> onChanged;
+
+  const _VolumeControl({
+    required this.volume,
+    required this.accent,
+    required this.onChanged,
+  });
+
+  @override
+  State<_VolumeControl> createState() => _VolumeControlState();
+}
+
+class _VolumeControlState extends State<_VolumeControl> {
+  bool _expanded = false;
+  Timer? _collapseTimer;
+
+  void _scheduleCollapse() {
+    _collapseTimer?.cancel();
+    _collapseTimer = Timer(const Duration(milliseconds: 1800), () {
+      if (mounted) setState(() => _expanded = false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _collapseTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeInOut,
+      alignment: Alignment.centerRight,
+      child: _expanded
+          ? SizedBox(
+              width: 170,
+              height: 40,
+              child: Row(
+                children: [
+                  Icon(
+                    widget.volume <= 0.02 ? Icons.volume_off : Icons.volume_up,
+                    color: Colors.white54,
+                    size: 20,
+                  ),
+                  Expanded(
+                    child: SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        trackHeight: 6,
+                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
+                        overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+                      ),
+                      child: Slider(
+                        value: widget.volume.clamp(0.0, 1.0),
+                        activeColor: widget.accent,
+                        inactiveColor: Colors.white24,
+                        onChanged: (v) {
+                          widget.onChanged(v);
+                          _scheduleCollapse();
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                setState(() => _expanded = true);
+                _scheduleCollapse();
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Icon(
+                  widget.volume <= 0.02 ? Icons.volume_off : Icons.volume_up,
+                  color: Colors.white54,
+                  size: 22,
+                ),
+              ),
+            ),
     );
   }
 }

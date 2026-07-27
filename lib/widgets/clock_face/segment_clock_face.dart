@@ -20,12 +20,14 @@ class SegmentClockFace extends StatelessWidget {
   final String timeText;
   final Color color;
   final double fontSize;
+  final double thicknessScale;
 
   const SegmentClockFace({
     super.key,
     required this.timeText,
     required this.color,
     required this.fontSize,
+    this.thicknessScale = 1.0,
   });
 
   @override
@@ -55,7 +57,7 @@ class SegmentClockFace extends StatelessWidget {
                 painter: _SegmentPainter(
                   segments: _segmentMap[timeText[i]] ?? _segmentMap['0']!,
                   color: color,
-                  thickness: digitHeight * 0.09,
+                  thickness: digitHeight * 0.09 * thicknessScale,
                 ),
               ),
             ),

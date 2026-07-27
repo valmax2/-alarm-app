@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../models/clock_settings.dart';
 import '../services/alarm_checker_service.dart';
+import '../services/brightness_service.dart';
 import '../widgets/burn_in_protector.dart';
 import '../widgets/clock_face/clock_face.dart';
 import '../widgets/collapsible_radio_bar.dart';
@@ -61,7 +62,14 @@ class _ClockScreenState extends State<ClockScreen> {
       if (!mounted) return;
       _alarmChecker = context.read<AlarmCheckerService>();
       _alarmChecker!.addListener(_onAlarmStateChanged);
+      BrightnessService.apply(context.read<ClockSettings>().brightness);
     });
+  }
+
+  void _cycleBrightness(ClockSettings settings) {
+    final next = settings.nextBrightness;
+    settings.update(() => settings.brightness = next);
+    BrightnessService.apply(next);
   }
 
   void _onAlarmStateChanged() {
@@ -104,9 +112,8 @@ class _ClockScreenState extends State<ClockScreen> {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<ClockSettings>();
-    final isNight = settings.isNight;
-    final backgroundColor = isNight ? const Color(0xFF0A0A0F) : const Color(0xFFF2F3F7);
-    final textColor = isNight ? settings.accentColor : settings.accentColor.withValues(alpha: 0.9);
+    const backgroundColor = Color(0xFF0A0A0F);
+    final textColor = settings.accentColor;
     final baseFontSize = 96.0 * settings.fontSizeScale;
 
     return Scaffold(
@@ -122,26 +129,38 @@ class _ClockScreenState extends State<ClockScreen> {
                   if (settings.alarmEnabled)
                     Row(
                       children: [
-                        Icon(Icons.alarm, size: 16, color: isNight ? Colors.white54 : Colors.black45),
+                        const Icon(Icons.alarm, size: 16, color: Colors.white54),
                         const SizedBox(width: 6),
                         Text(
                           'Sveglia ${settings.alarmHour.toString().padLeft(2, '0')}:${settings.alarmMinute.toString().padLeft(2, '0')}',
-                          style: TextStyle(
-                            color: isNight ? Colors.white54 : Colors.black45,
-                            fontSize: 13,
-                          ),
+                          style: const TextStyle(color: Colors.white54, fontSize: 13),
                         ),
                       ],
                     )
                   else
                     const SizedBox.shrink(),
-                  GradientIconButton(
-                    icon: Icons.settings,
-                    color: settings.accentColor,
-                    size: 44,
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                    ),
+                  Row(
+                    children: [
+                      GradientIconButton(
+                        icon: switch (settings.brightness) {
+                          ClockBrightness.normal => Icons.brightness_high,
+                          ClockBrightness.medium => Icons.brightness_medium,
+                          ClockBrightness.low => Icons.brightness_low,
+                        },
+                        color: Colors.white24,
+                        size: 40,
+                        onPressed: () => _cycleBrightness(settings),
+                      ),
+                      const SizedBox(width: 10),
+                      GradientIconButton(
+                        icon: Icons.settings,
+                        color: settings.accentColor,
+                        size: 44,
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -159,15 +178,14 @@ class _ClockScreenState extends State<ClockScreen> {
                         fontFamily: settings.resolvedFontFamily,
                         fontWeight: settings.fontBold ? FontWeight.bold : FontWeight.normal,
                         fontSize: baseFontSize,
+                        dotSpacingScale: settings.dotSpacingScale,
+                        segmentThicknessScale: settings.segmentThicknessScale,
                       ),
                       if (settings.showDate) ...[
                         const SizedBox(height: 12),
                         Text(
                           _buildDateText(),
-                          style: TextStyle(
-                            color: isNight ? Colors.white54 : Colors.black45,
-                            fontSize: 16,
-                          ),
+                          style: const TextStyle(color: Colors.white54, fontSize: 16),
                         ),
                       ],
                     ],

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/clock_settings.dart';
 import '../models/radio_station.dart';
+import '../services/brightness_service.dart';
 import '../services/radio_player_service.dart';
 
 const List<String> _weekdayShort = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
@@ -24,10 +25,9 @@ class SettingsScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           _SectionTitle('Aspetto'),
-          _DayNightSelector(settings: settings),
-          const SizedBox(height: 16),
           _ClockStyleSelector(settings: settings),
           const SizedBox(height: 16),
+          _StyleOptionsSection(settings: settings),
           _FontSection(settings: settings),
           const SizedBox(height: 16),
           _AccentColorSection(settings: settings),
@@ -50,10 +50,24 @@ class SettingsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 28),
           _SectionTitle('Display'),
+          const Text('Luminosità schermo', style: TextStyle(color: Colors.white70)),
+          const SizedBox(height: 8),
+          _BrightnessSelector(settings: settings),
+          const SizedBox(height: 16),
           _SwitchTile(
             label: 'Protezione anti burn-in (sposta l\'orologio periodicamente)',
             value: settings.antiBurnInEnabled,
             onChanged: (v) => settings.update(() => settings.antiBurnInEnabled = v),
+          ),
+          const SizedBox(height: 8),
+          const Text('Opacità pannello radio', style: TextStyle(color: Colors.white70)),
+          Slider(
+            value: settings.panelOpacity,
+            min: 0.15,
+            max: 0.85,
+            divisions: 14,
+            label: '${(settings.panelOpacity * 100).round()}%',
+            onChanged: (v) => settings.update(() => settings.panelOpacity = v),
           ),
           const SizedBox(height: 28),
           _SectionTitle('Sveglia'),
@@ -103,20 +117,22 @@ class _SwitchTile extends StatelessWidget {
   }
 }
 
-class _DayNightSelector extends StatelessWidget {
+class _BrightnessSelector extends StatelessWidget {
   final ClockSettings settings;
-  const _DayNightSelector({required this.settings});
+  const _BrightnessSelector({required this.settings});
 
   @override
   Widget build(BuildContext context) {
-    return SegmentedButton<DayNightMode>(
-      segments: const [
-        ButtonSegment(value: DayNightMode.day, label: Text('Giorno'), icon: Icon(Icons.light_mode)),
-        ButtonSegment(value: DayNightMode.night, label: Text('Notte'), icon: Icon(Icons.dark_mode)),
-        ButtonSegment(value: DayNightMode.auto, label: Text('Auto'), icon: Icon(Icons.brightness_auto)),
+    return SegmentedButton<ClockBrightness>(
+      segments: [
+        for (final level in ClockBrightness.values)
+          ButtonSegment(value: level, label: Text(clockBrightnessLabels[level]!)),
       ],
-      selected: {settings.dayNightMode},
-      onSelectionChanged: (s) => settings.update(() => settings.dayNightMode = s.first),
+      selected: {settings.brightness},
+      onSelectionChanged: (s) {
+        settings.update(() => settings.brightness = s.first);
+        BrightnessService.apply(s.first);
+      },
     );
   }
 }
@@ -127,15 +143,68 @@ class _ClockStyleSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SegmentedButton<ClockFaceStyle>(
-      segments: const [
-        ButtonSegment(value: ClockFaceStyle.digital, label: Text('Android')),
-        ButtonSegment(value: ClockFaceStyle.dots, label: Text('Pallini')),
-        ButtonSegment(value: ClockFaceStyle.segments, label: Text('Linee')),
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final style in ClockFaceStyle.values)
+          ChoiceChip(
+            label: Text(clockFaceStyleLabels[style]!),
+            selected: settings.clockFaceStyle == style,
+            onSelected: (_) => settings.update(() => settings.clockFaceStyle = style),
+            selectedColor: settings.accentColor,
+            backgroundColor: Colors.white10,
+            labelStyle: TextStyle(
+              color: settings.clockFaceStyle == style ? Colors.black : Colors.white70,
+              fontWeight: settings.clockFaceStyle == style ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
       ],
-      selected: {settings.clockFaceStyle},
-      onSelectionChanged: (s) => settings.update(() => settings.clockFaceStyle = s.first),
     );
+  }
+}
+
+class _StyleOptionsSection extends StatelessWidget {
+  final ClockSettings settings;
+  const _StyleOptionsSection({required this.settings});
+
+  @override
+  Widget build(BuildContext context) {
+    if (settings.clockFaceStyle == ClockFaceStyle.dots) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 12),
+          const Text('Spaziatura pallini', style: TextStyle(color: Colors.white70)),
+          Slider(
+            value: settings.dotSpacingScale,
+            min: 0.7,
+            max: 1.6,
+            divisions: 9,
+            label: settings.dotSpacingScale.toStringAsFixed(1),
+            onChanged: (v) => settings.update(() => settings.dotSpacingScale = v),
+          ),
+        ],
+      );
+    }
+    if (settings.clockFaceStyle == ClockFaceStyle.segments) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 12),
+          const Text('Spessore linee', style: TextStyle(color: Colors.white70)),
+          Slider(
+            value: settings.segmentThicknessScale,
+            min: 0.6,
+            max: 1.5,
+            divisions: 9,
+            label: settings.segmentThicknessScale.toStringAsFixed(1),
+            onChanged: (v) => settings.update(() => settings.segmentThicknessScale = v),
+          ),
+        ],
+      );
+    }
+    return const SizedBox.shrink();
   }
 }
 

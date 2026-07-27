@@ -20,18 +20,20 @@ class DotMatrixClockFace extends StatelessWidget {
   final String timeText;
   final Color color;
   final double fontSize;
+  final double spacingScale;
 
   const DotMatrixClockFace({
     super.key,
     required this.timeText,
     required this.color,
     required this.fontSize,
+    this.spacingScale = 1.0,
   });
 
   @override
   Widget build(BuildContext context) {
     // fontSize funge da altezza di riferimento del quadrante.
-    final dotPitch = fontSize / 11;
+    final dotPitch = (fontSize / 11) * spacingScale;
     final width = timeText.length * (5 * dotPitch + dotPitch * 1.5);
     final height = 7 * dotPitch;
 
