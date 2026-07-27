@@ -20,5 +20,12 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^3.0.0
 
+# path_provider_android >= 2.3.0 ships a JNI-based Android implementation
+# (via the `jni` package) whose android/build.gradle is incompatible with
+# the AGP 9 / Kotlin 2.3 combo that current Flutter stable scaffolds.
+# Pin to the last pre-JNI release (plain Kotlin, no extra native module).
+dependency_overrides:
+  path_provider_android: 2.2.1
+
 flutter:
   uses-material-design: true
