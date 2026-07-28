@@ -31,24 +31,32 @@ sveglia contenuta nel resto del repository.
   eliminale. Sono riutilizzabili come immagine di riferimento nella
   generazione per mantenere lo stesso aspetto del personaggio. Ogni miniatura
   ha un'icona 👁️ per nasconderla/sfocarla (privacy sullo schermo).
-- **Prompt** — scrivi la scena in italiano (anche a voce, con il pulsante
-  microfono 🎤 di dettatura), traducila e ottimizzala in inglese (tag
-  comma-separated + booster di qualità) con un click; copia rapida degli
-  output con un pulsante dedicato. Seleziona un personaggio di riferimento
-  (viene preselezionato automaticamente l'ultimo caricato) per mantenerne la
-  coerenza nell'immagine generata. Testo, stile e personaggio scelto restano
-  salvati anche cambiando scheda o chiudendo il browser. La traduzione usa
-  l'API pubblica MyMemory con fallback automatico a un dizionario locale se
-  non c'è accesso a Internet.
-- **Director's Mode** — tre diagrammi trascinabili (non usa la fotocamera del
-  telefono): uno visto dall'alto per scegliere se inquadrare il personaggio
-  da davanti/di lato/da dietro (la freccia verde indica dove guarda), uno
-  laterale per l'altezza della camera (dall'alto/a livello occhi/dal basso), e
-  uno di zoom/inquadratura con anteprima live (una linea trascinabile su una
-  sagoma del personaggio mostra esattamente cosa resta dentro/fuori
-  inquadratura, dal viso alla figura intera). Insieme a illuminazione e
-  composizione, il tutto si applica al prompt con un click. Tutte le
-  impostazioni restano salvate anche cambiando scheda o chiudendo il browser.
+- **Crea Scena** — il flusso principale, tutto su una sola schermata in
+  passaggi numerati, senza dover saltare tra schede:
+  1. **Personaggio** — scegli il personaggio di riferimento (preselezionato
+     automaticamente l'ultimo caricato).
+  2. **Scena** — scrivi la descrizione in italiano (anche a voce, con il
+     pulsante microfono 🎤), stile e negativi extra.
+  3. **Regia (camera)** — tre diagrammi trascinabili (non usa la fotocamera
+     del telefono): vista dall'alto (davanti/lato/dietro + zoom, trascinando
+     la 📷 anche più vicina/lontana dal personaggio), vista laterale (altezza
+     camera), e zoom/inquadratura con anteprima live (una linea trascinabile
+     su una sagoma mostra esattamente cosa resta dentro/fuori, dal viso alla
+     figura intera) — sincronizzata con lo zoom del primo diagramma. Un
+     riquadro "Anteprima scena" riepiloga sempre in italiano cosa hai
+     impostato. "Applica alla scena" la aggiunge al prompt.
+  4. **Traduci** — traduce e ottimizza in inglese (tag comma-separated +
+     booster di qualità); include sempre un prompt negativo anatomico di
+     base. Copia rapida degli output con un pulsante dedicato.
+  5. **Genera** — invia a ComfyUI o all'IA esterna scelta (in alto), con
+     link diretto all'Archivio a fine generazione.
+
+  Tutto (testo, stile, personaggio, impostazioni di regia) resta salvato
+  anche cambiando scheda o chiudendo il browser, e il prompt si aggiorna da
+  solo se modifichi la regia dopo aver tradotto. Se preferisci generare a
+  mano su ChatGPT/Gemini (es. con un abbonamento Plus) c'è un pulsante che
+  copia il prompt e apre direttamente il sito dell'IA scelta; l'immagine del
+  personaggio si copia a parte dalla scheda Personaggi.
 - **Archivio** — galleria delle immagini generate, con icona 👁️ per
   nascondere/sfocare una miniatura (privacy) e toggle "Attiva" per includerla
   nel progetto corrente; download e cancellazione.

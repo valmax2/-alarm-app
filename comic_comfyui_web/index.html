@@ -34,8 +34,7 @@
   <button class="tab-btn" data-tab="tab-providers" role="tab" aria-selected="false">IA Esterne</button>
   <button class="tab-btn" data-tab="tab-workflows" role="tab" aria-selected="false">Workflow</button>
   <button class="tab-btn" data-tab="tab-characters" role="tab" aria-selected="false">Personaggi</button>
-  <button class="tab-btn" data-tab="tab-prompt" role="tab" aria-selected="false">Prompt</button>
-  <button class="tab-btn" data-tab="tab-director" role="tab" aria-selected="false">Director's Mode</button>
+  <button class="tab-btn" data-tab="tab-prompt" role="tab" aria-selected="false">Crea Scena</button>
   <button class="tab-btn" data-tab="tab-archive" role="tab" aria-selected="false">Archivio</button>
 </nav>
 
@@ -179,12 +178,24 @@
     <div id="character-grid" class="card-grid"></div>
   </section>
 
-  <!-- PROMPT -->
+  <!-- CREA SCENA (flusso unico: personaggio → scena → regia → genera) -->
   <section id="tab-prompt" class="tab-panel">
-    <h2>Generatore di Prompt</h2>
-    <p class="hint">Scrivi la scena in italiano: verrà tradotta e ottimizzata in inglese per la generazione dell'immagine.</p>
+    <h2>Crea Scena</h2>
+    <p class="hint">Percorso completo su una sola schermata: scegli il personaggio, scrivi la scena, imposta la camera, poi genera. La modalità IA (in alto) resta valida per tutti i passaggi.</p>
     <p class="status-box" id="prompt-mode-indicator"></p>
+
     <div class="card form-grid">
+      <h3 class="step-title full">1. Personaggio</h3>
+      <label class="full">Personaggio di riferimento
+        <select id="prompt-character-select">
+          <option value="">— nessuno —</option>
+        </select>
+      </label>
+      <p class="status-box full" id="prompt-character-hint"></p>
+    </div>
+
+    <div class="card form-grid">
+      <h3 class="step-title full">2. Scena</h3>
       <label class="full">Descrizione scena (italiano)
         <div class="textarea-with-mic">
           <textarea id="prompt-input-it" rows="4" placeholder="Es: primo piano di una ragazza guerriera con capelli rossi, armatura scintillante, luce drammatica al tramonto"></textarea>
@@ -205,20 +216,82 @@
           <textarea id="prompt-input-neg-it" rows="2" placeholder="Es: occhiali, cappello, sfondo urbano"></textarea>
           <button type="button" id="prompt-input-neg-it-mic" class="mic-btn" title="Detta a voce">🎤</button>
         </div>
-        <span class="hint small">Un prompt negativo per l'anatomia corretta è già incluso di default (vedi sotto); qui aggiungi solo cose extra da evitare.</span>
+        <span class="hint small">Un prompt negativo per l'anatomia corretta è già incluso di default; qui aggiungi solo cose extra da evitare.</span>
       </label>
-      <label>Personaggio di riferimento
-        <select id="prompt-character-select">
-          <option value="">— nessuno —</option>
-        </select>
-      </label>
-      <p class="status-box full" id="prompt-character-hint"></p>
+    </div>
+
+    <div class="card">
+      <h3 class="step-title">3. Regia (camera)</h3>
+      <p class="hint">Trascina l'icona 📷 nei diagrammi per decidere da dove verrà "vista" l'immagine, poi applica alla scena. Non usa la fotocamera del telefono: sono schemi visivi.</p>
+      <div class="director-layout">
+        <div class="director-diagrams">
+          <div class="director-diagram-box">
+            <h3>Vista dall'alto (angolo + zoom)</h3>
+            <canvas id="director-topdown" width="240" height="240"></canvas>
+            <p class="director-diagram-label" id="director-topdown-label">Frontale</p>
+            <p class="hint small">La freccia verde indica dove guarda il personaggio. Trascina la 📷 anche più vicina o lontana per zoomare — si aggiorna anche il riquadro Zoom qui a destra.</p>
+          </div>
+          <div class="director-diagram-box">
+            <h3>Vista laterale (sopra / occhi / sotto)</h3>
+            <canvas id="director-elevation" width="200" height="240"></canvas>
+            <p class="director-diagram-label" id="director-elevation-label">Altezza occhi</p>
+          </div>
+          <div class="director-diagram-box">
+            <h3>Zoom / Inquadratura</h3>
+            <canvas id="director-framing" width="160" height="240"></canvas>
+            <p class="director-diagram-label" id="director-framing-label">Piano medio</p>
+            <p class="hint small">Trascina la linea: l'area scura è ciò che resta fuori dall'inquadratura (collegato alla vista dall'alto).</p>
+          </div>
+        </div>
+        <div class="director-controls">
+          <div class="scene-preview">
+            <h3>📋 Anteprima scena</h3>
+            <ul>
+              <li><strong>Vista:</strong> <span id="preview-topdown">Frontale</span></li>
+              <li><strong>Altezza camera:</strong> <span id="preview-elevation">Altezza occhi</span></li>
+              <li><strong>Zoom:</strong> <span id="preview-framing">Piano americano (tre quarti)</span></li>
+              <li><strong>Illuminazione:</strong> <span id="preview-lighting">Naturale morbida</span></li>
+              <li><strong>Composizione:</strong> <span id="preview-composition">Regola dei terzi</span></li>
+            </ul>
+          </div>
+          <label>Illuminazione
+            <select id="director-lighting">
+              <option value="soft natural lighting">Naturale morbida</option>
+              <option value="dramatic rim lighting">Controluce drammatico</option>
+              <option value="cinematic backlight, lens flare">Controluce cinematografico</option>
+              <option value="neon lighting, cyberpunk glow">Neon</option>
+              <option value="golden hour sunset lighting">Ora dorata (tramonto)</option>
+              <option value="hard studio spotlight, high contrast">Faretto da studio</option>
+            </select>
+          </label>
+          <label>Composizione
+            <select id="director-composition">
+              <option value="rule of thirds composition">Regola dei terzi</option>
+              <option value="centered symmetrical composition">Simmetrica centrale</option>
+              <option value="dynamic diagonal composition">Diagonale dinamica</option>
+              <option value="negative space composition">Spazio negativo</option>
+            </select>
+          </label>
+          <div class="form-actions">
+            <button id="director-apply-btn" class="btn success" type="button">➕ Applica alla scena</button>
+            <button id="director-clear-btn" class="btn ghost" type="button">Svuota</button>
+          </div>
+          <div id="director-applied-list" class="applied-tags"></div>
+        </div>
+      </div>
+      <p class="hint small">Le impostazioni di regia restano salvate anche cambiando scheda o chiudendo il browser.</p>
+    </div>
+
+    <div class="card form-grid">
+      <h3 class="step-title full">4. Traduci</h3>
       <div class="form-actions full">
         <button id="prompt-translate-btn" class="btn primary" type="button">Traduci &amp; Ottimizza</button>
       </div>
     </div>
 
     <div class="card">
+      <h3 class="step-title">5. Genera</h3>
+      <p class="hint small">La modalità (ComfyUI locale / IA Esterna) si sceglie in alto nell'intestazione — resta impostata anche qui.</p>
       <div class="output-header">
         <h3>Prompt generato (EN)</h3>
         <button id="prompt-copy-btn" class="btn small" type="button" title="Copia prompt">📋 Copia</button>
@@ -240,69 +313,6 @@
       <div class="manual-bridge">
         <button id="prompt-copy-open-btn" class="btn primary" type="button">📋🔗 Copia prompt e apri IA</button>
         <p class="hint small">Copia il prompt negli appunti e apre il sito dell'IA selezionata in "IA Esterne" — incolla lì il testo, poi l'immagine del personaggio (scheda Personaggi → Copia immagine).</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- DIRECTOR'S MODE -->
-  <section id="tab-director" class="tab-panel">
-    <h2>Director's Mode</h2>
-    <p class="hint">Trascina l'icona 📷 nei diagrammi per decidere da dove verrà "vista" l'immagine rispetto al personaggio, poi applica al prompt. Non usa la fotocamera del telefono: sono schemi visivi.</p>
-    <div class="director-layout">
-      <div class="director-diagrams">
-        <div class="director-diagram-box">
-          <h3>Vista dall'alto (angolo + zoom)</h3>
-          <canvas id="director-topdown" width="240" height="240"></canvas>
-          <p class="director-diagram-label" id="director-topdown-label">Frontale</p>
-          <p class="hint small">La freccia verde indica dove guarda il personaggio. Trascina la 📷 anche più vicina o lontana per zoomare — si aggiorna anche il riquadro Zoom qui a destra.</p>
-        </div>
-        <div class="director-diagram-box">
-          <h3>Vista laterale (sopra / occhi / sotto)</h3>
-          <canvas id="director-elevation" width="200" height="240"></canvas>
-          <p class="director-diagram-label" id="director-elevation-label">Altezza occhi</p>
-        </div>
-        <div class="director-diagram-box">
-          <h3>Zoom / Inquadratura</h3>
-          <canvas id="director-framing" width="160" height="240"></canvas>
-          <p class="director-diagram-label" id="director-framing-label">Piano medio</p>
-          <p class="hint small">Trascina la linea: l'area scura è ciò che resta fuori dall'inquadratura (collegato alla vista dall'alto).</p>
-        </div>
-      </div>
-      <div class="director-controls card">
-        <div class="scene-preview">
-          <h3>📋 Anteprima scena</h3>
-          <ul>
-            <li><strong>Vista:</strong> <span id="preview-topdown">Frontale</span></li>
-            <li><strong>Altezza camera:</strong> <span id="preview-elevation">Altezza occhi</span></li>
-            <li><strong>Zoom:</strong> <span id="preview-framing">Piano americano (tre quarti)</span></li>
-            <li><strong>Illuminazione:</strong> <span id="preview-lighting">Naturale morbida</span></li>
-            <li><strong>Composizione:</strong> <span id="preview-composition">Regola dei terzi</span></li>
-          </ul>
-        </div>
-        <label>Illuminazione
-          <select id="director-lighting">
-            <option value="soft natural lighting">Naturale morbida</option>
-            <option value="dramatic rim lighting">Controluce drammatico</option>
-            <option value="cinematic backlight, lens flare">Controluce cinematografico</option>
-            <option value="neon lighting, cyberpunk glow">Neon</option>
-            <option value="golden hour sunset lighting">Ora dorata (tramonto)</option>
-            <option value="hard studio spotlight, high contrast">Faretto da studio</option>
-          </select>
-        </label>
-        <label>Composizione
-          <select id="director-composition">
-            <option value="rule of thirds composition">Regola dei terzi</option>
-            <option value="centered symmetrical composition">Simmetrica centrale</option>
-            <option value="dynamic diagonal composition">Diagonale dinamica</option>
-            <option value="negative space composition">Spazio negativo</option>
-          </select>
-        </label>
-        <div class="form-actions">
-          <button id="director-apply-btn" class="btn success" type="button">➕ Applica al Prompt</button>
-          <button id="director-clear-btn" class="btn ghost" type="button">Svuota</button>
-        </div>
-        <div id="director-applied-list" class="applied-tags"></div>
-        <p class="hint small">Le impostazioni di regia restano salvate anche cambiando scheda o chiudendo il browser.</p>
       </div>
     </div>
   </section>

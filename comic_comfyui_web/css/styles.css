@@ -134,6 +134,15 @@ h2 { margin-top: 0; }
 .hint { color: var(--text-dim); font-size: 13px; margin-top: -8px; margin-bottom: 16px; }
 .hint.small { font-size: 12px; }
 
+.step-title {
+  margin: 0 0 14px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border);
