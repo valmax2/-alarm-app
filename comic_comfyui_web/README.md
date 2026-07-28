@@ -26,19 +26,27 @@ sveglia contenuta nel resto del repository.
   (Menu ComfyUI → "Save (API Format)"), selezionane uno come attivo e mappa
   quali nodi ricevono prompt positivo, prompt negativo, immagine di riferimento
   e seed.
-- **Personaggi** — carica, rinomina ed elimina immagini di riferimento dei
-  personaggi, riutilizzabili come reference image nella generazione.
+- **Personaggi** — il tuo archivio personaggi: carica immagini dalla galleria
+  o scattale direttamente con la fotocamera del telefono, rinominale ed
+  eliminale. Sono riutilizzabili come immagine di riferimento nella
+  generazione per mantenere lo stesso aspetto del personaggio. Ogni miniatura
+  ha un'icona 👁️ per nasconderla/sfocarla (privacy sullo schermo).
 - **Prompt** — scrivi la scena in italiano, traducila e ottimizzala in inglese
   (tag comma-separated + booster di qualità) con un click; copia rapida degli
-  output con un pulsante dedicato. La traduzione usa l'API pubblica MyMemory
+  output con un pulsante dedicato. Seleziona un personaggio di riferimento
+  (viene preselezionato automaticamente l'ultimo caricato) per mantenerne la
+  coerenza nell'immagine generata. La traduzione usa l'API pubblica MyMemory
   con fallback automatico a un dizionario locale se non c'è accesso a
   Internet.
-- **Director's Mode** — usa la webcam per provare angolazioni di camera,
-  illuminazione, inquadratura e composizione (con griglia dei terzi), cattura
-  scatti da salvare come riferimento personaggio, e applica le direttive
-  scelte al prompt generato.
-- **Archivio** — galleria delle immagini generate, con toggle indipendenti per
-  privacy e attivazione nel progetto, download e cancellazione.
+- **Director's Mode** — due diagrammi trascinabili (non usa la fotocamera del
+  telefono): uno visto dall'alto per scegliere se inquadrare il personaggio
+  da davanti/di lato/da dietro (la freccia verde indica dove guarda), uno
+  laterale per l'altezza della camera (dall'alto/a livello occhi/dal basso).
+  Insieme a illuminazione, inquadratura e composizione, il tutto si applica
+  al prompt con un click.
+- **Archivio** — galleria delle immagini generate, con icona 👁️ per
+  nascondere/sfocare una miniatura (privacy) e toggle "Attiva" per includerla
+  nel progetto corrente; download e cancellazione.
 
 ## Uso
 

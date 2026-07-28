@@ -1,5 +1,5 @@
 import { db } from "./db.js";
-import { qs, el, uid, toast, formatBytes, formatDate, sanitizeFilename } from "./utils.js";
+import { qs, el, uid, toast, formatBytes, formatDate, sanitizeFilename, thumbWithPrivacyToggle } from "./utils.js";
 
 const STORE = "characters";
 const MAX_SIZE = 15 * 1024 * 1024; // 15MB per image, generous but bounded
@@ -36,9 +36,14 @@ function renderGrid() {
   for (const character of cache) {
     const url = URL.createObjectURL(character.blob);
     const nameDisplay = el("div", { class: "name", text: character.name });
+    const isHidden = character.visible === false;
 
     const card = el("div", { class: "item-card" }, [
-      el("img", { src: url, alt: character.name, loading: "lazy" }),
+      thumbWithPrivacyToggle(url, character.name, isHidden, async () => {
+        character.visible = isHidden ? true : false;
+        await db.put(STORE, character);
+        renderGrid();
+      }),
       nameDisplay,
       el("div", { class: "meta", text: `${formatBytes(character.blob.size)} · ${formatDate(character.createdAt)}` }),
       el("div", { class: "row" }, [
@@ -93,6 +98,7 @@ export async function addCharacterFromBlob(blob, name) {
     id: uid(),
     name: sanitizeFilename(name),
     blob,
+    visible: true,
     createdAt: Date.now(),
   };
   await db.put(STORE, record);
@@ -122,6 +128,10 @@ export async function initCharacters() {
   renderGrid();
 
   qs("#character-upload").addEventListener("change", (e) => {
+    if (e.target.files?.length) handleUpload(e.target.files);
+    e.target.value = "";
+  });
+  qs("#character-camera-upload").addEventListener("change", (e) => {
     if (e.target.files?.length) handleUpload(e.target.files);
     e.target.value = "";
   });

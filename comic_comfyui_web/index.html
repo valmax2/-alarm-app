@@ -163,11 +163,15 @@
   <!-- CHARACTERS -->
   <section id="tab-characters" class="tab-panel">
     <h2>Gestione Personaggi</h2>
-    <p class="hint">Carica immagini di riferimento per i personaggi e rinominale per riconoscerle facilmente nei prompt.</p>
-    <div class="card">
+    <p class="hint">Questo è il tuo archivio personaggi: le immagini restano qui e le richiami nella scheda Prompt per mantenere lo stesso aspetto nelle immagini generate. Tocca l'icona 👁️ su una miniatura per nasconderla/sfocarla (privacy).</p>
+    <div class="card upload-row">
       <label class="file-drop" for="character-upload">
         <input type="file" id="character-upload" accept="image/*" multiple hidden>
-        <span>🖼️ Carica immagini personaggio</span>
+        <span>🖼️ Carica dalla galleria</span>
+      </label>
+      <label class="file-drop" for="character-camera-upload">
+        <input type="file" id="character-camera-upload" accept="image/*" capture="environment" hidden>
+        <span>📷 Scatta foto personaggio</span>
       </label>
     </div>
     <div id="character-grid" class="card-grid"></div>
@@ -199,6 +203,7 @@
           <option value="">— nessuno —</option>
         </select>
       </label>
+      <p class="status-box full" id="prompt-character-hint"></p>
       <div class="form-actions full">
         <button id="prompt-translate-btn" class="btn primary" type="button">Traduci &amp; Ottimizza</button>
       </div>
@@ -227,29 +232,22 @@
   <!-- DIRECTOR'S MODE -->
   <section id="tab-director" class="tab-panel">
     <h2>Director's Mode</h2>
-    <p class="hint">Usa la webcam per impostare inquadratura, illuminazione e composizione prima di generare l'immagine.</p>
+    <p class="hint">Trascina l'icona 📷 nei due diagrammi per decidere da dove verrà "vista" l'immagine rispetto al personaggio, poi applica al prompt. Non usa la fotocamera del telefono: è uno schema visivo.</p>
     <div class="director-layout">
-      <div class="director-stage">
-        <video id="director-video" autoplay playsinline muted></video>
-        <canvas id="director-overlay"></canvas>
-        <canvas id="director-capture" hidden></canvas>
-        <div class="director-stage-actions">
-          <button id="director-start-btn" class="btn primary" type="button">🎥 Avvia webcam</button>
-          <button id="director-snapshot-btn" class="btn" type="button" disabled>📸 Cattura scatto</button>
-          <button id="director-stop-btn" class="btn ghost" type="button" disabled>⏹ Ferma</button>
+      <div class="director-diagrams">
+        <div class="director-diagram-box">
+          <h3>Vista dall'alto (davanti / lato / dietro)</h3>
+          <canvas id="director-topdown" width="240" height="240"></canvas>
+          <p class="director-diagram-label" id="director-topdown-label">Frontale</p>
+          <p class="hint small">La freccia verde indica dove guarda il personaggio.</p>
+        </div>
+        <div class="director-diagram-box">
+          <h3>Vista laterale (sopra / occhi / sotto)</h3>
+          <canvas id="director-elevation" width="200" height="240"></canvas>
+          <p class="director-diagram-label" id="director-elevation-label">Altezza occhi</p>
         </div>
       </div>
       <div class="director-controls card">
-        <label>Angolazione camera
-          <select id="director-angle">
-            <option value="eye-level angle">Altezza occhi</option>
-            <option value="low angle shot, looking up">Angolazione dal basso</option>
-            <option value="high angle shot, looking down">Angolazione dall'alto</option>
-            <option value="dutch angle, tilted horizon">Angolazione olandese (inclinata)</option>
-            <option value="bird's eye view">Vista dall'alto (bird's eye)</option>
-            <option value="worm's eye view">Vista dal basso (worm's eye)</option>
-          </select>
-        </label>
         <label>Illuminazione
           <select id="director-lighting">
             <option value="soft natural lighting">Naturale morbida</option>
@@ -277,12 +275,11 @@
             <option value="negative space composition">Spazio negativo</option>
           </select>
         </label>
-        <label class="checkbox-row">
-          <input type="checkbox" id="director-grid-toggle" checked>
-          Mostra griglia regola dei terzi
-        </label>
-        <button id="director-apply-btn" class="btn success" type="button">➕ Applica al Prompt</button>
-        <p class="hint small">Lo scatto catturato può essere salvato come nuovo riferimento personaggio.</p>
+        <div class="form-actions">
+          <button id="director-apply-btn" class="btn success" type="button">➕ Applica al Prompt</button>
+          <button id="director-clear-btn" class="btn ghost" type="button">Svuota</button>
+        </div>
+        <div id="director-applied-list" class="applied-tags"></div>
       </div>
     </div>
   </section>
@@ -290,7 +287,7 @@
   <!-- ARCHIVE -->
   <section id="tab-archive" class="tab-panel">
     <h2>Archivio Immagini</h2>
-    <p class="hint">Tutte le immagini generate. Attiva/disattiva la visibilità pubblica (privacy) e l'attivazione nel progetto.</p>
+    <p class="hint">Tutte le immagini generate. Tocca l'icona 👁️ su un'immagine per nasconderla/sfocarla (privacy); "Attiva" la include nel progetto corrente.</p>
     <div class="archive-toolbar">
       <label class="checkbox-row"><input type="checkbox" id="archive-filter-active"> Solo attive</label>
       <label class="checkbox-row"><input type="checkbox" id="archive-filter-private"> Solo private</label>

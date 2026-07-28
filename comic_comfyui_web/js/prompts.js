@@ -11,6 +11,22 @@ import { generateImageExternal, getProviderMeta, ProviderError } from "./provide
 const sessionClientId = uid();
 let lastGenerated = { positive: "", negative: "" };
 
+function updateCharacterHint() {
+  const select = qs("#prompt-character-select");
+  const hint = qs("#prompt-character-hint");
+  const selected = listCharacters().find((c) => c.id === select.value);
+  if (selected) {
+    hint.textContent = `✅ Userò "${selected.name}" come riferimento: l'IA cercherà di mantenere lo stesso aspetto del personaggio nell'immagine generata.`;
+    hint.className = "status-box full ok";
+  } else if (listCharacters().length > 0) {
+    hint.textContent = "⚠️ Nessun personaggio selezionato: l'immagine generata non avrà un aspetto coerente con nessuno dei tuoi personaggi.";
+    hint.className = "status-box full error";
+  } else {
+    hint.textContent = "Carica un personaggio nella scheda 'Personaggi' per mantenerne l'aspetto coerente nelle immagini generate.";
+    hint.className = "status-box full";
+  }
+}
+
 function refreshCharacterSelect() {
   const select = qs("#prompt-character-select");
   const current = select.value;
@@ -19,7 +35,15 @@ function refreshCharacterSelect() {
   for (const character of listCharacters()) {
     select.appendChild(el("option", { value: character.id }, character.name));
   }
-  if ([...select.options].some((o) => o.value === current)) select.value = current;
+  const stillExists = [...select.options].some((o) => o.value === current);
+  if (stillExists && current) {
+    select.value = current;
+  } else if (!current && listCharacters().length > 0) {
+    // Nothing was explicitly chosen yet: default to the most recently added character
+    // instead of silently generating with no reference image.
+    select.value = listCharacters()[0].id;
+  }
+  updateCharacterHint();
 }
 
 function setSendStatus(message, type = "") {
@@ -230,6 +254,7 @@ export function initPrompts() {
   qs("#prompt-copy-btn").addEventListener("click", () => handleCopy("prompt-output-en", "Prompt"));
   qs("#prompt-copy-neg-btn").addEventListener("click", () => handleCopy("prompt-output-neg-en", "Prompt negativo"));
   qs("#prompt-send-btn").addEventListener("click", handleSend);
+  qs("#prompt-character-select").addEventListener("change", updateCharacterHint);
 
   // Re-check indicator whenever the user switches to the Prompt tab or changes active provider.
   document.querySelectorAll('.tab-btn[data-tab="tab-prompt"]').forEach((btn) =>

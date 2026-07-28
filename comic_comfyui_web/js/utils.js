@@ -24,6 +24,21 @@ export function el(tag, attrs = {}, children = []) {
   return node;
 }
 
+export function thumbWithPrivacyToggle(url, alt, isHidden, onToggle) {
+  const img = el("img", { src: url, alt, loading: "lazy", class: isHidden ? "blurred" : "" });
+  const btn = el(
+    "button",
+    {
+      class: "eye-toggle-btn",
+      type: "button",
+      title: isHidden ? "Mostra immagine" : "Nascondi immagine (privacy)",
+      onclick: onToggle,
+    },
+    isHidden ? "🙈" : "👁️"
+  );
+  return el("div", { class: "thumb-wrap" }, [img, btn]);
+}
+
 export function uid() {
   if (crypto?.randomUUID) return crypto.randomUUID();
   return "id-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);

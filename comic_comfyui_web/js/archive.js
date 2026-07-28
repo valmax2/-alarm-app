@@ -1,5 +1,5 @@
 import { db } from "./db.js";
-import { qs, el, uid, toast, formatBytes, formatDate, downloadBlob, sanitizeFilename } from "./utils.js";
+import { qs, el, uid, toast, formatBytes, formatDate, downloadBlob, sanitizeFilename, thumbWithPrivacyToggle } from "./utils.js";
 
 const STORE = "images";
 
@@ -62,19 +62,11 @@ function renderGrid() {
   for (const record of visible) {
     const url = URL.createObjectURL(record.blob);
     const card = el("div", { class: "item-card" }, [
-      el("img", { src: url, alt: record.name, loading: "lazy" }),
+      thumbWithPrivacyToggle(url, record.name, !!record.private, () => toggleField(record, "private")),
       el("div", { class: "name", text: record.name }),
       el("div", { class: "meta", text: `${formatBytes(record.blob.size)} · ${formatDate(record.createdAt)}` }),
       record.workflowName ? el("div", { class: "meta", text: `Workflow: ${record.workflowName}` }) : null,
       el("div", { class: "row" }, [
-        el("label", { class: "toggle" }, [
-          el("input", {
-            type: "checkbox",
-            checked: record.private ? "checked" : false,
-            onchange: () => toggleField(record, "private"),
-          }),
-          "Privata",
-        ]),
         el("label", { class: "toggle" }, [
           el("input", {
             type: "checkbox",
