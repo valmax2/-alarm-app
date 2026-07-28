@@ -102,6 +102,35 @@ export async function copyToClipboard(text) {
   }
 }
 
+async function toPngBlob(blob) {
+  const bitmap = await createImageBitmap(blob);
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  canvas.getContext("2d").drawImage(bitmap, 0, 0);
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob failed"))), "image/png");
+  });
+}
+
+/**
+ * Copies an image to the system clipboard (as PNG, the most broadly
+ * supported clipboard image format) so it can be pasted directly into
+ * another app/site — e.g. attaching a character reference photo in
+ * ChatGPT's own chat input. Returns false if unsupported so callers can
+ * fall back to a plain download.
+ */
+export async function copyImageToClipboard(blob) {
+  if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") return false;
+  try {
+    const pngBlob = await toPngBlob(blob);
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": pngBlob })]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = el("a", { href: url, download: filename });

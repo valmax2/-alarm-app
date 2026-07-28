@@ -1,5 +1,5 @@
 import { db } from "./db.js";
-import { qs, el, uid, toast, formatBytes, formatDate, sanitizeFilename, thumbWithPrivacyToggle } from "./utils.js";
+import { qs, el, uid, toast, formatBytes, formatDate, sanitizeFilename, thumbWithPrivacyToggle, copyImageToClipboard, downloadBlob } from "./utils.js";
 
 const STORE = "characters";
 const MAX_SIZE = 15 * 1024 * 1024; // 15MB per image, generous but bounded
@@ -46,6 +46,25 @@ function renderGrid() {
       }),
       nameDisplay,
       el("div", { class: "meta", text: `${formatBytes(character.blob.size)} · ${formatDate(character.createdAt)}` }),
+      el("div", { class: "row" }, [
+        el("button", {
+          class: "btn small",
+          type: "button",
+          title: "Copia la foto negli appunti, per incollarla in un'altra app (es. ChatGPT)",
+          onclick: async () => {
+            const ok = await copyImageToClipboard(character.blob);
+            toast(
+              ok ? "Immagine copiata: ora puoi incollarla (es. in ChatGPT)." : "Copia non supportata su questo browser: usa Scarica.",
+              ok ? "success" : "error"
+            );
+          },
+        }, "📋 Copia immagine"),
+        el("button", {
+          class: "btn small",
+          type: "button",
+          onclick: () => downloadBlob(character.blob, `${sanitizeFilename(character.name)}.png`),
+        }, "⬇️ Scarica"),
+      ]),
       el("div", { class: "row" }, [
         el("button", {
           class: "btn small",
