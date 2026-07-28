@@ -165,6 +165,30 @@ async function handleCopy(sourceId, label) {
   toast(ok ? `${label} copiato negli appunti.` : "Copia non riuscita.", ok ? "success" : "error");
 }
 
+function updateCopyOpenButton() {
+  const meta = getProviderMeta(getActiveProvider());
+  qs("#prompt-copy-open-btn").textContent = `📋🔗 Copia prompt e apri ${meta?.label || "IA"}`;
+}
+
+async function handleCopyAndOpen() {
+  const positive = qs("#prompt-output-en").value.trim();
+  if (!positive) {
+    toast("Genera prima il prompt (Traduci & Ottimizza).", "error");
+    return;
+  }
+  const negative = qs("#prompt-output-neg-en").value.trim();
+  const combined = negative ? `${positive}\n\nDa evitare: ${negative}` : positive;
+
+  const meta = getProviderMeta(getActiveProvider());
+  const ok = await copyToClipboard(combined);
+  if (!ok) {
+    toast("Copia non riuscita.", "error");
+    return;
+  }
+  if (meta?.consumerAppUrl) window.open(meta.consumerAppUrl, "_blank", "noopener");
+  toast(`Prompt copiato. Ho aperto ${meta?.label || "l'IA"}: incolla il testo, poi l'immagine del personaggio.`, "success");
+}
+
 function deepClone(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
@@ -305,6 +329,7 @@ function updateModeIndicator() {
     indicator.textContent = "🖥️ Modalità ComfyUI locale — usa il workflow attivo configurato nella scheda 'Workflow'.";
     sendBtn.textContent = "🚀 Invia a ComfyUI";
   }
+  updateCopyOpenButton();
 }
 
 export function initPrompts() {
@@ -324,6 +349,7 @@ export function initPrompts() {
   qs("#prompt-view-archive-btn").addEventListener("click", () => {
     window.dispatchEvent(new CustomEvent("request-tab", { detail: "tab-archive" }));
   });
+  qs("#prompt-copy-open-btn").addEventListener("click", handleCopyAndOpen);
   qs("#prompt-character-select").addEventListener("change", () => {
     updateCharacterHint();
     saveDraft();

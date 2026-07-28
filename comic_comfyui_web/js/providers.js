@@ -18,6 +18,7 @@ export const PROVIDERS = [
     defaultModel: "gemini-2.5-flash-image",
     modelHint: "Modello Gemini con generazione immagini, es. gemini-2.5-flash-image",
     supportsReferenceImage: true,
+    consumerAppUrl: "https://gemini.google.com/app",
   },
   {
     id: "openai",
@@ -26,6 +27,7 @@ export const PROVIDERS = [
     defaultModel: "gpt-image-1",
     modelHint: "gpt-image-1, dall-e-3 o dall-e-2",
     supportsReferenceImage: true,
+    consumerAppUrl: "https://chatgpt.com/",
   },
   {
     id: "leonardo",
@@ -34,6 +36,7 @@ export const PROVIDERS = [
     defaultModel: "",
     modelHint: "ID modello Leonardo opzionale (vuoto = default della piattaforma)",
     supportsReferenceImage: false,
+    consumerAppUrl: "https://app.leonardo.ai/",
   },
 ];
 

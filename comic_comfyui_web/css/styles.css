@@ -312,6 +312,12 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .output-header h3 { margin: 0; font-size: 14px; }
 #prompt-output-en, #prompt-output-neg-en { width: 100%; margin-top: 6px; }
 
+.manual-bridge {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border);
+}
+
 .director-layout {
   display: grid;
   grid-template-columns: 2fr 1fr;
