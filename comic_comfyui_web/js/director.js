@@ -62,6 +62,18 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+// Live, human-readable recap of the current diagram/select state — updates
+// as you drag, independent of whether it's been applied to the prompt yet.
+function updateScenePreview() {
+  qs("#preview-topdown").textContent = bucketFor(HORIZONTAL_BUCKETS, state.horizontalAngle).it;
+  qs("#preview-elevation").textContent = bucketFor(VERTICAL_BUCKETS, state.verticalAngle).it;
+  qs("#preview-framing").textContent = bucketFor(FRAMING_BUCKETS, state.framingBoundaryY).it;
+  const lightingSelect = qs("#director-lighting");
+  const compositionSelect = qs("#director-composition");
+  qs("#preview-lighting").textContent = lightingSelect.options[lightingSelect.selectedIndex]?.text || "";
+  qs("#preview-composition").textContent = compositionSelect.options[compositionSelect.selectedIndex]?.text || "";
+}
+
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -147,6 +159,7 @@ function initTopDownDiagram() {
     state.horizontalAngle = deg;
     drawTopDown();
     qs("#director-topdown-label").textContent = bucketFor(HORIZONTAL_BUCKETS, state.horizontalAngle).it;
+    updateScenePreview();
   }
 
   canvas.addEventListener("pointerdown", (evt) => {
@@ -215,6 +228,7 @@ function initElevationDiagram() {
     state.verticalAngle = canvasAngleDeg + 90;
     drawElevation();
     qs("#director-elevation-label").textContent = bucketFor(VERTICAL_BUCKETS, state.verticalAngle).it;
+    updateScenePreview();
   }
 
   canvas.addEventListener("pointerdown", (evt) => {
@@ -288,6 +302,7 @@ function initFramingDiagram() {
     state.framingBoundaryY = clamp(py, FRAMING_MIN_Y, FRAMING_MAX_Y);
     drawFraming();
     qs("#director-framing-label").textContent = bucketFor(FRAMING_BUCKETS, state.framingBoundaryY).it;
+    updateScenePreview();
   }
 
   canvas.addEventListener("pointerdown", (evt) => {
@@ -357,14 +372,17 @@ export function initDirector() {
   initElevationDiagram();
   initFramingDiagram();
   renderAppliedList();
+  updateScenePreview();
 
   qs("#director-lighting").addEventListener("change", (e) => {
     state.lighting = e.target.value;
     saveState();
+    updateScenePreview();
   });
   qs("#director-composition").addEventListener("change", (e) => {
     state.composition = e.target.value;
     saveState();
+    updateScenePreview();
   });
 
   qs("#director-apply-btn").addEventListener("click", applyToPrompt);
