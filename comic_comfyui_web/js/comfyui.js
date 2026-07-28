@@ -57,9 +57,17 @@ export class ComfyUIClient {
   }
 
   async queuePrompt(promptGraph, clientId) {
+    // Deliberately NOT setting Content-Type: application/json — that header
+    // value isn't CORS-safelisted, so the browser would send a preflight
+    // OPTIONS request first. ComfyUI's --enable-cors-header only adds CORS
+    // headers to real responses, not to OPTIONS preflights, so the
+    // preflight gets no Access-Control-Allow-* headers back and the browser
+    // blocks the actual POST before it's ever sent. Omitting the header
+    // makes fetch default to text/plain (CORS-safelisted, no preflight);
+    // ComfyUI's server parses the body as JSON regardless of the
+    // Content-Type it was sent with.
     const response = await this._fetch("/prompt", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt: promptGraph, client_id: clientId }),
     });
     return response.json(); // { prompt_id, number, node_errors }
