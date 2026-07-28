@@ -46,6 +46,27 @@ function getAspectRatioOption() {
   };
 }
 
+// Frame count / FPS only matter for animation workflows and only apply if
+// the active workflow has them mapped (see workflows.js's "frameCount"/"fps"
+// roles) — left blank, they're simply not sent and the workflow's own
+// default values are used untouched.
+function getFrameCount() {
+  const value = qs("#prompt-frame-count").value.trim();
+  return value ? Math.max(1, Math.round(Number(value))) : null;
+}
+
+function getFps() {
+  const value = qs("#prompt-fps").value.trim();
+  return value ? Math.max(1, Math.round(Number(value))) : null;
+}
+
+function updateDurationHint() {
+  const frames = getFrameCount();
+  const fps = getFps();
+  const hint = qs("#prompt-duration-hint");
+  hint.textContent = frames && fps ? `Durata stimata: ${(frames / fps).toFixed(1)}s (${frames} frame a ${fps} fps).` : "";
+}
+
 function saveDraft() {
   const draft = {
     sceneIt: qs("#prompt-input-it").value,
@@ -53,6 +74,8 @@ function saveDraft() {
     style: qs("#prompt-style").value,
     qualityTags: getQualityTags(),
     aspectRatio: qs("#prompt-aspect-ratio").value,
+    frameCount: qs("#prompt-frame-count").value,
+    fps: qs("#prompt-fps").value,
     characterIds: getSelectedCharacterIds(),
     outputEn: qs("#prompt-output-en").value,
     outputNegEn: qs("#prompt-output-neg-en").value,
@@ -87,6 +110,9 @@ function restoreDraft() {
   if (draft.style !== undefined) qs("#prompt-style").value = draft.style;
   if (draft.aspectRatio !== undefined) qs("#prompt-aspect-ratio").value = draft.aspectRatio;
   setQualityTags(draft.qualityTags);
+  qs("#prompt-frame-count").value = draft.frameCount || "";
+  qs("#prompt-fps").value = draft.fps || "";
+  updateDurationHint();
   qs("#prompt-output-en").value = draft.outputEn || "";
   qs("#prompt-output-neg-en").value = draft.outputNegEn || "";
   lastSceneEn = draft.lastSceneEn ?? null;
@@ -106,6 +132,8 @@ export function getSceneDraftForSaving() {
     style: qs("#prompt-style").value,
     qualityTags: getQualityTags(),
     aspectRatio: qs("#prompt-aspect-ratio").value,
+    frameCount: qs("#prompt-frame-count").value,
+    fps: qs("#prompt-fps").value,
     characterIds,
     characterNames,
     outputEn: qs("#prompt-output-en").value,
@@ -121,6 +149,9 @@ export function applySceneDraft(draft) {
   if (draft.style !== undefined) qs("#prompt-style").value = draft.style;
   if (draft.aspectRatio !== undefined) qs("#prompt-aspect-ratio").value = draft.aspectRatio;
   setQualityTags(draft.qualityTags);
+  qs("#prompt-frame-count").value = draft.frameCount || "";
+  qs("#prompt-fps").value = draft.fps || "";
+  updateDurationHint();
   lastSceneEn = draft.lastSceneEn ?? null;
   lastNegAdditionEn = draft.lastNegAdditionEn || "";
 
@@ -356,6 +387,14 @@ async function handleSendLocal(positive, negative) {
       graph[mapping.resolution.nodeId].inputs[mapping.resolution.heightField] = aspect.height;
     }
   }
+  if (mapping.frameCount) {
+    const frames = getFrameCount();
+    if (frames) graph[mapping.frameCount.nodeId].inputs[mapping.frameCount.field] = frames;
+  }
+  if (mapping.fps) {
+    const fps = getFps();
+    if (fps) graph[mapping.fps.nodeId].inputs[mapping.fps.field] = fps;
+  }
 
   // Some workflows have several LoadImage nodes that each need a DIFFERENT
   // reference image (e.g. up to 3 distinct characters combined in one
@@ -432,10 +471,18 @@ async function handleSendLocal(positive, negative) {
 
   for (const imageRef of images) {
     const blob = await client.fetchImageBlob(imageRef);
-    await addArchiveImage(blob, { name: imageRef.filename.replace(/\.[^/.]+$/, ""), prompt: positive, workflowName: workflow.name });
+    // Keep ComfyUI's real filename/extension (png, gif, mp4, webm...) so the
+    // archive can tell a still image from an animation/video and download it
+    // with a working extension, instead of assuming everything is a .png.
+    await addArchiveImage(blob, {
+      name: imageRef.filename.replace(/\.[^/.]+$/, ""),
+      filename: imageRef.filename,
+      prompt: positive,
+      workflowName: workflow.name,
+    });
   }
   refreshArchive();
-  setSendStatus(`✅ ${images.length} immagine/i generate e salvate in archivio (ComfyUI).`, "ok");
+  setSendStatus(`✅ ${images.length} file generati e salvati in archivio (ComfyUI).`, "ok");
   toast("Generazione completata.", "success");
   qs("#prompt-view-archive-btn").hidden = false;
 }
@@ -551,6 +598,8 @@ export async function initPrompts() {
   qs("#prompt-style").addEventListener("change", rebuildOutputs);
   qs("#prompt-aspect-ratio").addEventListener("change", rebuildOutputs);
   qsa('#prompt-quality-options input[type="checkbox"]').forEach((cb) => cb.addEventListener("change", rebuildOutputs));
+  qs("#prompt-frame-count").addEventListener("input", () => { updateDurationHint(); saveDraft(); });
+  qs("#prompt-fps").addEventListener("input", () => { updateDurationHint(); saveDraft(); });
   window.addEventListener("director-tags-updated", rebuildOutputs);
 
   initVoiceDictation("prompt-input-it", "prompt-input-it-mic");

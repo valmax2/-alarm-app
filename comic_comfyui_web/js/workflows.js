@@ -20,6 +20,16 @@ const ROLES = [
       { key: "heightField", defaultField: "height" },
     ],
   },
+  {
+    key: "frameCount",
+    label: "Numero di frame — animazione (es. nodo AnimateDiff/batch)",
+    fields: [{ key: "field", defaultField: "frame_count" }],
+  },
+  {
+    key: "fps",
+    label: "FPS — animazione (es. nodo VHS_VideoCombine)",
+    fields: [{ key: "field", defaultField: "frame_rate" }],
+  },
 ];
 
 // Each group renders as an add/remove-able list of {nodeId, field} rows.

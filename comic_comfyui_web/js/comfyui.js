@@ -133,7 +133,15 @@ export class ComfyUIClient {
         if (entry?.status?.completed) {
           const images = [];
           for (const output of Object.values(entry.outputs || {})) {
+            // Still images come back under "images". Animation/video output
+            // nodes use different keys: Video Helper Suite's VHS_VideoCombine
+            // puts its file (gif/webp/mp4/webm, regardless of actual format)
+            // under "gifs" for historical reasons, and some custom nodes use
+            // "videos". All three share the same {filename, subfolder, type}
+            // shape, so they can be fetched via /view identically.
             for (const img of output.images || []) images.push(img);
+            for (const gif of output.gifs || []) images.push(gif);
+            for (const video of output.videos || []) images.push(video);
           }
           return images;
         }

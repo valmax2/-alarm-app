@@ -254,7 +254,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
   flex-direction: column;
   gap: 8px;
 }
-.item-card img, .item-card .thumb {
+.item-card img, .item-card .thumb, .item-card video {
   width: 100%;
   aspect-ratio: 1 / 1;
   object-fit: cover;
@@ -262,7 +262,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
   background: #0b0e1c;
 }
 .thumb-wrap { position: relative; }
-.thumb-wrap img.blurred { filter: blur(18px) brightness(0.5); }
+.thumb-wrap img.blurred, .thumb-wrap video.blurred { filter: blur(18px) brightness(0.5); }
 .eye-toggle-btn {
   position: absolute;
   top: 6px;

@@ -24,19 +24,34 @@ export function el(tag, attrs = {}, children = []) {
   return node;
 }
 
-export function thumbWithPrivacyToggle(url, alt, isHidden, onToggle) {
-  const img = el("img", { src: url, alt, loading: "lazy", class: isHidden ? "blurred" : "" });
+const VIDEO_EXTENSIONS = new Set(["mp4", "webm", "mov", "avi", "mkv"]);
+
+export function fileExtension(filename) {
+  const m = /\.([a-zA-Z0-9]+)$/.exec(filename || "");
+  return m ? m[1].toLowerCase() : "";
+}
+
+// GIF/WEBP animate natively inside a plain <img>, so only real video
+// containers (mp4/webm/...) need a <video> element instead.
+export function isVideoFilename(filename) {
+  return VIDEO_EXTENSIONS.has(fileExtension(filename));
+}
+
+export function thumbWithPrivacyToggle(url, alt, isHidden, onToggle, isVideo = false) {
+  const media = isVideo
+    ? el("video", { src: url, class: isHidden ? "blurred" : "", controls: true, muted: true, loop: true, playsinline: true })
+    : el("img", { src: url, alt, loading: "lazy", class: isHidden ? "blurred" : "" });
   const btn = el(
     "button",
     {
       class: "eye-toggle-btn",
       type: "button",
-      title: isHidden ? "Mostra immagine" : "Nascondi immagine (privacy)",
+      title: isHidden ? "Mostra" : "Nascondi (privacy)",
       onclick: onToggle,
     },
     isHidden ? "🙈" : "👁️"
   );
-  return el("div", { class: "thumb-wrap" }, [img, btn]);
+  return el("div", { class: "thumb-wrap" }, [media, btn]);
 }
 
 export function uid() {

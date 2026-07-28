@@ -1,5 +1,5 @@
 import { db } from "./db.js";
-import { qs, el, uid, toast, formatBytes, formatDate, downloadBlob, sanitizeFilename, thumbWithPrivacyToggle } from "./utils.js";
+import { qs, el, uid, toast, formatBytes, formatDate, downloadBlob, sanitizeFilename, thumbWithPrivacyToggle, fileExtension, isVideoFilename } from "./utils.js";
 
 const STORE = "images";
 
@@ -12,9 +12,14 @@ async function loadAll() {
 }
 
 export async function addArchiveImage(blob, meta = {}) {
+  const name = meta.name || `comic-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}`;
   const record = {
     id: uid(),
-    name: meta.name || `comic-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}`,
+    name,
+    // Real ComfyUI filename (with its actual extension: png, gif, mp4,
+    // webm...) when known, so downloads/thumbnails can tell an animation
+    // apart from a still image instead of assuming everything is a .png.
+    filename: meta.filename || `${name}.png`,
     blob,
     prompt: meta.prompt || "",
     workflowName: meta.workflowName || "",
@@ -61,9 +66,10 @@ function renderGrid() {
 
   for (const record of visible) {
     const url = URL.createObjectURL(record.blob);
+    const isVideo = isVideoFilename(record.filename);
     const card = el("div", { class: "item-card" }, [
-      thumbWithPrivacyToggle(url, record.name, !!record.private, () => toggleField(record, "private")),
-      el("div", { class: "name", text: record.name }),
+      thumbWithPrivacyToggle(url, record.name, !!record.private, () => toggleField(record, "private"), isVideo),
+      el("div", { class: "name", text: record.name + (isVideo ? " 🎬" : "") }),
       el("div", { class: "meta", text: `${formatBytes(record.blob.size)} · ${formatDate(record.createdAt)}` }),
       record.workflowName ? el("div", { class: "meta", text: `Workflow: ${record.workflowName}` }) : null,
       el("div", { class: "row" }, [
@@ -80,7 +86,7 @@ function renderGrid() {
         el("button", {
           class: "btn small",
           type: "button",
-          onclick: () => downloadBlob(record.blob, `${sanitizeFilename(record.name)}.png`),
+          onclick: () => downloadBlob(record.blob, `${sanitizeFilename(record.name)}.${fileExtension(record.filename) || "png"}`),
         }, "Scarica"),
         el("button", {
           class: "btn small danger",
