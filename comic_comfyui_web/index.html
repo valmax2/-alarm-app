@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comic Studio · ComfyUI</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div id="toast-root" class="toast-root" aria-live="polite"></div>
+
+<header class="app-header">
+  <div class="brand">
+    <span class="brand-mark">CS</span>
+    <div>
+      <h1>Comic Studio</h1>
+      <p class="brand-sub">Creazione fumetti con ComfyUI</p>
+    </div>
+  </div>
+  <div class="connection-badge" id="connection-badge">
+    <span class="dot" id="connection-dot"></span>
+    <span id="connection-label">Non connesso</span>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs" role="tablist">
+  <button class="tab-btn active" data-tab="tab-connection" role="tab" aria-selected="true">Connessione</button>
+  <button class="tab-btn" data-tab="tab-workflows" role="tab" aria-selected="false">Workflow</button>
+  <button class="tab-btn" data-tab="tab-characters" role="tab" aria-selected="false">Personaggi</button>
+  <button class="tab-btn" data-tab="tab-prompt" role="tab" aria-selected="false">Prompt</button>
+  <button class="tab-btn" data-tab="tab-director" role="tab" aria-selected="false">Director's Mode</button>
+  <button class="tab-btn" data-tab="tab-archive" role="tab" aria-selected="false">Archivio</button>
+</nav>
+
+<main class="tab-panels">
+
+  <!-- CONNECTION -->
+  <section id="tab-connection" class="tab-panel active">
+    <h2>Connessione a ComfyUI</h2>
+    <p class="hint">Configura l'indirizzo della tua istanza locale di ComfyUI. I dati restano solo su questo browser (localStorage).</p>
+    <form id="connection-form" class="card form-grid">
+      <label>Protocollo
+        <select id="conn-protocol">
+          <option value="http">http</option>
+          <option value="https">https</option>
+        </select>
+      </label>
+      <label>Indirizzo IP / host
+        <input type="text" id="conn-ip" placeholder="127.0.0.1" required>
+      </label>
+      <label>Porta
+        <input type="number" id="conn-port" placeholder="8188" min="1" max="65535" required>
+      </label>
+      <label>Utente (opzionale)
+        <input type="text" id="conn-user" autocomplete="off">
+      </label>
+      <label>Password / API Key (opzionale)
+        <input type="password" id="conn-pass" autocomplete="off">
+      </label>
+      <div class="form-actions">
+        <button type="submit" class="btn primary">Salva &amp; Testa connessione</button>
+        <button type="button" id="conn-clear" class="btn ghost">Cancella dati salvati</button>
+      </div>
+    </form>
+    <div id="conn-status" class="status-box"></div>
+  </section>
+
+  <!-- WORKFLOWS -->
+  <section id="tab-workflows" class="tab-panel">
+    <h2>Gestione Workflow</h2>
+    <p class="hint">Carica i workflow ComfyUI esportati in formato API (JSON). Seleziona quello attivo e associa i nodi per prompt, immagine di riferimento e seed.</p>
+    <div class="card">
+      <label class="file-drop" for="workflow-upload">
+        <input type="file" id="workflow-upload" accept="application/json,.json" multiple hidden>
+        <span>📄 Carica workflow (.json)</span>
+      </label>
+    </div>
+    <div id="workflow-list" class="card-grid"></div>
+
+    <div id="workflow-mapping" class="card" hidden>
+      <h3>Mappatura nodi — <span id="mapping-workflow-name"></span></h3>
+      <p class="hint">Indica quali nodi del workflow devono ricevere il prompt positivo, il negativo, l'immagine di riferimento e il seed.</p>
+      <div class="form-grid" id="mapping-fields"></div>
+      <div class="form-actions">
+        <button id="mapping-save" class="btn primary">Salva mappatura</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHARACTERS -->
+  <section id="tab-characters" class="tab-panel">
+    <h2>Gestione Personaggi</h2>
+    <p class="hint">Carica immagini di riferimento per i personaggi e rinominale per riconoscerle facilmente nei prompt.</p>
+    <div class="card">
+      <label class="file-drop" for="character-upload">
+        <input type="file" id="character-upload" accept="image/*" multiple hidden>
+        <span>🖼️ Carica immagini personaggio</span>
+      </label>
+    </div>
+    <div id="character-grid" class="card-grid"></div>
+  </section>
+
+  <!-- PROMPT -->
+  <section id="tab-prompt" class="tab-panel">
+    <h2>Generatore di Prompt</h2>
+    <p class="hint">Scrivi la scena in italiano: verrà tradotta e ottimizzata in inglese per la generazione dell'immagine.</p>
+    <div class="card form-grid">
+      <label class="full">Descrizione scena (italiano)
+        <textarea id="prompt-input-it" rows="4" placeholder="Es: primo piano di una ragazza guerriera con capelli rossi, armatura scintillante, luce drammatica al tramonto"></textarea>
+      </label>
+      <label>Stile / medium
+        <select id="prompt-style">
+          <option value="comic book illustration, bold ink outlines, cel shading">Fumetto classico</option>
+          <option value="manga style, screentone shading, dynamic linework">Manga</option>
+          <option value="graphic novel, painterly digital art, moody colors">Graphic novel</option>
+          <option value="western comic cover art, dynamic pose, halftone print">Cover americana</option>
+          <option value="">Nessuno / personalizzato</option>
+        </select>
+      </label>
+      <label>Elementi negativi (italiano, opzionale)
+        <textarea id="prompt-input-neg-it" rows="2" placeholder="Es: mani deformi, testo, watermark"></textarea>
+      </label>
+      <label>Personaggio di riferimento
+        <select id="prompt-character-select">
+          <option value="">— nessuno —</option>
+        </select>
+      </label>
+      <div class="form-actions full">
+        <button id="prompt-translate-btn" class="btn primary" type="button">Traduci &amp; Ottimizza</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="output-header">
+        <h3>Prompt generato (EN)</h3>
+        <button id="prompt-copy-btn" class="btn small" type="button" title="Copia prompt">📋 Copia</button>
+      </div>
+      <textarea id="prompt-output-en" rows="4" readonly placeholder="Il prompt tradotto e ottimizzato apparirà qui..."></textarea>
+
+      <div class="output-header">
+        <h3>Prompt negativo (EN)</h3>
+        <button id="prompt-copy-neg-btn" class="btn small" type="button" title="Copia prompt negativo">📋 Copia</button>
+      </div>
+      <textarea id="prompt-output-neg-en" rows="2" readonly placeholder="Il prompt negativo tradotto apparirà qui..."></textarea>
+
+      <div class="form-actions">
+        <button id="prompt-send-btn" class="btn success" type="button">🚀 Invia a ComfyUI</button>
+      </div>
+      <div id="prompt-send-status" class="status-box"></div>
+    </div>
+  </section>
+
+  <!-- DIRECTOR'S MODE -->
+  <section id="tab-director" class="tab-panel">
+    <h2>Director's Mode</h2>
+    <p class="hint">Usa la webcam per impostare inquadratura, illuminazione e composizione prima di generare l'immagine.</p>
+    <div class="director-layout">
+      <div class="director-stage">
+        <video id="director-video" autoplay playsinline muted></video>
+        <canvas id="director-overlay"></canvas>
+        <canvas id="director-capture" hidden></canvas>
+        <div class="director-stage-actions">
+          <button id="director-start-btn" class="btn primary" type="button">🎥 Avvia webcam</button>
+          <button id="director-snapshot-btn" class="btn" type="button" disabled>📸 Cattura scatto</button>
+          <button id="director-stop-btn" class="btn ghost" type="button" disabled>⏹ Ferma</button>
+        </div>
+      </div>
+      <div class="director-controls card">
+        <label>Angolazione camera
+          <select id="director-angle">
+            <option value="eye-level angle">Altezza occhi</option>
+            <option value="low angle shot, looking up">Angolazione dal basso</option>
+            <option value="high angle shot, looking down">Angolazione dall'alto</option>
+            <option value="dutch angle, tilted horizon">Angolazione olandese (inclinata)</option>
+            <option value="bird's eye view">Vista dall'alto (bird's eye)</option>
+            <option value="worm's eye view">Vista dal basso (worm's eye)</option>
+          </select>
+        </label>
+        <label>Illuminazione
+          <select id="director-lighting">
+            <option value="soft natural lighting">Naturale morbida</option>
+            <option value="dramatic rim lighting">Controluce drammatico</option>
+            <option value="cinematic backlight, lens flare">Controluce cinematografico</option>
+            <option value="neon lighting, cyberpunk glow">Neon</option>
+            <option value="golden hour sunset lighting">Ora dorata (tramonto)</option>
+            <option value="hard studio spotlight, high contrast">Faretto da studio</option>
+          </select>
+        </label>
+        <label>Inquadratura
+          <select id="director-shot">
+            <option value="close-up shot">Primo piano</option>
+            <option value="medium shot">Piano medio</option>
+            <option value="wide shot, full body">Campo lungo</option>
+            <option value="extreme close-up, detailed face">Primissimo piano</option>
+            <option value="over-the-shoulder shot">Sopra la spalla</option>
+          </select>
+        </label>
+        <label>Composizione
+          <select id="director-composition">
+            <option value="rule of thirds composition">Regola dei terzi</option>
+            <option value="centered symmetrical composition">Simmetrica centrale</option>
+            <option value="dynamic diagonal composition">Diagonale dinamica</option>
+            <option value="negative space composition">Spazio negativo</option>
+          </select>
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" id="director-grid-toggle" checked>
+          Mostra griglia regola dei terzi
+        </label>
+        <button id="director-apply-btn" class="btn success" type="button">➕ Applica al Prompt</button>
+        <p class="hint small">Lo scatto catturato può essere salvato come nuovo riferimento personaggio.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ARCHIVE -->
+  <section id="tab-archive" class="tab-panel">
+    <h2>Archivio Immagini</h2>
+    <p class="hint">Tutte le immagini generate. Attiva/disattiva la visibilità pubblica (privacy) e l'attivazione nel progetto.</p>
+    <div class="archive-toolbar">
+      <label class="checkbox-row"><input type="checkbox" id="archive-filter-active"> Solo attive</label>
+      <label class="checkbox-row"><input type="checkbox" id="archive-filter-private"> Solo private</label>
+    </div>
+    <div id="archive-grid" class="card-grid"></div>
+  </section>
+
+</main>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

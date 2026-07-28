@@ -1,0 +1,108 @@
+import { qs, qsa, toast } from "./utils.js";
+import { getConnectionSettings, saveConnectionSettings, clearConnectionSettings } from "./state.js";
+import { ComfyUIClient, ComfyUIError } from "./comfyui.js";
+import { initWorkflows } from "./workflows.js";
+import { initCharacters } from "./characters.js";
+import { initPrompts } from "./prompts.js";
+import { initDirector } from "./director.js";
+import { initArchive } from "./archive.js";
+
+function switchTab(tabId) {
+  qsa(".tab-btn").forEach((btn) => {
+    const active = btn.dataset.tab === tabId;
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-selected", String(active));
+  });
+  qsa(".tab-panel").forEach((panel) => panel.classList.toggle("active", panel.id === tabId));
+}
+
+function initTabs() {
+  qsa(".tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+  });
+}
+
+function setConnectionBadge(connected, label) {
+  const badge = qs("#connection-badge");
+  badge.classList.toggle("connected", connected);
+  qs("#connection-label").textContent = label;
+}
+
+function setConnStatus(message, type = "") {
+  const box = qs("#conn-status");
+  box.textContent = message;
+  box.className = `status-box${type ? " " + type : ""}`;
+}
+
+function fillConnectionForm(settings) {
+  if (!settings) return;
+  qs("#conn-protocol").value = settings.protocol || "http";
+  qs("#conn-ip").value = settings.ip || "";
+  qs("#conn-port").value = settings.port || "";
+  qs("#conn-user").value = settings.user || "";
+  qs("#conn-pass").value = settings.pass || "";
+}
+
+async function testAndReport(settings, { silent = false } = {}) {
+  try {
+    const client = new ComfyUIClient(settings);
+    const stats = await client.testConnection();
+    const version = stats?.system?.comfyui_version ? ` (v${stats.system.comfyui_version})` : "";
+    setConnectionBadge(true, `Connesso${version}`);
+    if (!silent) setConnStatus("Connessione riuscita.", "ok");
+    return true;
+  } catch (err) {
+    setConnectionBadge(false, "Non connesso");
+    const message = err instanceof ComfyUIError ? err.message : `Errore: ${err.message}`;
+    if (!silent) setConnStatus(message, "error");
+    return false;
+  }
+}
+
+function initConnection() {
+  const existing = getConnectionSettings();
+  fillConnectionForm(existing);
+  if (existing) testAndReport(existing, { silent: true });
+
+  qs("#connection-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const settings = {
+      protocol: qs("#conn-protocol").value,
+      ip: qs("#conn-ip").value.trim(),
+      port: qs("#conn-port").value.trim(),
+      user: qs("#conn-user").value.trim(),
+      pass: qs("#conn-pass").value,
+    };
+    if (!settings.ip || !settings.port) {
+      setConnStatus("Indirizzo IP e porta sono obbligatori.", "error");
+      return;
+    }
+    saveConnectionSettings(settings);
+    setConnStatus("Test della connessione in corso...");
+    const ok = await testAndReport(settings);
+    toast(ok ? "Connesso a ComfyUI." : "Connessione non riuscita: verifica i parametri.", ok ? "success" : "error");
+  });
+
+  qs("#conn-clear").addEventListener("click", () => {
+    clearConnectionSettings();
+    qs("#connection-form").reset();
+    setConnectionBadge(false, "Non connesso");
+    setConnStatus("Dati di connessione cancellati.");
+    toast("Dati di connessione cancellati.", "info");
+  });
+}
+
+async function init() {
+  initTabs();
+  initConnection();
+  await initWorkflows();
+  await initCharacters();
+  initPrompts();
+  initDirector();
+  await initArchive();
+}
+
+init().catch((err) => {
+  console.error(err);
+  toast(`Errore di inizializzazione: ${err.message}`, "error", 8000);
+});

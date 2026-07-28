@@ -1,0 +1,128 @@
+import { db } from "./db.js";
+import { qs, el, uid, toast, formatBytes, formatDate, sanitizeFilename } from "./utils.js";
+
+const STORE = "characters";
+const MAX_SIZE = 15 * 1024 * 1024; // 15MB per image, generous but bounded
+
+let cache = [];
+
+function notifyUpdated() {
+  window.dispatchEvent(new CustomEvent("characters-updated", { detail: cache }));
+}
+
+async function loadAll() {
+  cache = await db.getAll(STORE);
+  cache.sort((a, b) => b.createdAt - a.createdAt);
+  return cache;
+}
+
+export function listCharacters() {
+  return cache;
+}
+
+export async function getCharacterById(id) {
+  return cache.find((c) => c.id === id) || db.get(STORE, id);
+}
+
+function renderGrid() {
+  const root = qs("#character-grid");
+  root.innerHTML = "";
+
+  if (cache.length === 0) {
+    root.appendChild(el("p", { class: "hint" }, "Nessun personaggio caricato."));
+    return;
+  }
+
+  for (const character of cache) {
+    const url = URL.createObjectURL(character.blob);
+    const nameDisplay = el("div", { class: "name", text: character.name });
+
+    const card = el("div", { class: "item-card" }, [
+      el("img", { src: url, alt: character.name, loading: "lazy" }),
+      nameDisplay,
+      el("div", { class: "meta", text: `${formatBytes(character.blob.size)} · ${formatDate(character.createdAt)}` }),
+      el("div", { class: "row" }, [
+        el("button", {
+          class: "btn small",
+          type: "button",
+          onclick: () => startRename(character, nameDisplay),
+        }, "Rinomina"),
+        el("button", {
+          class: "btn small danger",
+          type: "button",
+          onclick: () => removeCharacter(character.id),
+        }, "Elimina"),
+      ]),
+    ]);
+    root.appendChild(card);
+  }
+}
+
+function startRename(character, nameDisplay) {
+  const input = el("input", { type: "text", value: character.name });
+  nameDisplay.replaceWith(input);
+  input.focus();
+  input.select();
+
+  const commit = async () => {
+    const newName = sanitizeFilename(input.value || character.name);
+    character.name = newName;
+    await db.put(STORE, character);
+    await loadAll();
+    renderGrid();
+    notifyUpdated();
+  };
+
+  input.addEventListener("blur", commit, { once: true });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") input.blur();
+    if (e.key === "Escape") { input.value = character.name; input.blur(); }
+  });
+}
+
+async function removeCharacter(id) {
+  await db.remove(STORE, id);
+  await loadAll();
+  renderGrid();
+  notifyUpdated();
+  toast("Personaggio eliminato.", "info");
+}
+
+export async function addCharacterFromBlob(blob, name) {
+  const record = {
+    id: uid(),
+    name: sanitizeFilename(name),
+    blob,
+    createdAt: Date.now(),
+  };
+  await db.put(STORE, record);
+  await loadAll();
+  renderGrid();
+  notifyUpdated();
+  return record;
+}
+
+async function handleUpload(fileList) {
+  for (const file of Array.from(fileList)) {
+    if (!file.type.startsWith("image/")) {
+      toast(`${file.name}: non è un'immagine valida.`, "error");
+      continue;
+    }
+    if (file.size > MAX_SIZE) {
+      toast(`${file.name}: file troppo grande (max ${formatBytes(MAX_SIZE)}).`, "error");
+      continue;
+    }
+    await addCharacterFromBlob(file, file.name.replace(/\.[^/.]+$/, ""));
+  }
+  toast("Personaggi caricati.", "success");
+}
+
+export async function initCharacters() {
+  await loadAll();
+  renderGrid();
+
+  qs("#character-upload").addEventListener("change", (e) => {
+    if (e.target.files?.length) handleUpload(e.target.files);
+    e.target.value = "";
+  });
+}
