@@ -1,0 +1,36 @@
+name: Deploy Comic Studio to GitHub Pages
+
+on:
+  push:
+    branches: [ main, claude/comic-app-comfyui-egrdxq ]
+    paths: [ 'comic_comfyui_web/**' ]
+  workflow_dispatch:
+
+# Requires: repo Settings → Pages → "Build and deployment" → Source = "GitHub Actions"
+# (one-time manual step; this workflow does not enable Pages itself).
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Upload comic_comfyui_web as Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: comic_comfyui_web
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

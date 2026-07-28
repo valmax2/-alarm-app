@@ -2,10 +2,11 @@ import { qs, el, toast, copyToClipboard, uid } from "./utils.js";
 import { translateItToEn, optimizePrompt } from "./translate.js";
 import { listCharacters, getCharacterById } from "./characters.js";
 import { getActiveWorkflow } from "./workflows.js";
-import { getConnectionSettings } from "./state.js";
+import { getConnectionSettings, getGenerationMode, getActiveProvider, getProviderSettings } from "./state.js";
 import { ComfyUIClient, ComfyUIError } from "./comfyui.js";
 import { addArchiveImage, refreshArchive } from "./archive.js";
 import { getAppliedDirectorTags } from "./director.js";
+import { generateImageExternal, getProviderMeta, ProviderError } from "./providers.js";
 
 const sessionClientId = uid();
 let lastGenerated = { positive: "", negative: "" };
@@ -84,16 +85,10 @@ function deepClone(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
 
-async function handleSend() {
-  const positive = qs("#prompt-output-en").value.trim();
-  if (!positive) {
-    toast("Genera prima il prompt (Traduci & Ottimizza).", "error");
-    return;
-  }
-
+async function handleSendLocal(positive, negative) {
   const settings = getConnectionSettings();
   if (!settings) {
-    setSendStatus("Configura prima la connessione a ComfyUI nella scheda 'Connessione'.", "error");
+    setSendStatus("Configura prima la connessione a ComfyUI nella scheda 'Connessione ComfyUI'.", "error");
     return;
   }
 
@@ -103,65 +98,106 @@ async function handleSend() {
     return;
   }
 
+  const client = new ComfyUIClient(settings);
+  const graph = deepClone(workflow.json);
+  const mapping = workflow.mapping || {};
+
+  if (mapping.positive) {
+    graph[mapping.positive.nodeId].inputs[mapping.positive.field] = positive;
+  }
+  if (mapping.negative) {
+    graph[mapping.negative.nodeId].inputs[mapping.negative.field] = negative;
+  }
+  if (mapping.seed) {
+    graph[mapping.seed.nodeId].inputs[mapping.seed.field] = Math.floor(Math.random() * 1e15);
+  }
+
+  const characterId = qs("#prompt-character-select").value;
+  if (mapping.image && characterId) {
+    const character = await getCharacterById(characterId);
+    if (character) {
+      setSendStatus("Caricamento immagine di riferimento su ComfyUI...");
+      const uploaded = await client.uploadImage(character.blob, `${character.name}.png`);
+      graph[mapping.image.nodeId].inputs[mapping.image.field] = uploaded.subfolder
+        ? `${uploaded.subfolder}/${uploaded.name}`
+        : uploaded.name;
+    }
+  }
+
+  setSendStatus("Invio del workflow a ComfyUI...");
+  const queued = await client.queuePrompt(graph, sessionClientId);
+  if (queued.node_errors && Object.keys(queued.node_errors).length > 0) {
+    throw new ComfyUIError(`Errori nei nodi del workflow: ${JSON.stringify(queued.node_errors)}`);
+  }
+
+  setSendStatus("Generazione in corso su ComfyUI, attendere...");
+  const images = await client.waitForResult(queued.prompt_id);
+
+  if (images.length === 0) {
+    setSendStatus("Generazione completata ma nessuna immagine restituita.", "error");
+    return;
+  }
+
+  for (const imageRef of images) {
+    const blob = await client.fetchImageBlob(imageRef);
+    await addArchiveImage(blob, { name: imageRef.filename.replace(/\.[^/.]+$/, ""), prompt: positive, workflowName: workflow.name });
+  }
+  refreshArchive();
+  setSendStatus(`✅ ${images.length} immagine/i generate e salvate in archivio (ComfyUI).`, "ok");
+  toast("Generazione completata.", "success");
+}
+
+async function handleSendExternal(positive, negative) {
+  const providerId = getActiveProvider();
+  const meta = getProviderMeta(providerId);
+  const settings = getProviderSettings(providerId);
+  if (!settings?.apiKey) {
+    setSendStatus(`Inserisci la API key di ${meta?.label || providerId} nella scheda 'IA Esterne'.`, "error");
+    return;
+  }
+
+  let referenceBlob = null;
+  const characterId = qs("#prompt-character-select").value;
+  if (characterId) {
+    if (!meta?.supportsReferenceImage) {
+      setSendStatus(`${meta?.label || providerId} non supporta ancora l'immagine di riferimento: genero solo da testo.`, "");
+    } else {
+      const character = await getCharacterById(characterId);
+      referenceBlob = character?.blob || null;
+    }
+  }
+
+  setSendStatus(`Generazione in corso con ${meta?.label || providerId}, attendere...`);
+  const blobs = await generateImageExternal({ provider: providerId, settings, positive, negative, referenceBlob });
+
+  for (const blob of blobs) {
+    await addArchiveImage(blob, { name: `${providerId}-${Date.now()}`, prompt: positive, workflowName: `IA esterna: ${meta?.label || providerId}` });
+  }
+  refreshArchive();
+  setSendStatus(`✅ ${blobs.length} immagine/i generate e salvate in archivio (${meta?.label || providerId}).`, "ok");
+  toast("Generazione completata.", "success");
+}
+
+async function handleSend() {
+  const positive = qs("#prompt-output-en").value.trim();
+  if (!positive) {
+    toast("Genera prima il prompt (Traduci & Ottimizza).", "error");
+    return;
+  }
+  const negative = qs("#prompt-output-neg-en").value.trim();
+
   const sendBtn = qs("#prompt-send-btn");
   sendBtn.disabled = true;
   setSendStatus("Preparazione della richiesta...");
 
   try {
-    const client = new ComfyUIClient(settings);
-    const graph = deepClone(workflow.json);
-    const mapping = workflow.mapping || {};
-
-    if (mapping.positive) {
-      graph[mapping.positive.nodeId].inputs[mapping.positive.field] = positive;
+    if (getGenerationMode() === "external") {
+      await handleSendExternal(positive, negative);
+    } else {
+      await handleSendLocal(positive, negative);
     }
-    if (mapping.negative) {
-      graph[mapping.negative.nodeId].inputs[mapping.negative.field] = qs("#prompt-output-neg-en").value.trim();
-    }
-    if (mapping.seed) {
-      graph[mapping.seed.nodeId].inputs[mapping.seed.field] = Math.floor(Math.random() * 1e15);
-    }
-
-    const characterId = qs("#prompt-character-select").value;
-    if (mapping.image && characterId) {
-      const character = await getCharacterById(characterId);
-      if (character) {
-        setSendStatus("Caricamento immagine di riferimento su ComfyUI...");
-        const uploaded = await client.uploadImage(character.blob, `${character.name}.png`);
-        graph[mapping.image.nodeId].inputs[mapping.image.field] = uploaded.subfolder
-          ? `${uploaded.subfolder}/${uploaded.name}`
-          : uploaded.name;
-      }
-    }
-
-    setSendStatus("Invio del workflow a ComfyUI...");
-    const queued = await client.queuePrompt(graph, sessionClientId);
-    if (queued.node_errors && Object.keys(queued.node_errors).length > 0) {
-      throw new ComfyUIError(`Errori nei nodi del workflow: ${JSON.stringify(queued.node_errors)}`);
-    }
-
-    setSendStatus("Generazione in corso su ComfyUI, attendere...");
-    const images = await client.waitForResult(queued.prompt_id);
-
-    if (images.length === 0) {
-      setSendStatus("Generazione completata ma nessuna immagine restituita.", "error");
-      return;
-    }
-
-    for (const imageRef of images) {
-      const blob = await client.fetchImageBlob(imageRef);
-      await addArchiveImage(blob, {
-        name: imageRef.filename.replace(/\.[^/.]+$/, ""),
-        prompt: positive,
-        workflowName: workflow.name,
-      });
-    }
-    refreshArchive();
-
-    setSendStatus(`✅ ${images.length} immagine/i generate e salvate in archivio.`, "ok");
-    toast("Generazione completata.", "success");
   } catch (err) {
-    const message = err instanceof ComfyUIError ? err.message : `Errore imprevisto: ${err.message}`;
+    const message = err instanceof ComfyUIError || err instanceof ProviderError ? err.message : `Errore imprevisto: ${err.message}`;
     setSendStatus(message, "error");
     toast(message, "error");
   } finally {
@@ -169,12 +205,37 @@ async function handleSend() {
   }
 }
 
+function updateModeIndicator() {
+  const mode = getGenerationMode();
+  const indicator = qs("#prompt-mode-indicator");
+  const sendBtn = qs("#prompt-send-btn");
+  if (mode === "external") {
+    const meta = getProviderMeta(getActiveProvider());
+    indicator.textContent = `☁️ Modalità IA Esterna — provider attivo: ${meta?.label || "nessuno selezionato"} (configuralo nella scheda 'IA Esterne').`;
+    sendBtn.textContent = `🚀 Genera con ${meta?.label || "IA esterna"}`;
+  } else {
+    indicator.textContent = "🖥️ Modalità ComfyUI locale — usa il workflow attivo configurato nella scheda 'Workflow'.";
+    sendBtn.textContent = "🚀 Invia a ComfyUI";
+  }
+}
+
 export function initPrompts() {
   refreshCharacterSelect();
   window.addEventListener("characters-updated", refreshCharacterSelect);
+  window.addEventListener("generation-mode-ui-updated", updateModeIndicator);
+  window.addEventListener("storage", updateModeIndicator);
+  updateModeIndicator();
 
   qs("#prompt-translate-btn").addEventListener("click", handleTranslate);
   qs("#prompt-copy-btn").addEventListener("click", () => handleCopy("prompt-output-en", "Prompt"));
   qs("#prompt-copy-neg-btn").addEventListener("click", () => handleCopy("prompt-output-neg-en", "Prompt negativo"));
   qs("#prompt-send-btn").addEventListener("click", handleSend);
+
+  // Re-check indicator whenever the user switches to the Prompt tab or changes active provider.
+  document.querySelectorAll('.tab-btn[data-tab="tab-prompt"]').forEach((btn) =>
+    btn.addEventListener("click", updateModeIndicator)
+  );
+  document.querySelectorAll('input[name="active-provider"]').forEach((radio) =>
+    radio.addEventListener("change", updateModeIndicator)
+  );
 }

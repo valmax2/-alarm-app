@@ -1,11 +1,12 @@
 import { qs, qsa, toast } from "./utils.js";
-import { getConnectionSettings, saveConnectionSettings, clearConnectionSettings } from "./state.js";
+import { getConnectionSettings, saveConnectionSettings, clearConnectionSettings, getGenerationMode, setGenerationMode } from "./state.js";
 import { ComfyUIClient, ComfyUIError } from "./comfyui.js";
 import { initWorkflows } from "./workflows.js";
 import { initCharacters } from "./characters.js";
 import { initPrompts } from "./prompts.js";
 import { initDirector } from "./director.js";
 import { initArchive } from "./archive.js";
+import { initProviders } from "./providers-ui.js";
 
 function switchTab(tabId) {
   qsa(".tab-btn").forEach((btn) => {
@@ -92,9 +93,30 @@ function initConnection() {
   });
 }
 
+function applyModeUI(mode) {
+  qs("#mode-local-btn").classList.toggle("active", mode === "local");
+  qs("#mode-external-btn").classList.toggle("active", mode === "external");
+  qs("#connection-badge").classList.toggle("dim", mode !== "local");
+  window.dispatchEvent(new CustomEvent("generation-mode-ui-updated", { detail: mode }));
+}
+
+function initModeSwitch() {
+  applyModeUI(getGenerationMode());
+  qs("#mode-local-btn").addEventListener("click", () => {
+    setGenerationMode("local");
+    applyModeUI("local");
+  });
+  qs("#mode-external-btn").addEventListener("click", () => {
+    setGenerationMode("external");
+    applyModeUI("external");
+  });
+}
+
 async function init() {
   initTabs();
+  initModeSwitch();
   initConnection();
+  initProviders();
   await initWorkflows();
   await initCharacters();
   initPrompts();

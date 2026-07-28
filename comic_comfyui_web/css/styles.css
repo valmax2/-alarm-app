@@ -43,6 +43,45 @@ body {
 .brand h1 { margin: 0; font-size: 18px; }
 .brand-sub { margin: 0; font-size: 12px; color: var(--text-dim); }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mode-switch {
+  display: flex;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+.mode-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.mode-btn.active {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.provider-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.provider-card-header h3 { margin: 0; }
+.provider-card.is-active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
 .connection-badge {
   display: flex; align-items: center; gap: 8px;
   padding: 6px 12px;
@@ -57,6 +96,7 @@ body {
   box-shadow: 0 0 6px var(--danger);
 }
 .connection-badge.connected .dot { background: var(--success); box-shadow: 0 0 6px var(--success); }
+.connection-badge.dim { opacity: 0.45; }
 
 .tabs {
   display: flex;

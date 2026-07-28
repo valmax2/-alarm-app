@@ -17,14 +17,21 @@
       <p class="brand-sub">Creazione fumetti con ComfyUI</p>
     </div>
   </div>
-  <div class="connection-badge" id="connection-badge">
-    <span class="dot" id="connection-dot"></span>
-    <span id="connection-label">Non connesso</span>
+  <div class="header-right">
+    <div class="mode-switch" id="mode-switch" role="group" aria-label="Modalità di generazione">
+      <button type="button" class="mode-btn" id="mode-local-btn" data-mode="local">🖥️ ComfyUI locale</button>
+      <button type="button" class="mode-btn" id="mode-external-btn" data-mode="external">☁️ IA Esterna</button>
+    </div>
+    <div class="connection-badge" id="connection-badge">
+      <span class="dot" id="connection-dot"></span>
+      <span id="connection-label">Non connesso</span>
+    </div>
   </div>
 </header>
 
 <nav class="tabs" id="tabs" role="tablist">
-  <button class="tab-btn active" data-tab="tab-connection" role="tab" aria-selected="true">Connessione</button>
+  <button class="tab-btn active" data-tab="tab-connection" role="tab" aria-selected="true">Connessione ComfyUI</button>
+  <button class="tab-btn" data-tab="tab-providers" role="tab" aria-selected="false">IA Esterne</button>
   <button class="tab-btn" data-tab="tab-workflows" role="tab" aria-selected="false">Workflow</button>
   <button class="tab-btn" data-tab="tab-characters" role="tab" aria-selected="false">Personaggi</button>
   <button class="tab-btn" data-tab="tab-prompt" role="tab" aria-selected="false">Prompt</button>
@@ -63,6 +70,72 @@
       </div>
     </form>
     <div id="conn-status" class="status-box"></div>
+  </section>
+
+  <!-- EXTERNAL AI PROVIDERS -->
+  <section id="tab-providers" class="tab-panel">
+    <h2>IA Esterne</h2>
+    <p class="hint">Da usare in modalità "☁️ IA Esterna" (in alto), ad esempio da telefono fuori casa: genera scene e sfondi con un'IA cloud, poi rifiniscile in locale su ComfyUI. Le chiavi restano solo su questo browser.</p>
+
+    <div class="card provider-card" data-provider="gemini">
+      <div class="provider-card-header">
+        <h3>Google Gemini</h3>
+        <label class="toggle"><input type="radio" name="active-provider" value="gemini"> Provider attivo</label>
+      </div>
+      <div class="form-grid">
+        <label>API Key (Google AI Studio)
+          <input type="password" class="provider-apikey" autocomplete="off">
+        </label>
+        <label>Modello
+          <input type="text" class="provider-model" placeholder="gemini-2.5-flash-image">
+        </label>
+      </div>
+      <p class="hint small">Supporta immagine di riferimento del personaggio.</p>
+      <div class="form-actions">
+        <button type="button" class="btn primary provider-save">Salva</button>
+        <button type="button" class="btn ghost provider-clear">Cancella</button>
+      </div>
+    </div>
+
+    <div class="card provider-card" data-provider="openai">
+      <div class="provider-card-header">
+        <h3>OpenAI (ChatGPT / DALL·E)</h3>
+        <label class="toggle"><input type="radio" name="active-provider" value="openai"> Provider attivo</label>
+      </div>
+      <div class="form-grid">
+        <label>API Key (OpenAI)
+          <input type="password" class="provider-apikey" autocomplete="off">
+        </label>
+        <label>Modello
+          <input type="text" class="provider-model" placeholder="gpt-image-1">
+        </label>
+      </div>
+      <p class="hint small">Supporta immagine di riferimento del personaggio.</p>
+      <div class="form-actions">
+        <button type="button" class="btn primary provider-save">Salva</button>
+        <button type="button" class="btn ghost provider-clear">Cancella</button>
+      </div>
+    </div>
+
+    <div class="card provider-card" data-provider="leonardo">
+      <div class="provider-card-header">
+        <h3>Leonardo.ai</h3>
+        <label class="toggle"><input type="radio" name="active-provider" value="leonardo"> Provider attivo</label>
+      </div>
+      <div class="form-grid">
+        <label>API Key (Leonardo.ai)
+          <input type="password" class="provider-apikey" autocomplete="off">
+        </label>
+        <label>ID Modello (opzionale)
+          <input type="text" class="provider-model" placeholder="vuoto = default piattaforma">
+        </label>
+      </div>
+      <p class="hint small">Al momento non supporta immagine di riferimento (solo testo → immagine).</p>
+      <div class="form-actions">
+        <button type="button" class="btn primary provider-save">Salva</button>
+        <button type="button" class="btn ghost provider-clear">Cancella</button>
+      </div>
+    </div>
   </section>
 
   <!-- WORKFLOWS -->
@@ -104,6 +177,7 @@
   <section id="tab-prompt" class="tab-panel">
     <h2>Generatore di Prompt</h2>
     <p class="hint">Scrivi la scena in italiano: verrà tradotta e ottimizzata in inglese per la generazione dell'immagine.</p>
+    <p class="status-box" id="prompt-mode-indicator"></p>
     <div class="card form-grid">
       <label class="full">Descrizione scena (italiano)
         <textarea id="prompt-input-it" rows="4" placeholder="Es: primo piano di una ragazza guerriera con capelli rossi, armatura scintillante, luce drammatica al tramonto"></textarea>
