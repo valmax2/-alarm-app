@@ -37,8 +37,9 @@ const DYNAMIC_GROUPS = [
     key: "images",
     legacyKey: "image",
     defaultField: "image",
-    title: "Immagine di riferimento (uno o più nodi LoadImage)",
-    hint: "Se il workflow ha più nodi LoadImage (es. più stadi IPAdapter), aggiungine uno per ognuno: riceveranno tutti la stessa immagine del personaggio.",
+    withLabel: true,
+    title: "Immagini di riferimento (uno o più nodi LoadImage)",
+    hint: "Aggiungi un nodo per ogni immagine di riferimento distinta che il workflow accetta (es. due o tre personaggi insieme in scena) e dai a ciascuno un'etichetta (es. \"Personaggio A\"). In 'Crea Scena' potrai scegliere un personaggio diverso per ogni etichetta invece di mandare sempre la stessa foto a tutti i nodi.",
     addLabel: "+ Aggiungi nodo immagine",
     emptyHint: "Nessun nodo immagine collegato.",
   },
@@ -89,7 +90,8 @@ function nodeOptionsLabel(nodeId, node) {
   return `#${nodeId} · ${node?.class_type || "?"}${title ? " (" + title + ")" : ""}`;
 }
 
-function renderDynamicMappingRows(container, nodeEntries, list, defaultField, emptyHint) {
+function renderDynamicMappingRows(container, nodeEntries, list, group) {
+  const { defaultField, emptyHint, withLabel } = group;
   container.innerHTML = "";
   if (list.length === 0) {
     container.appendChild(el("p", { class: "hint" }, emptyHint));
@@ -115,6 +117,16 @@ function renderDynamicMappingRows(container, nodeEntries, list, defaultField, em
       placeholder: defaultField,
       oninput: () => { current.field = fieldInput.value; },
     });
+    const rowChildren = [nodeSelect, fieldInput];
+    if (withLabel) {
+      const labelInput = el("input", {
+        type: "text",
+        value: current.label || "",
+        placeholder: `Etichetta (es. Personaggio ${index + 1})`,
+        oninput: () => { current.label = labelInput.value; },
+      });
+      rowChildren.push(labelInput);
+    }
     const removeBtn = el(
       "button",
       {
@@ -122,12 +134,13 @@ function renderDynamicMappingRows(container, nodeEntries, list, defaultField, em
         type: "button",
         onclick: () => {
           list.splice(index, 1);
-          renderDynamicMappingRows(container, nodeEntries, list, defaultField, emptyHint);
+          renderDynamicMappingRows(container, nodeEntries, list, group);
         },
       },
       "Rimuovi"
     );
-    container.appendChild(el("div", { class: "row image-mapping-row" }, [nodeSelect, fieldInput, removeBtn]));
+    rowChildren.push(removeBtn);
+    container.appendChild(el("div", { class: "row image-mapping-row" }, rowChildren));
   });
 }
 
@@ -169,15 +182,15 @@ function renderMappingPanel(workflow) {
     currentDynamicMappings[group.key] = list;
 
     const rowsContainer = el("div", { class: "image-mappings-list" });
-    renderDynamicMappingRows(rowsContainer, nodeEntries, list, group.defaultField, group.emptyHint);
+    renderDynamicMappingRows(rowsContainer, nodeEntries, list, group);
     const addBtn = el(
       "button",
       {
         class: "btn small",
         type: "button",
         onclick: () => {
-          list.push({ nodeId: "", field: group.defaultField });
-          renderDynamicMappingRows(rowsContainer, nodeEntries, list, group.defaultField, group.emptyHint);
+          list.push(group.withLabel ? { nodeId: "", field: group.defaultField, label: "" } : { nodeId: "", field: group.defaultField });
+          renderDynamicMappingRows(rowsContainer, nodeEntries, list, group);
         },
       },
       group.addLabel
@@ -214,7 +227,11 @@ async function saveMapping() {
     const list = currentDynamicMappings[group.key] || [];
     mapping[group.key] = list
       .filter((m) => m.nodeId)
-      .map((m) => ({ nodeId: m.nodeId, field: (m.field || "").trim() || group.defaultField }));
+      .map((m) => {
+        const entry = { nodeId: m.nodeId, field: (m.field || "").trim() || group.defaultField };
+        if (group.withLabel) entry.label = (m.label || "").trim();
+        return entry;
+      });
   }
 
   workflow.mapping = mapping;
@@ -223,6 +240,11 @@ async function saveMapping() {
   renderList();
   toast("Mappatura salvata.", "success");
   qs("#workflow-mapping").hidden = true;
+  // The mapping panel can be reopened on the workflow that's already active,
+  // in which case no active-workflow change event fires — this lets the
+  // "Crea Scena" character slots (which depend on the image-node mapping)
+  // refresh even when the active workflow's id didn't change.
+  window.dispatchEvent(new CustomEvent("workflow-mapping-updated"));
 }
 
 function renderList() {

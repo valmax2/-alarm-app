@@ -1,8 +1,8 @@
-import { qs, el, toast, copyToClipboard, uid } from "./utils.js";
+import { qs, qsa, el, toast, copyToClipboard, uid } from "./utils.js";
 import { translateItToEn, optimizePrompt, tagify, DEFAULT_NEGATIVE_EN } from "./translate.js";
 import { listCharacters, getCharacterById } from "./characters.js";
 import { getActiveWorkflow } from "./workflows.js";
-import { getConnectionSettings, getGenerationMode, getActiveProvider, getProviderSettings } from "./state.js";
+import { getConnectionSettings, getGenerationMode, getActiveProvider, getProviderSettings, onStateChange } from "./state.js";
 import { ComfyUIClient, ComfyUIError } from "./comfyui.js";
 import { addArchiveImage, refreshArchive } from "./archive.js";
 import { getAppliedDirectorTags } from "./director.js";
@@ -26,7 +26,7 @@ function saveDraft() {
     sceneIt: qs("#prompt-input-it").value,
     negIt: qs("#prompt-input-neg-it").value,
     style: qs("#prompt-style").value,
-    characterId: qs("#prompt-character-select").value,
+    characterIds: getSelectedCharacterIds(),
     outputEn: qs("#prompt-output-en").value,
     outputNegEn: qs("#prompt-output-neg-en").value,
     lastSceneEn,
@@ -44,6 +44,14 @@ function loadDraft() {
   }
 }
 
+// `draft.characterId` (singular) is the pre-multi-slot shape; migrate it to
+// a one-item array so old saved drafts/scenes still restore correctly.
+function draftCharacterIds(draft) {
+  if (Array.isArray(draft.characterIds)) return draft.characterIds;
+  if (draft.characterId) return [draft.characterId];
+  return [];
+}
+
 function restoreDraft() {
   const draft = loadDraft();
   if (!draft) return;
@@ -55,23 +63,20 @@ function restoreDraft() {
   lastSceneEn = draft.lastSceneEn ?? null;
   lastNegAdditionEn = draft.lastNegAdditionEn || "";
 
-  const select = qs("#prompt-character-select");
-  if (draft.characterId && [...select.options].some((o) => o.value === draft.characterId)) {
-    select.value = draft.characterId;
-  }
-  updateCharacterHint();
+  setSelectedCharacterIds(draftCharacterIds(draft));
 }
 
 // --- Full prompt state (used by the saved-scenes archive) ---
 
 export function getSceneDraftForSaving() {
-  const select = qs("#prompt-character-select");
+  const characterIds = getSelectedCharacterIds();
+  const characterNames = characterIds.map((id) => listCharacters().find((c) => c.id === id)?.name || "");
   return {
     sceneIt: qs("#prompt-input-it").value,
     negIt: qs("#prompt-input-neg-it").value,
     style: qs("#prompt-style").value,
-    characterId: select.value,
-    characterName: select.value ? select.options[select.selectedIndex]?.text : "",
+    characterIds,
+    characterNames,
     outputEn: qs("#prompt-output-en").value,
     outputNegEn: qs("#prompt-output-neg-en").value,
     lastSceneEn,
@@ -86,13 +91,7 @@ export function applySceneDraft(draft) {
   lastSceneEn = draft.lastSceneEn ?? null;
   lastNegAdditionEn = draft.lastNegAdditionEn || "";
 
-  const select = qs("#prompt-character-select");
-  if (draft.characterId && [...select.options].some((o) => o.value === draft.characterId)) {
-    select.value = draft.characterId;
-  } else {
-    select.value = "";
-  }
-  updateCharacterHint();
+  setSelectedCharacterIds(draftCharacterIds(draft));
   rebuildOutputs();
   saveDraft();
 }
@@ -118,12 +117,48 @@ function rebuildOutputs() {
   saveDraft();
 }
 
+// One reference-image "slot" per mapped LoadImage-type node in the active
+// workflow, each independently assignable to a different character — this is
+// what makes "3 characters together in one generation" possible, instead of
+// broadcasting a single chosen character to every mapped node. In external-AI
+// mode (or when the active workflow has no image mapping configured yet)
+// there's exactly one generic slot, matching the old single-character UX.
+let characterSlotLabels = ["Personaggio di riferimento"];
+
+function computeCharacterSlots(workflow) {
+  if (getGenerationMode() === "external") return ["Personaggio di riferimento"];
+  const mapping = workflow?.mapping || {};
+  const imageMappings = Array.isArray(mapping.images) ? mapping.images : mapping.image ? [mapping.image] : [];
+  if (imageMappings.length === 0) return ["Personaggio di riferimento"];
+  return imageMappings.map(
+    (m, index) => m.label || workflow?.json?.[m.nodeId]?._meta?.title || `Immagine ${index + 1} (nodo #${m.nodeId})`
+  );
+}
+
+function getSelectedCharacterIds() {
+  return qsa("select[data-slot-index]", qs("#prompt-character-slots")).map((s) => s.value);
+}
+
+function setSelectedCharacterIds(ids) {
+  qsa("select[data-slot-index]", qs("#prompt-character-slots")).forEach((select, index) => {
+    const id = ids?.[index] || "";
+    select.value = id && [...select.options].some((o) => o.value === id) ? id : "";
+  });
+  updateCharacterHint();
+}
+
 function updateCharacterHint() {
-  const select = qs("#prompt-character-select");
   const hint = qs("#prompt-character-hint");
-  const selected = listCharacters().find((c) => c.id === select.value);
-  if (selected) {
-    hint.textContent = `✅ Userò "${selected.name}" come riferimento: l'IA cercherà di mantenere lo stesso aspetto del personaggio nell'immagine generata.`;
+  const ids = getSelectedCharacterIds();
+  const chosen = ids
+    .map((id, index) => ({ character: listCharacters().find((c) => c.id === id), label: characterSlotLabels[index] }))
+    .filter((entry) => entry.character);
+
+  if (chosen.length > 0) {
+    const parts = chosen.map((entry) =>
+      characterSlotLabels.length > 1 ? `${entry.label}: "${entry.character.name}"` : `"${entry.character.name}"`
+    );
+    hint.textContent = `✅ Userò ${parts.join(", ")} come riferimento: l'IA cercherà di mantenere lo stesso aspetto nell'immagine generata.`;
     hint.className = "status-box full ok";
   } else if (listCharacters().length > 0) {
     hint.textContent = "⚠️ Nessun personaggio selezionato: l'immagine generata non avrà un aspetto coerente con nessuno dei tuoi personaggi.";
@@ -134,22 +169,38 @@ function updateCharacterHint() {
   }
 }
 
-function refreshCharacterSelect() {
-  const select = qs("#prompt-character-select");
-  const current = select.value;
-  select.innerHTML = "";
-  select.appendChild(el("option", { value: "" }, "— nessuno —"));
-  for (const character of listCharacters()) {
-    select.appendChild(el("option", { value: character.id }, character.name));
-  }
-  const stillExists = [...select.options].some((o) => o.value === current);
-  if (stillExists && current) {
-    select.value = current;
-  } else if (!current && listCharacters().length > 0) {
-    // Nothing was explicitly chosen yet: default to the most recently added character
-    // instead of silently generating with no reference image.
-    select.value = listCharacters()[0].id;
-  }
+async function renderCharacterSlots() {
+  const workflow = getGenerationMode() === "external" ? null : await getActiveWorkflow();
+  characterSlotLabels = computeCharacterSlots(workflow);
+
+  const container = qs("#prompt-character-slots");
+  const previousValues = getSelectedCharacterIds();
+  const isFirstRender = container.childElementCount === 0;
+  container.innerHTML = "";
+
+  characterSlotLabels.forEach((label, index) => {
+    const select = el(
+      "select",
+      {
+        "data-slot-index": String(index),
+        onchange: () => {
+          updateCharacterHint();
+          saveDraft();
+        },
+      },
+      [el("option", { value: "" }, "— nessuno —"), ...listCharacters().map((c) => el("option", { value: c.id }, c.name))]
+    );
+    const previous = previousValues[index];
+    if (previous && [...select.options].some((o) => o.value === previous)) {
+      select.value = previous;
+    } else if (isFirstRender && index === 0 && !previous && listCharacters().length > 0) {
+      // Nothing was explicitly chosen yet: default the first slot to the most
+      // recently added character instead of silently generating with none.
+      select.value = listCharacters()[0].id;
+    }
+    container.appendChild(el("label", { class: "full" }, [label, select]));
+  });
+
   updateCharacterHint();
 }
 
@@ -263,25 +314,34 @@ async function handleSendLocal(positive, negative) {
     graph[mapping.seed.nodeId].inputs[mapping.seed.field] = Math.floor(Math.random() * 1e15);
   }
 
-  const characterId = qs("#prompt-character-select").value;
-  // Some workflows have several LoadImage nodes (e.g. multiple IPAdapter
-  // stages) that all need the character reference — `mapping.images` is an
-  // array; `mapping.image` (singular) is kept for workflows mapped before
-  // multi-node support was added.
+  // Some workflows have several LoadImage nodes that each need a DIFFERENT
+  // reference image (e.g. up to 3 distinct characters combined in one
+  // generation) — each entry in `mapping.images` corresponds 1:1, in order,
+  // to a character slot rendered in "1. Personaggio" by renderCharacterSlots().
+  // `mapping.image` (singular) is kept for workflows mapped before multi-node
+  // support was added; it always pairs with a single slot.
   const imageMappings = Array.isArray(mapping.images) ? mapping.images : mapping.image ? [mapping.image] : [];
-  if (imageMappings.length > 0 && characterId) {
-    const character = await getCharacterById(characterId);
-    if (character) {
-      setSendStatus("Caricamento immagine di riferimento su ComfyUI...");
-      // Spaces/odd characters in the filename have caused ComfyUI's LoadImage
-      // node to fail to find the file it was just given; a plain
-      // alphanumeric name sidesteps any such filesystem/parsing ambiguity.
-      const safeName = `char-${character.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12)}.png`;
-      const uploaded = await client.uploadImage(character.blob, safeName);
-      const imageValue = uploaded.subfolder ? `${uploaded.subfolder}/${uploaded.name}` : uploaded.name;
-      for (const imageMapping of imageMappings) {
-        graph[imageMapping.nodeId].inputs[imageMapping.field] = imageValue;
+  const slotCharacterIds = getSelectedCharacterIds();
+  if (imageMappings.length > 0 && slotCharacterIds.some(Boolean)) {
+    setSendStatus("Caricamento immagini di riferimento su ComfyUI...");
+    const uploadedByCharacterId = new Map();
+    for (let index = 0; index < imageMappings.length; index++) {
+      const characterId = slotCharacterIds[index];
+      if (!characterId) continue; // slot left empty on purpose: leave that node's existing value untouched
+      const imageMapping = imageMappings[index];
+      let uploaded = uploadedByCharacterId.get(characterId);
+      if (!uploaded) {
+        const character = await getCharacterById(characterId);
+        if (!character) continue;
+        // Spaces/odd characters in the filename have caused ComfyUI's LoadImage
+        // node to fail to find the file it was just given; a plain
+        // alphanumeric name sidesteps any such filesystem/parsing ambiguity.
+        const safeName = `char-${character.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12)}.png`;
+        const result = await client.uploadImage(character.blob, safeName);
+        uploaded = result.subfolder ? `${result.subfolder}/${result.name}` : result.name;
+        uploadedByCharacterId.set(characterId, uploaded);
       }
+      graph[imageMapping.nodeId].inputs[imageMapping.field] = uploaded;
     }
   }
 
@@ -347,7 +407,9 @@ async function handleSendExternal(positive, negative) {
   }
 
   let referenceBlob = null;
-  const characterId = qs("#prompt-character-select").value;
+  // External providers only support one reference image, and external mode
+  // always renders exactly one character slot (see computeCharacterSlots).
+  const characterId = getSelectedCharacterIds()[0];
   if (characterId) {
     if (!meta?.supportsReferenceImage) {
       setSendStatus(`${meta?.label || providerId} non supporta ancora l'immagine di riferimento: genero solo da testo.`, "");
@@ -413,12 +475,22 @@ function updateModeIndicator() {
   updateCopyOpenButton();
 }
 
-export function initPrompts() {
-  refreshCharacterSelect();
+export async function initPrompts() {
+  await renderCharacterSlots();
   restoreDraft();
   const negField = qs("#prompt-output-neg-en");
   if (!negField.value.trim()) negField.value = DEFAULT_NEGATIVE_EN;
-  window.addEventListener("characters-updated", refreshCharacterSelect);
+  window.addEventListener("characters-updated", renderCharacterSlots);
+  // Any of these can change how many reference-image slots should exist (a
+  // different workflow has a different number of mapped LoadImage nodes, its
+  // mapping was just edited, or switching to external-AI mode collapses back
+  // to a single generic slot). "active-workflow-updated" is state.js's own
+  // pub/sub (not a window event), so it's wired through onStateChange.
+  onStateChange((event) => {
+    if (event === "active-workflow-updated") renderCharacterSlots();
+  });
+  window.addEventListener("workflow-mapping-updated", renderCharacterSlots);
+  window.addEventListener("generation-mode-ui-updated", renderCharacterSlots);
   window.addEventListener("generation-mode-ui-updated", updateModeIndicator);
   window.addEventListener("storage", updateModeIndicator);
   updateModeIndicator();
@@ -431,10 +503,6 @@ export function initPrompts() {
     window.dispatchEvent(new CustomEvent("request-tab", { detail: "tab-archive" }));
   });
   qs("#prompt-copy-open-btn").addEventListener("click", handleCopyAndOpen);
-  qs("#prompt-character-select").addEventListener("change", () => {
-    updateCharacterHint();
-    saveDraft();
-  });
   qs("#prompt-input-it").addEventListener("input", saveDraft);
   qs("#prompt-input-neg-it").addEventListener("input", saveDraft);
   qs("#prompt-style").addEventListener("change", rebuildOutputs);

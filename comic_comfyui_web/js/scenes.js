@@ -34,7 +34,8 @@ function renderList() {
 
   for (const scene of [...scenes].reverse()) {
     const metaParts = [formatDate(scene.createdAt)];
-    if (scene.prompt?.characterName) metaParts.push(scene.prompt.characterName);
+    const characterNames = (scene.prompt?.characterNames || (scene.prompt?.characterName ? [scene.prompt.characterName] : [])).filter(Boolean);
+    if (characterNames.length > 0) metaParts.push(characterNames.join(" + "));
 
     const card = el("div", { class: "item-card" }, [
       el("div", { class: "name", text: scene.name }),
