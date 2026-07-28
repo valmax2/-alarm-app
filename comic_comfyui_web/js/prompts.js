@@ -21,11 +21,38 @@ let lastGenerated = { positive: "", negative: "" };
 let lastSceneEn = null;
 let lastNegAdditionEn = "";
 
+// Quality/detail checkboxes and the aspect-ratio select, like the style
+// select, carry their actual English prompt tag directly as the option/input
+// value (see index.html) rather than a separate lookup table here.
+function getQualityTags() {
+  return qsa('#prompt-quality-options input[type="checkbox"]:checked').map((cb) => cb.value);
+}
+
+function setQualityTags(tags) {
+  const wanted = new Set(tags || []);
+  qsa('#prompt-quality-options input[type="checkbox"]').forEach((cb) => {
+    cb.checked = wanted.has(cb.value);
+  });
+}
+
+function getAspectRatioOption() {
+  const select = qs("#prompt-aspect-ratio");
+  const opt = select.options[select.selectedIndex];
+  return {
+    key: select.value,
+    tag: opt?.dataset.tag || "",
+    width: opt?.dataset.width ? Number(opt.dataset.width) : null,
+    height: opt?.dataset.height ? Number(opt.dataset.height) : null,
+  };
+}
+
 function saveDraft() {
   const draft = {
     sceneIt: qs("#prompt-input-it").value,
     negIt: qs("#prompt-input-neg-it").value,
     style: qs("#prompt-style").value,
+    qualityTags: getQualityTags(),
+    aspectRatio: qs("#prompt-aspect-ratio").value,
     characterIds: getSelectedCharacterIds(),
     outputEn: qs("#prompt-output-en").value,
     outputNegEn: qs("#prompt-output-neg-en").value,
@@ -58,6 +85,8 @@ function restoreDraft() {
   qs("#prompt-input-it").value = draft.sceneIt || "";
   qs("#prompt-input-neg-it").value = draft.negIt || "";
   if (draft.style !== undefined) qs("#prompt-style").value = draft.style;
+  if (draft.aspectRatio !== undefined) qs("#prompt-aspect-ratio").value = draft.aspectRatio;
+  setQualityTags(draft.qualityTags);
   qs("#prompt-output-en").value = draft.outputEn || "";
   qs("#prompt-output-neg-en").value = draft.outputNegEn || "";
   lastSceneEn = draft.lastSceneEn ?? null;
@@ -75,6 +104,8 @@ export function getSceneDraftForSaving() {
     sceneIt: qs("#prompt-input-it").value,
     negIt: qs("#prompt-input-neg-it").value,
     style: qs("#prompt-style").value,
+    qualityTags: getQualityTags(),
+    aspectRatio: qs("#prompt-aspect-ratio").value,
     characterIds,
     characterNames,
     outputEn: qs("#prompt-output-en").value,
@@ -88,6 +119,8 @@ export function applySceneDraft(draft) {
   qs("#prompt-input-it").value = draft.sceneIt || "";
   qs("#prompt-input-neg-it").value = draft.negIt || "";
   if (draft.style !== undefined) qs("#prompt-style").value = draft.style;
+  if (draft.aspectRatio !== undefined) qs("#prompt-aspect-ratio").value = draft.aspectRatio;
+  setQualityTags(draft.qualityTags);
   lastSceneEn = draft.lastSceneEn ?? null;
   lastNegAdditionEn = draft.lastNegAdditionEn || "";
 
@@ -106,7 +139,10 @@ function rebuildOutputs() {
   if (lastSceneEn === null) return;
   const style = qs("#prompt-style").value;
   const directorTags = getAppliedDirectorTags();
-  const positive = optimizePrompt(lastSceneEn, { style, extraTags: directorTags });
+  const qualityTags = getQualityTags();
+  const aspectTag = getAspectRatioOption().tag;
+  const extraTags = aspectTag ? [...directorTags, ...qualityTags, aspectTag] : [...directorTags, ...qualityTags];
+  const positive = optimizePrompt(lastSceneEn, { style, extraTags });
   qs("#prompt-output-en").value = positive;
   lastGenerated.positive = positive;
 
@@ -313,6 +349,13 @@ async function handleSendLocal(positive, negative) {
   if (mapping.seed) {
     graph[mapping.seed.nodeId].inputs[mapping.seed.field] = Math.floor(Math.random() * 1e15);
   }
+  if (mapping.resolution) {
+    const aspect = getAspectRatioOption();
+    if (aspect.width && aspect.height) {
+      graph[mapping.resolution.nodeId].inputs[mapping.resolution.widthField] = aspect.width;
+      graph[mapping.resolution.nodeId].inputs[mapping.resolution.heightField] = aspect.height;
+    }
+  }
 
   // Some workflows have several LoadImage nodes that each need a DIFFERENT
   // reference image (e.g. up to 3 distinct characters combined in one
@@ -506,6 +549,8 @@ export async function initPrompts() {
   qs("#prompt-input-it").addEventListener("input", saveDraft);
   qs("#prompt-input-neg-it").addEventListener("input", saveDraft);
   qs("#prompt-style").addEventListener("change", rebuildOutputs);
+  qs("#prompt-aspect-ratio").addEventListener("change", rebuildOutputs);
+  qsa('#prompt-quality-options input[type="checkbox"]').forEach((cb) => cb.addEventListener("change", rebuildOutputs));
   window.addEventListener("director-tags-updated", rebuildOutputs);
 
   initVoiceDictation("prompt-input-it", "prompt-input-it-mic");

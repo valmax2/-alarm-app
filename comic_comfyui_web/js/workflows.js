@@ -3,13 +3,24 @@ import { qs, el, uid, toast, formatDate } from "./utils.js";
 import { getActiveWorkflowId, setActiveWorkflowId } from "./state.js";
 
 const STORE = "workflows";
-// "seed" stays a single fixed node — everything a scene needs multiple nodes
-// for (prompt text, reference image) is handled as a variable-length group
-// below, since custom/third-party nodes (e.g. TextEncodeQwenImageEdit,
+// "seed"/"resolution" stay single fixed nodes (each has a small, known set of
+// input fields) — everything a scene needs a variable number of nodes for
+// (prompt text, reference image) is handled as a variable-length group below,
+// since custom/third-party nodes (e.g. TextEncodeQwenImageEdit,
 // TextEncodeQwenImageEditPlus, or whatever ships next) can't be predicted by
 // class_type: mapping is purely "pick any node + any input field", so it
 // works for today's nodes and future ones without code changes.
-const ROLES = [{ key: "seed", label: "Seed", defaultField: "seed" }];
+const ROLES = [
+  { key: "seed", label: "Seed", fields: [{ key: "field", defaultField: "seed" }] },
+  {
+    key: "resolution",
+    label: "Risoluzione (larghezza / altezza, es. nodo EmptyLatentImage)",
+    fields: [
+      { key: "widthField", defaultField: "width" },
+      { key: "heightField", defaultField: "height" },
+    ],
+  },
+];
 
 // Each group renders as an add/remove-able list of {nodeId, field} rows.
 // `legacyKey` migrates the old single-node mapping shape (from before
@@ -164,15 +175,17 @@ function renderMappingPanel(workflow) {
         )
       ),
     ]);
-    const fieldInput = el("input", {
-      type: "text",
-      "data-role": role.key,
-      "data-part": "field",
-      value: current.field || role.defaultField,
-      placeholder: role.defaultField,
-    });
+    const fieldInputs = role.fields.map((f) =>
+      el("input", {
+        type: "text",
+        "data-role": role.key,
+        "data-part": f.key,
+        value: current[f.key] || f.defaultField,
+        placeholder: f.defaultField,
+      })
+    );
     fieldsRoot.appendChild(
-      el("label", {}, [role.label, nodeSelect, fieldInput])
+      el("label", {}, [role.label, nodeSelect, ...fieldInputs])
     );
   }
 
@@ -217,10 +230,14 @@ async function saveMapping() {
   const mapping = {};
   for (const role of ROLES) {
     const nodeSelect = qs(`select[data-role="${role.key}"][data-part="node"]`);
-    const fieldInput = qs(`input[data-role="${role.key}"][data-part="field"]`);
     const nodeId = nodeSelect?.value || "";
-    const field = fieldInput?.value?.trim() || role.defaultField;
-    if (nodeId) mapping[role.key] = { nodeId, field };
+    if (!nodeId) continue;
+    const entry = { nodeId };
+    for (const f of role.fields) {
+      const fieldInput = qs(`input[data-role="${role.key}"][data-part="${f.key}"]`);
+      entry[f.key] = fieldInput?.value?.trim() || f.defaultField;
+    }
+    mapping[role.key] = entry;
   }
 
   for (const group of DYNAMIC_GROUPS) {

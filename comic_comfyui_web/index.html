@@ -153,7 +153,7 @@
 
     <div id="workflow-mapping" class="card" hidden>
       <h3>Mappatura nodi — <span id="mapping-workflow-name"></span></h3>
-      <p class="hint">Indica quali nodi del workflow devono ricevere il prompt positivo, il negativo, l'immagine di riferimento e il seed.</p>
+      <p class="hint">Indica quali nodi del workflow devono ricevere il prompt positivo, il negativo, l'immagine di riferimento, il seed e (facoltativo) la risoluzione.</p>
       <div class="form-grid" id="mapping-fields"></div>
       <div class="form-actions">
         <button id="mapping-save" class="btn primary">Salva mappatura</button>
@@ -207,6 +207,28 @@
           <option value="graphic novel, painterly digital art, moody colors">Graphic novel</option>
           <option value="western comic cover art, dynamic pose, halftone print">Cover americana</option>
         </select>
+      </label>
+      <label>Formato immagine
+        <select id="prompt-aspect-ratio">
+          <option value="" data-tag="" data-width="" data-height="" selected>Automatico (nessuna modifica)</option>
+          <option value="1:1" data-tag="square aspect ratio" data-width="1024" data-height="1024">1:1 Quadrato</option>
+          <option value="16:9" data-tag="16:9 widescreen aspect ratio" data-width="1344" data-height="768">16:9 Orizzontale</option>
+          <option value="9:16" data-tag="9:16 vertical aspect ratio, portrait orientation" data-width="768" data-height="1344">9:16 Verticale</option>
+          <option value="4:3" data-tag="4:3 aspect ratio" data-width="1152" data-height="896">4:3 Orizzontale classico</option>
+          <option value="3:4" data-tag="3:4 aspect ratio, portrait orientation" data-width="896" data-height="1152">3:4 Verticale classico</option>
+          <option value="21:9" data-tag="21:9 ultra-widescreen cinematic aspect ratio" data-width="1536" data-height="640">21:9 Cinematografico</option>
+        </select>
+        <span class="hint small">Aggiunge un'indicazione al prompt e, se hai mappato un nodo "Risoluzione" nel Workflow, imposta anche larghezza/altezza reali.</span>
+      </label>
+      <label class="full">Qualità / dettaglio (facoltativo, seleziona quanti vuoi)
+        <div class="checkbox-group" id="prompt-quality-options">
+          <label class="checkbox-inline"><input type="checkbox" value="high resolution, ultra high definition"> Alta risoluzione</label>
+          <label class="checkbox-inline"><input type="checkbox" value="photorealistic, realistic photography, DSLR photo"> Fotorealistico</label>
+          <label class="checkbox-inline"><input type="checkbox" value="ultra detailed, intricate details, fine details"> Ultra dettagliato</label>
+          <label class="checkbox-inline"><input type="checkbox" value="cinematic composition, film still, anamorphic lens"> Cinematografico</label>
+          <label class="checkbox-inline"><input type="checkbox" value="8k resolution"> 8K</label>
+          <label class="checkbox-inline"><input type="checkbox" value="HDR, high dynamic range"> HDR</label>
+        </div>
       </label>
       <label>Elementi negativi aggiuntivi (italiano, opzionale)
         <div class="textarea-with-mic">
