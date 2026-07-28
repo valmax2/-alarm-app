@@ -376,6 +376,33 @@ function notifyTagsUpdated() {
   window.dispatchEvent(new CustomEvent("director-tags-updated"));
 }
 
+function refreshAllDiagrams() {
+  drawTopDown();
+  qs("#director-topdown-label").textContent = bucketFor(HORIZONTAL_BUCKETS, state.horizontalAngle).it;
+  drawElevation();
+  qs("#director-elevation-label").textContent = bucketFor(VERTICAL_BUCKETS, state.verticalAngle).it;
+  drawFraming();
+  qs("#director-framing-label").textContent = bucketFor(FRAMING_BUCKETS, state.framingBoundaryY).it;
+  updateScenePreview();
+}
+
+// --- Full state (used by the saved-scenes archive) ---
+
+export function getFullDirectorState() {
+  return { settings: { ...state }, applied: { ...applied } };
+}
+
+export function setFullDirectorState(saved) {
+  state = { ...DEFAULTS, ...(saved?.settings || {}) };
+  applied = { ...EMPTY_APPLIED, ...(saved?.applied || {}) };
+  qs("#director-lighting").value = state.lighting;
+  qs("#director-composition").value = state.composition;
+  refreshAllDiagrams();
+  renderAppliedList();
+  saveState();
+  notifyTagsUpdated();
+}
+
 function applyToPrompt() {
   applied = {
     horizontal: bucketFor(HORIZONTAL_BUCKETS, state.horizontalAngle).en,

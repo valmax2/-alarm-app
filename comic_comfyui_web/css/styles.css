@@ -185,7 +185,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 
 .checkbox-row { flex-direction: row !important; align-items: center; gap: 8px !important; }
 
-.form-actions { display: flex; gap: 10px; margin-top: 6px; }
+.form-actions { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; align-items: center; }
+.form-actions input[type="text"] { flex: 1; min-width: 160px; }
 
 .btn {
   background: var(--bg-panel);

@@ -7,6 +7,7 @@ import { initPrompts } from "./prompts.js";
 import { initDirector } from "./director.js";
 import { initArchive } from "./archive.js";
 import { initProviders } from "./providers-ui.js";
+import { initScenes } from "./scenes.js";
 
 function switchTab(tabId) {
   qsa(".tab-btn").forEach((btn) => {
@@ -123,6 +124,7 @@ async function init() {
   await initCharacters();
   initPrompts();
   initDirector();
+  initScenes();
   await initArchive();
 }
 

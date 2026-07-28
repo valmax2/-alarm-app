@@ -62,6 +62,41 @@ function restoreDraft() {
   updateCharacterHint();
 }
 
+// --- Full prompt state (used by the saved-scenes archive) ---
+
+export function getSceneDraftForSaving() {
+  const select = qs("#prompt-character-select");
+  return {
+    sceneIt: qs("#prompt-input-it").value,
+    negIt: qs("#prompt-input-neg-it").value,
+    style: qs("#prompt-style").value,
+    characterId: select.value,
+    characterName: select.value ? select.options[select.selectedIndex]?.text : "",
+    outputEn: qs("#prompt-output-en").value,
+    outputNegEn: qs("#prompt-output-neg-en").value,
+    lastSceneEn,
+    lastNegAdditionEn,
+  };
+}
+
+export function applySceneDraft(draft) {
+  qs("#prompt-input-it").value = draft.sceneIt || "";
+  qs("#prompt-input-neg-it").value = draft.negIt || "";
+  if (draft.style !== undefined) qs("#prompt-style").value = draft.style;
+  lastSceneEn = draft.lastSceneEn ?? null;
+  lastNegAdditionEn = draft.lastNegAdditionEn || "";
+
+  const select = qs("#prompt-character-select");
+  if (draft.characterId && [...select.options].some((o) => o.value === draft.characterId)) {
+    select.value = draft.characterId;
+  } else {
+    select.value = "";
+  }
+  updateCharacterHint();
+  rebuildOutputs();
+  saveDraft();
+}
+
 /**
  * Recomputes the displayed positive/negative prompt from the last translated
  * text plus the CURRENT style and Director's Mode tags. Safe to call often
