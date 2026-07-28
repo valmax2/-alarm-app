@@ -256,7 +256,12 @@ async function handleSendLocal(positive, negative) {
   }
 
   const characterId = qs("#prompt-character-select").value;
-  if (mapping.image && characterId) {
+  // Some workflows have several LoadImage nodes (e.g. multiple IPAdapter
+  // stages) that all need the character reference — `mapping.images` is an
+  // array; `mapping.image` (singular) is kept for workflows mapped before
+  // multi-node support was added.
+  const imageMappings = Array.isArray(mapping.images) ? mapping.images : mapping.image ? [mapping.image] : [];
+  if (imageMappings.length > 0 && characterId) {
     const character = await getCharacterById(characterId);
     if (character) {
       setSendStatus("Caricamento immagine di riferimento su ComfyUI...");
@@ -265,9 +270,10 @@ async function handleSendLocal(positive, negative) {
       // alphanumeric name sidesteps any such filesystem/parsing ambiguity.
       const safeName = `char-${character.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12)}.png`;
       const uploaded = await client.uploadImage(character.blob, safeName);
-      graph[mapping.image.nodeId].inputs[mapping.image.field] = uploaded.subfolder
-        ? `${uploaded.subfolder}/${uploaded.name}`
-        : uploaded.name;
+      const imageValue = uploaded.subfolder ? `${uploaded.subfolder}/${uploaded.name}` : uploaded.name;
+      for (const imageMapping of imageMappings) {
+        graph[imageMapping.nodeId].inputs[imageMapping.field] = imageValue;
+      }
     }
   }
 

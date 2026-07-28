@@ -3,15 +3,28 @@ import { qs, el, uid, toast, formatDate } from "./utils.js";
 import { getActiveWorkflowId, setActiveWorkflowId } from "./state.js";
 
 const STORE = "workflows";
+// "image" is handled separately from these — some workflows have several
+// LoadImage nodes (e.g. multiple IPAdapter stages), so it needs a variable
+// number of node mappings instead of a single fixed one.
 const ROLES = [
   { key: "positive", label: "Prompt positivo", defaultField: "text" },
   { key: "negative", label: "Prompt negativo", defaultField: "text" },
-  { key: "image", label: "Immagine di riferimento", defaultField: "image" },
   { key: "seed", label: "Seed", defaultField: "seed" },
 ];
+const IMAGE_DEFAULT_FIELD = "image";
 
 let cache = [];
 let mappingWorkflowId = null;
+let currentImageMappings = [];
+
+// Reads the workflow's image node mappings as an array, migrating the old
+// singular `mapping.image` shape (from before multi-LoadImage support) into
+// a one-item array so existing saved workflows keep working.
+function getImageMappings(workflow) {
+  if (Array.isArray(workflow.mapping?.images)) return workflow.mapping.images;
+  if (workflow.mapping?.image) return [workflow.mapping.image];
+  return [];
+}
 
 // A proper ComfyUI *API-format* workflow is a flat object keyed by node id,
 // where every value is a { class_type, inputs, ... } node object. A regular
@@ -48,6 +61,46 @@ function nodeOptionsLabel(nodeId, node) {
   return `#${nodeId} · ${node?.class_type || "?"}${title ? " (" + title + ")" : ""}`;
 }
 
+function renderImageMappingRows(container, nodeEntries, images) {
+  container.innerHTML = "";
+  if (images.length === 0) {
+    container.appendChild(el("p", { class: "hint" }, "Nessun nodo immagine collegato."));
+  }
+  images.forEach((current, index) => {
+    const nodeSelect = el("select", {
+      "data-image-index": String(index),
+      "data-image-part": "node",
+      onchange: () => { current.nodeId = nodeSelect.value; },
+    }, [
+      el("option", { value: "" }, "— non usato —"),
+      ...nodeEntries.map(([nodeId, node]) =>
+        el(
+          "option",
+          { value: nodeId, selected: current.nodeId === nodeId ? "selected" : false },
+          nodeOptionsLabel(nodeId, node)
+        )
+      ),
+    ]);
+    const fieldInput = el("input", {
+      type: "text",
+      "data-image-index": String(index),
+      "data-image-part": "field",
+      value: current.field || IMAGE_DEFAULT_FIELD,
+      placeholder: IMAGE_DEFAULT_FIELD,
+      oninput: () => { current.field = fieldInput.value; },
+    });
+    const removeBtn = el("button", {
+      class: "btn small danger",
+      type: "button",
+      onclick: () => {
+        images.splice(index, 1);
+        renderImageMappingRows(container, nodeEntries, images);
+      },
+    }, "Rimuovi");
+    container.appendChild(el("div", { class: "row image-mapping-row" }, [nodeSelect, fieldInput, removeBtn]));
+  });
+}
+
 function renderMappingPanel(workflow) {
   const panel = qs("#workflow-mapping");
   const fieldsRoot = qs("#mapping-fields");
@@ -80,6 +133,30 @@ function renderMappingPanel(workflow) {
     );
   }
 
+  const imagesContainer = el("div", { class: "image-mappings-list" });
+  currentImageMappings = getImageMappings(workflow).map((m) => ({ ...m }));
+  renderImageMappingRows(imagesContainer, nodeEntries, currentImageMappings);
+  const addImageBtn = el(
+    "button",
+    {
+      class: "btn small",
+      type: "button",
+      onclick: () => {
+        currentImageMappings.push({ nodeId: "", field: IMAGE_DEFAULT_FIELD });
+        renderImageMappingRows(imagesContainer, nodeEntries, currentImageMappings);
+      },
+    },
+    "+ Aggiungi nodo immagine"
+  );
+  fieldsRoot.appendChild(
+    el("div", { class: "image-mappings-block" }, [
+      el("div", { class: "step-title", text: "Immagine di riferimento (uno o più nodi LoadImage)" }),
+      el("p", { class: "hint" }, "Se il workflow ha più nodi LoadImage (es. più stadi IPAdapter), aggiungine uno per ognuno: riceveranno tutti la stessa immagine del personaggio."),
+      imagesContainer,
+      addImageBtn,
+    ])
+  );
+
   mappingWorkflowId = workflow.id;
   panel.hidden = false;
   panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -97,6 +174,17 @@ async function saveMapping() {
     const field = fieldInput?.value?.trim() || role.defaultField;
     if (nodeId) mapping[role.key] = { nodeId, field };
   }
+
+  const images = [];
+  currentImageMappings.forEach((_, index) => {
+    const nodeSelect = qs(`select[data-image-index="${index}"][data-image-part="node"]`);
+    const fieldInput = qs(`input[data-image-index="${index}"][data-image-part="field"]`);
+    const nodeId = nodeSelect?.value || "";
+    const field = fieldInput?.value?.trim() || IMAGE_DEFAULT_FIELD;
+    if (nodeId) images.push({ nodeId, field });
+  });
+  mapping.images = images;
+
   workflow.mapping = mapping;
   await db.put(STORE, workflow);
   await loadAll();
