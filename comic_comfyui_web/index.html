@@ -241,14 +241,14 @@
   <!-- DIRECTOR'S MODE -->
   <section id="tab-director" class="tab-panel">
     <h2>Director's Mode</h2>
-    <p class="hint">Trascina l'icona 📷 nei due diagrammi per decidere da dove verrà "vista" l'immagine rispetto al personaggio, poi applica al prompt. Non usa la fotocamera del telefono: è uno schema visivo.</p>
+    <p class="hint">Trascina l'icona 📷 nei diagrammi per decidere da dove verrà "vista" l'immagine rispetto al personaggio, poi applica al prompt. Non usa la fotocamera del telefono: sono schemi visivi.</p>
     <div class="director-layout">
       <div class="director-diagrams">
         <div class="director-diagram-box">
-          <h3>Vista dall'alto (davanti / lato / dietro)</h3>
+          <h3>Vista dall'alto (angolo + zoom)</h3>
           <canvas id="director-topdown" width="240" height="240"></canvas>
           <p class="director-diagram-label" id="director-topdown-label">Frontale</p>
-          <p class="hint small">La freccia verde indica dove guarda il personaggio.</p>
+          <p class="hint small">La freccia verde indica dove guarda il personaggio. Trascina la 📷 anche più vicina o lontana per zoomare — si aggiorna anche il riquadro Zoom qui a destra.</p>
         </div>
         <div class="director-diagram-box">
           <h3>Vista laterale (sopra / occhi / sotto)</h3>
@@ -259,7 +259,7 @@
           <h3>Zoom / Inquadratura</h3>
           <canvas id="director-framing" width="160" height="240"></canvas>
           <p class="director-diagram-label" id="director-framing-label">Piano medio</p>
-          <p class="hint small">Trascina la linea: l'area scura è ciò che resta fuori dall'inquadratura.</p>
+          <p class="hint small">Trascina la linea: l'area scura è ciò che resta fuori dall'inquadratura (collegato alla vista dall'alto).</p>
         </div>
       </div>
       <div class="director-controls card">

@@ -18,6 +18,26 @@ const DEFAULTS = {
 
 const EMPTY_APPLIED = { horizontal: null, vertical: null, framing: null, lighting: null, composition: null };
 
+// framingBoundaryY (used by the zoom/framing silhouette diagram) is the
+// single source of truth for "how zoomed in" the shot is. The top-down
+// diagram's camera icon distance-from-subject is just another view onto
+// the same value, so dragging closer/farther in either diagram keeps both
+// in sync instead of zoom being a separate, disconnected control.
+const FRAMING_MIN_Y = 45; // tightest zoom (extreme close-up)
+const FRAMING_MAX_Y = 235; // widest (full body)
+const TOPDOWN_INNER_R = 20; // camera right next to the subject = tightest zoom
+const TOPDOWN_OUTER_R = 90; // camera at the edge of the circle = widest shot
+
+function framingYToRadius(y) {
+  const f = (y - FRAMING_MIN_Y) / (FRAMING_MAX_Y - FRAMING_MIN_Y);
+  return TOPDOWN_INNER_R + clamp(f, 0, 1) * (TOPDOWN_OUTER_R - TOPDOWN_INNER_R);
+}
+
+function radiusToFramingY(r) {
+  const f = (r - TOPDOWN_INNER_R) / (TOPDOWN_OUTER_R - TOPDOWN_INNER_R);
+  return FRAMING_MIN_Y + clamp(f, 0, 1) * (FRAMING_MAX_Y - FRAMING_MIN_Y);
+}
+
 let state = { ...DEFAULTS };
 // One slot per category: applying always REPLACES the previous choice in
 // that category instead of piling up every angle ever tried, which used to
@@ -101,14 +121,14 @@ function drawTopDown() {
   const h = canvas.height;
   const cx = w / 2;
   const cy = h / 2;
-  const radius = w / 2 - 30;
 
   ctx.clearRect(0, 0, w, h);
 
+  // Guide circle at the widest extent, for reference.
   ctx.strokeStyle = "rgba(255,255,255,0.15)";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.arc(cx, cy, TOPDOWN_OUTER_R, 0, Math.PI * 2);
   ctx.stroke();
 
   ctx.strokeStyle = "#35c98f";
@@ -130,9 +150,12 @@ function drawTopDown() {
   ctx.arc(cx, cy, 11, 0, Math.PI * 2);
   ctx.fill();
 
+  // Camera distance from the subject mirrors the zoom/framing diagram, so
+  // dragging closer/farther here also zooms in/out there.
+  const camRadius = framingYToRadius(state.framingBoundaryY);
   const rad = (state.horizontalAngle * Math.PI) / 180;
-  const camX = cx + radius * Math.sin(rad);
-  const camY = cy - radius * Math.cos(rad);
+  const camX = cx + camRadius * Math.sin(rad);
+  const camY = cy - camRadius * Math.cos(rad);
   ctx.font = "22px sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -154,11 +177,20 @@ function initTopDownDiagram() {
 
   function updateFromEvent(evt) {
     const { px, py } = pointerToCanvas(evt, canvas);
-    let deg = (Math.atan2(px - cx, -(py - cy)) * 180) / Math.PI;
+    const dx = px - cx;
+    const dy = py - cy;
+    let deg = (Math.atan2(dx, -dy) * 180) / Math.PI;
     if (deg < 0) deg += 360;
     state.horizontalAngle = deg;
+
+    // Distance from the subject = zoom, kept in sync with the framing diagram.
+    const dragRadius = clamp(Math.hypot(dx, dy), TOPDOWN_INNER_R, TOPDOWN_OUTER_R);
+    state.framingBoundaryY = radiusToFramingY(dragRadius);
+
     drawTopDown();
+    drawFraming();
     qs("#director-topdown-label").textContent = bucketFor(HORIZONTAL_BUCKETS, state.horizontalAngle).it;
+    qs("#director-framing-label").textContent = bucketFor(FRAMING_BUCKETS, state.framingBoundaryY).it;
     updateScenePreview();
   }
 
@@ -246,9 +278,6 @@ function initElevationDiagram() {
 
 // --- Framing / zoom diagram: body silhouette with a live crop preview ---
 
-const FRAMING_MIN_Y = 45;
-const FRAMING_MAX_Y = 235;
-
 function drawFraming() {
   const canvas = qs("#director-framing");
   const ctx = canvas.getContext("2d");
@@ -301,6 +330,7 @@ function initFramingDiagram() {
     const { py } = pointerToCanvas(evt, canvas);
     state.framingBoundaryY = clamp(py, FRAMING_MIN_Y, FRAMING_MAX_Y);
     drawFraming();
+    drawTopDown(); // keep the top-down camera's distance from the subject in sync
     qs("#director-framing-label").textContent = bucketFor(FRAMING_BUCKETS, state.framingBoundaryY).it;
     updateScenePreview();
   }
