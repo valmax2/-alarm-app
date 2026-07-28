@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/clock_settings.dart';
 import '../services/alarm_checker_service.dart';
@@ -45,11 +46,19 @@ class ClockScreen extends StatefulWidget {
   State<ClockScreen> createState() => _ClockScreenState();
 }
 
+// Dopo tanto tempo alla massima luminosità, l'orologio si autoattenua un
+// gradino per limitare il riscaldamento dello schermo (protezione
+// anti-surriscaldamento "software": niente sensore di temperatura, ma
+// evita di tenere il backlight al massimo per ore di fila).
+const Duration _overheatProtectionDelay = Duration(minutes: 30);
+
 class _ClockScreenState extends State<ClockScreen> {
   Timer? _ticker;
+  Timer? _overheatTimer;
   DateTime _now = DateTime.now();
   bool _ringScreenOpen = false;
   AlarmCheckerService? _alarmChecker;
+  ClockSettings? _settingsRef;
 
   @override
   void initState() {
@@ -58,11 +67,18 @@ class _ClockScreenState extends State<ClockScreen> {
       setState(() => _now = DateTime.now());
     });
 
+    // Orologio da comodino: lo schermo non deve mai spegnersi da solo
+    // finché l'app resta aperta.
+    WakelockPlus.enable();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _alarmChecker = context.read<AlarmCheckerService>();
       _alarmChecker!.addListener(_onAlarmStateChanged);
-      BrightnessService.apply(context.read<ClockSettings>().brightness);
+      _settingsRef = context.read<ClockSettings>();
+      _settingsRef!.addListener(_onSettingsChanged);
+      BrightnessService.apply(_settingsRef!.brightness);
+      _onSettingsChanged();
     });
   }
 
@@ -70,6 +86,31 @@ class _ClockScreenState extends State<ClockScreen> {
     final next = settings.nextBrightness;
     settings.update(() => settings.brightness = next);
     BrightnessService.apply(next);
+  }
+
+  void _onSettingsChanged() {
+    final settings = _settingsRef;
+    if (settings == null) return;
+    if (settings.brightness == ClockBrightness.normal) {
+      _overheatTimer ??= Timer(_overheatProtectionDelay, _applyOverheatProtection);
+    } else {
+      _overheatTimer?.cancel();
+      _overheatTimer = null;
+    }
+  }
+
+  void _applyOverheatProtection() {
+    _overheatTimer = null;
+    final settings = _settingsRef;
+    if (!mounted || settings == null) return;
+    settings.update(() => settings.brightness = ClockBrightness.medium);
+    BrightnessService.apply(ClockBrightness.medium);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Luminosità ridotta automaticamente per evitare che lo schermo si surriscaldi.'),
+        duration: Duration(seconds: 4),
+      ),
+    );
   }
 
   void _onAlarmStateChanged() {
@@ -85,7 +126,10 @@ class _ClockScreenState extends State<ClockScreen> {
   @override
   void dispose() {
     _ticker?.cancel();
+    _overheatTimer?.cancel();
     _alarmChecker?.removeListener(_onAlarmStateChanged);
+    _settingsRef?.removeListener(_onSettingsChanged);
+    WakelockPlus.disable();
     super.dispose();
   }
 
