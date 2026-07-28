@@ -47,10 +47,14 @@ export class ComfyUIClient {
     return response.json();
   }
 
-  async uploadImage(blob, filename, subfolder = "comic-studio") {
+  async uploadImage(blob, filename, subfolder = "") {
+    // Uploading straight into ComfyUI's root input folder (no subfolder) by
+    // default: it's the path format every LoadImage node unambiguously
+    // understands, sidestepping any subfolder-prefix mismatch between what
+    // we ask for and what ComfyUI actually reports back in its response.
     const form = new FormData();
     form.append("image", blob, filename);
-    form.append("subfolder", subfolder);
+    if (subfolder) form.append("subfolder", subfolder);
     form.append("overwrite", "true");
     const response = await this._fetch("/upload/image", { method: "POST", body: form });
     return response.json(); // { name, subfolder, type }

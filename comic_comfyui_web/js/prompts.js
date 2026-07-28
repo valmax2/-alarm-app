@@ -260,7 +260,11 @@ async function handleSendLocal(positive, negative) {
     const character = await getCharacterById(characterId);
     if (character) {
       setSendStatus("Caricamento immagine di riferimento su ComfyUI...");
-      const uploaded = await client.uploadImage(character.blob, `${character.name}.png`);
+      // Spaces/odd characters in the filename have caused ComfyUI's LoadImage
+      // node to fail to find the file it was just given; a plain
+      // alphanumeric name sidesteps any such filesystem/parsing ambiguity.
+      const safeName = `char-${character.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12)}.png`;
+      const uploaded = await client.uploadImage(character.blob, safeName);
       graph[mapping.image.nodeId].inputs[mapping.image.field] = uploaded.subfolder
         ? `${uploaded.subfolder}/${uploaded.name}`
         : uploaded.name;
