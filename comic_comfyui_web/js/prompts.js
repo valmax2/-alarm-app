@@ -13,6 +13,14 @@ const sessionClientId = uid();
 const DRAFT_KEY = "comic-studio:prompt-draft";
 let lastGenerated = { positive: "", negative: "" };
 
+// Raw translated text (before style/quality/director tags get layered on),
+// kept separately so the displayed prompt can be rebuilt instantly whenever
+// the style or Director's Mode selection changes, without re-calling the
+// translation API and without requiring the user to remember to press
+// "Traduci & Ottimizza" again after tweaking the camera.
+let lastSceneEn = null;
+let lastNegAdditionEn = "";
+
 function saveDraft() {
   const draft = {
     sceneIt: qs("#prompt-input-it").value,
@@ -21,6 +29,8 @@ function saveDraft() {
     characterId: qs("#prompt-character-select").value,
     outputEn: qs("#prompt-output-en").value,
     outputNegEn: qs("#prompt-output-neg-en").value,
+    lastSceneEn,
+    lastNegAdditionEn,
   };
   localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
 }
@@ -42,12 +52,35 @@ function restoreDraft() {
   if (draft.style !== undefined) qs("#prompt-style").value = draft.style;
   qs("#prompt-output-en").value = draft.outputEn || "";
   qs("#prompt-output-neg-en").value = draft.outputNegEn || "";
+  lastSceneEn = draft.lastSceneEn ?? null;
+  lastNegAdditionEn = draft.lastNegAdditionEn || "";
 
   const select = qs("#prompt-character-select");
   if (draft.characterId && [...select.options].some((o) => o.value === draft.characterId)) {
     select.value = draft.characterId;
   }
   updateCharacterHint();
+}
+
+/**
+ * Recomputes the displayed positive/negative prompt from the last translated
+ * text plus the CURRENT style and Director's Mode tags. Safe to call often
+ * (style change, director tag change, right before sending) since it does
+ * no network requests. No-op until a translation has happened at least once.
+ */
+function rebuildOutputs() {
+  if (lastSceneEn === null) return;
+  const style = qs("#prompt-style").value;
+  const directorTags = getAppliedDirectorTags();
+  const positive = optimizePrompt(lastSceneEn, { style, extraTags: directorTags });
+  qs("#prompt-output-en").value = positive;
+  lastGenerated.positive = positive;
+
+  const negative = tagify(DEFAULT_NEGATIVE_EN, lastNegAdditionEn ? [lastNegAdditionEn] : []);
+  qs("#prompt-output-neg-en").value = negative;
+  lastGenerated.negative = negative;
+
+  saveDraft();
 }
 
 function updateCharacterHint() {
@@ -94,7 +127,6 @@ function setSendStatus(message, type = "") {
 async function handleTranslate() {
   const sceneIt = qs("#prompt-input-it").value.trim();
   const negIt = qs("#prompt-input-neg-it").value.trim();
-  const style = qs("#prompt-style").value;
 
   if (!sceneIt) {
     toast("Inserisci prima una descrizione della scena.", "error");
@@ -107,24 +139,14 @@ async function handleTranslate() {
 
   try {
     const { text: sceneEn, source } = await translateItToEn(sceneIt);
-    const directorTags = getAppliedDirectorTags();
-    const positive = optimizePrompt(sceneEn, { style, extraTags: directorTags });
-    qs("#prompt-output-en").value = positive;
-    lastGenerated.positive = positive;
-
-    let userNegEn = "";
-    if (negIt) {
-      userNegEn = (await translateItToEn(negIt)).text;
-    }
-    const negative = tagify(DEFAULT_NEGATIVE_EN, userNegEn ? [userNegEn] : []);
-    qs("#prompt-output-neg-en").value = negative;
-    lastGenerated.negative = negative;
+    lastSceneEn = sceneEn;
+    lastNegAdditionEn = negIt ? (await translateItToEn(negIt)).text : "";
+    rebuildOutputs();
 
     toast(
       source === "api" ? "Prompt tradotto e ottimizzato." : "Tradotto con dizionario locale (API non raggiungibile).",
       source === "api" ? "success" : "info"
     );
-    saveDraft();
   } catch (err) {
     toast(`Errore durante la traduzione: ${err.message}`, "error");
   } finally {
@@ -207,6 +229,7 @@ async function handleSendLocal(positive, negative) {
   refreshArchive();
   setSendStatus(`✅ ${images.length} immagine/i generate e salvate in archivio (ComfyUI).`, "ok");
   toast("Generazione completata.", "success");
+  qs("#prompt-view-archive-btn").hidden = false;
 }
 
 async function handleSendExternal(positive, negative) {
@@ -238,9 +261,11 @@ async function handleSendExternal(positive, negative) {
   refreshArchive();
   setSendStatus(`✅ ${blobs.length} immagine/i generate e salvate in archivio (${meta?.label || providerId}).`, "ok");
   toast("Generazione completata.", "success");
+  qs("#prompt-view-archive-btn").hidden = false;
 }
 
 async function handleSend() {
+  rebuildOutputs(); // safety net: pick up any camera/style change even if the user didn't re-translate
   const positive = qs("#prompt-output-en").value.trim();
   if (!positive) {
     toast("Genera prima il prompt (Traduci & Ottimizza).", "error");
@@ -250,6 +275,7 @@ async function handleSend() {
 
   const sendBtn = qs("#prompt-send-btn");
   sendBtn.disabled = true;
+  qs("#prompt-view-archive-btn").hidden = true;
   setSendStatus("Preparazione della richiesta...");
 
   try {
@@ -295,13 +321,17 @@ export function initPrompts() {
   qs("#prompt-copy-btn").addEventListener("click", () => handleCopy("prompt-output-en", "Prompt"));
   qs("#prompt-copy-neg-btn").addEventListener("click", () => handleCopy("prompt-output-neg-en", "Prompt negativo"));
   qs("#prompt-send-btn").addEventListener("click", handleSend);
+  qs("#prompt-view-archive-btn").addEventListener("click", () => {
+    window.dispatchEvent(new CustomEvent("request-tab", { detail: "tab-archive" }));
+  });
   qs("#prompt-character-select").addEventListener("change", () => {
     updateCharacterHint();
     saveDraft();
   });
   qs("#prompt-input-it").addEventListener("input", saveDraft);
   qs("#prompt-input-neg-it").addEventListener("input", saveDraft);
-  qs("#prompt-style").addEventListener("change", saveDraft);
+  qs("#prompt-style").addEventListener("change", rebuildOutputs);
+  window.addEventListener("director-tags-updated", rebuildOutputs);
 
   initVoiceDictation("prompt-input-it", "prompt-input-it-mic");
   initVoiceDictation("prompt-input-neg-it", "prompt-input-neg-it-mic");

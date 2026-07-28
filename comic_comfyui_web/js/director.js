@@ -14,10 +14,16 @@ const DEFAULTS = {
   framingBoundaryY: 150, // px along the framing silhouette, smaller = tighter zoom
   lighting: "soft natural lighting",
   composition: "rule of thirds composition",
-  appliedTags: [],
 };
 
-let state = { ...DEFAULTS, appliedTags: [] };
+const EMPTY_APPLIED = { horizontal: null, vertical: null, framing: null, lighting: null, composition: null };
+
+let state = { ...DEFAULTS };
+// One slot per category: applying always REPLACES the previous choice in
+// that category instead of piling up every angle ever tried, which used to
+// leave contradictory tags (e.g. "front view" and "back view" together) in
+// the prompt and made the camera controls feel like they did nothing.
+let applied = { ...EMPTY_APPLIED };
 
 const HORIZONTAL_BUCKETS = [
   { max: 22.5, en: "front view, character facing the camera", it: "Frontale" },
@@ -41,11 +47,11 @@ const VERTICAL_BUCKETS = [
 
 // Boundary Y thresholds line up with the landmarks drawn in drawFraming().
 const FRAMING_BUCKETS = [
-  { max: 65, en: "extreme close-up, detailed face", it: "Primissimo piano (viso)" },
-  { max: 95, en: "close-up shot, head and shoulders", it: "Primo piano (testa e spalle)" },
-  { max: 150, en: "medium close-up shot, upper body", it: "Mezzo busto" },
-  { max: 200, en: "medium shot, three-quarter body", it: "Piano americano (tre quarti)" },
-  { max: 999, en: "wide shot, full body", it: "Figura intera" },
+  { max: 65, en: "extreme close-up, detailed face, full head visible with headroom, not cropped", it: "Primissimo piano (viso)" },
+  { max: 95, en: "close-up shot, head and shoulders, full head visible with headroom, not cropped", it: "Primo piano (testa e spalle)" },
+  { max: 150, en: "medium close-up shot, upper body, full head visible with headroom", it: "Mezzo busto" },
+  { max: 200, en: "medium shot, three-quarter body, full head visible", it: "Piano americano (tre quarti)" },
+  { max: 999, en: "wide shot, full body, head to toe fully visible", it: "Figura intera" },
 ];
 
 function bucketFor(list, value) {
@@ -59,16 +65,19 @@ function clamp(value, min, max) {
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULTS, appliedTags: [] };
+    if (!raw) return { settings: { ...DEFAULTS }, applied: { ...EMPTY_APPLIED } };
     const parsed = JSON.parse(raw);
-    return { ...DEFAULTS, ...parsed, appliedTags: Array.isArray(parsed.appliedTags) ? parsed.appliedTags : [] };
+    return {
+      settings: { ...DEFAULTS, ...parsed.settings },
+      applied: { ...EMPTY_APPLIED, ...parsed.applied },
+    };
   } catch {
-    return { ...DEFAULTS, appliedTags: [] };
+    return { settings: { ...DEFAULTS }, applied: { ...EMPTY_APPLIED } };
   }
 }
 
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ settings: state, applied }));
 }
 
 // --- Top-down diagram ---
@@ -295,44 +304,51 @@ function initFramingDiagram() {
 }
 
 // --- Applied tags (fed into the prompt optimizer) ---
+// One value per category — applying always overwrites the previous choice
+// in that same category, so the prompt reflects only the latest camera
+// setup instead of every angle ever tried.
 
 export function getAppliedDirectorTags() {
-  return [...state.appliedTags];
+  return Object.values(applied).filter(Boolean);
 }
 
 export function clearAppliedDirectorTags() {
-  state.appliedTags = [];
+  applied = { ...EMPTY_APPLIED };
   saveState();
   renderAppliedList();
+  notifyTagsUpdated();
 }
 
 function renderAppliedList() {
   const root = qs("#director-applied-list");
   root.innerHTML = "";
-  for (const tag of state.appliedTags) {
+  for (const tag of getAppliedDirectorTags()) {
     root.appendChild(el("span", { class: "applied-tag-chip", text: tag }));
   }
 }
 
-function applyToPrompt() {
-  const newTags = [
-    bucketFor(HORIZONTAL_BUCKETS, state.horizontalAngle).en,
-    bucketFor(VERTICAL_BUCKETS, state.verticalAngle).en,
-    bucketFor(FRAMING_BUCKETS, state.framingBoundaryY).en,
-    state.lighting,
-    state.composition,
-  ].filter(Boolean);
+function notifyTagsUpdated() {
+  window.dispatchEvent(new CustomEvent("director-tags-updated"));
+}
 
-  for (const tag of newTags) {
-    if (!state.appliedTags.includes(tag)) state.appliedTags.push(tag);
-  }
+function applyToPrompt() {
+  applied = {
+    horizontal: bucketFor(HORIZONTAL_BUCKETS, state.horizontalAngle).en,
+    vertical: bucketFor(VERTICAL_BUCKETS, state.verticalAngle).en,
+    framing: bucketFor(FRAMING_BUCKETS, state.framingBoundaryY).en,
+    lighting: state.lighting || null,
+    composition: state.composition || null,
+  };
   saveState();
   renderAppliedList();
+  notifyTagsUpdated();
   toast("Direttive di regia applicate al prompt.", "success");
 }
 
 export function initDirector() {
-  state = loadState();
+  const loaded = loadState();
+  state = loaded.settings;
+  applied = loaded.applied;
 
   qs("#director-lighting").value = state.lighting;
   qs("#director-composition").value = state.composition;

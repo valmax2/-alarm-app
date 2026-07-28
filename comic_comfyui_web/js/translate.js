@@ -107,8 +107,9 @@ export const DEFAULT_NEGATIVE_EN =
   "deformed hands, extra fingers, missing fingers, fused fingers, too many fingers, " +
   "mutated hands, poorly drawn hands, malformed limbs, extra limbs, missing limbs, " +
   "disfigured, bad anatomy, distorted body proportions, asymmetrical face, cross-eyed, " +
-  "extra heads, cloned face, long neck, blurry, low quality, worst quality, jpeg artifacts, " +
-  "watermark, signature, text, username";
+  "extra heads, cloned face, long neck, cropped head, cropped forehead, cropped face, " +
+  "head cut off, head out of frame, top of head missing, blurry, low quality, worst quality, " +
+  "jpeg artifacts, watermark, signature, text, username";
 
 function dedupeTags(parts) {
   const seen = new Set();

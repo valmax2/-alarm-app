@@ -15,12 +15,14 @@ function switchTab(tabId) {
     btn.setAttribute("aria-selected", String(active));
   });
   qsa(".tab-panel").forEach((panel) => panel.classList.toggle("active", panel.id === tabId));
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function initTabs() {
   qsa(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
+  window.addEventListener("request-tab", (e) => switchTab(e.detail));
 }
 
 function setConnectionBadge(connected, label) {
