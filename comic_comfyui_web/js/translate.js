@@ -99,23 +99,18 @@ export async function translateItToEn(text) {
 
 const QUALITY_BOOSTERS = "highly detailed, sharp focus, professional illustration, 4k";
 
-/**
- * Turns free-form translated text into a comma-separated tag-style prompt,
- * the format most ComfyUI checkpoints/LoRAs expect, and appends the chosen
- * style plus quality boosters.
- */
-export function optimizePrompt(englishText, { style = "", extraTags = [] } = {}) {
-  const cleaned = (englishText || "")
-    .split(/\.\s*|\n+/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .join(", ");
+// A solid, widely-used baseline negative prompt covering the most common
+// anatomy artifacts in AI-generated figures. Always included in the
+// negative prompt (on top of anything the user adds) so correct anatomy
+// isn't something the user has to remember to ask for every time.
+export const DEFAULT_NEGATIVE_EN =
+  "deformed hands, extra fingers, missing fingers, fused fingers, too many fingers, " +
+  "mutated hands, poorly drawn hands, malformed limbs, extra limbs, missing limbs, " +
+  "disfigured, bad anatomy, distorted body proportions, asymmetrical face, cross-eyed, " +
+  "extra heads, cloned face, long neck, blurry, low quality, worst quality, jpeg artifacts, " +
+  "watermark, signature, text, username";
 
-  const parts = [cleaned, style, ...extraTags, QUALITY_BOOSTERS]
-    .map((p) => (p || "").trim())
-    .filter(Boolean);
-
-  // De-duplicate tags while preserving order.
+function dedupeTags(parts) {
   const seen = new Set();
   const deduped = [];
   for (const part of parts.join(", ").split(",").map((p) => p.trim()).filter(Boolean)) {
@@ -125,4 +120,33 @@ export function optimizePrompt(englishText, { style = "", extraTags = [] } = {})
     deduped.push(part);
   }
   return deduped.join(", ");
+}
+
+/**
+ * Turns free-form translated text into a comma-separated tag-style prompt,
+ * the format most ComfyUI checkpoints/LoRAs expect, and appends the chosen
+ * style plus quality boosters. Intended for the positive prompt only.
+ */
+export function optimizePrompt(englishText, { style = "", extraTags = [] } = {}) {
+  const cleaned = (englishText || "")
+    .split(/\.\s*|\n+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .join(", ");
+
+  return dedupeTags([cleaned, style, ...extraTags, QUALITY_BOOSTERS]);
+}
+
+/**
+ * Same tag-style cleanup as optimizePrompt but without style/quality
+ * boosters — for the negative prompt, where those wouldn't make sense.
+ */
+export function tagify(englishText, extraTags = []) {
+  const cleaned = (englishText || "")
+    .split(/\.\s*|\n+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .join(", ");
+
+  return dedupeTags([cleaned, ...extraTags]);
 }

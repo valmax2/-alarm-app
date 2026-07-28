@@ -1,5 +1,5 @@
 import { qs, el, toast, copyToClipboard, uid } from "./utils.js";
-import { translateItToEn, optimizePrompt } from "./translate.js";
+import { translateItToEn, optimizePrompt, tagify, DEFAULT_NEGATIVE_EN } from "./translate.js";
 import { listCharacters, getCharacterById } from "./characters.js";
 import { getActiveWorkflow } from "./workflows.js";
 import { getConnectionSettings, getGenerationMode, getActiveProvider, getProviderSettings } from "./state.js";
@@ -112,15 +112,13 @@ async function handleTranslate() {
     qs("#prompt-output-en").value = positive;
     lastGenerated.positive = positive;
 
+    let userNegEn = "";
     if (negIt) {
-      const { text: negEn } = await translateItToEn(negIt);
-      const negative = optimizePrompt(negEn, { style: "", extraTags: [] });
-      qs("#prompt-output-neg-en").value = negative;
-      lastGenerated.negative = negative;
-    } else {
-      qs("#prompt-output-neg-en").value = "";
-      lastGenerated.negative = "";
+      userNegEn = (await translateItToEn(negIt)).text;
     }
+    const negative = tagify(DEFAULT_NEGATIVE_EN, userNegEn ? [userNegEn] : []);
+    qs("#prompt-output-neg-en").value = negative;
+    lastGenerated.negative = negative;
 
     toast(
       source === "api" ? "Prompt tradotto e ottimizzato." : "Tradotto con dizionario locale (API non raggiungibile).",
@@ -286,6 +284,8 @@ function updateModeIndicator() {
 export function initPrompts() {
   refreshCharacterSelect();
   restoreDraft();
+  const negField = qs("#prompt-output-neg-en");
+  if (!negField.value.trim()) negField.value = DEFAULT_NEGATIVE_EN;
   window.addEventListener("characters-updated", refreshCharacterSelect);
   window.addEventListener("generation-mode-ui-updated", updateModeIndicator);
   window.addEventListener("storage", updateModeIndicator);

@@ -192,18 +192,19 @@
       </label>
       <label>Stile / medium
         <select id="prompt-style">
+          <option value="" selected>Nessuno / personalizzato</option>
           <option value="comic book illustration, bold ink outlines, cel shading">Fumetto classico</option>
           <option value="manga style, screentone shading, dynamic linework">Manga</option>
           <option value="graphic novel, painterly digital art, moody colors">Graphic novel</option>
           <option value="western comic cover art, dynamic pose, halftone print">Cover americana</option>
-          <option value="">Nessuno / personalizzato</option>
         </select>
       </label>
-      <label>Elementi negativi (italiano, opzionale)
+      <label>Elementi negativi aggiuntivi (italiano, opzionale)
         <div class="textarea-with-mic">
-          <textarea id="prompt-input-neg-it" rows="2" placeholder="Es: mani deformi, testo, watermark"></textarea>
+          <textarea id="prompt-input-neg-it" rows="2" placeholder="Es: occhiali, cappello, sfondo urbano"></textarea>
           <button type="button" id="prompt-input-neg-it-mic" class="mic-btn" title="Detta a voce">🎤</button>
         </div>
+        <span class="hint small">Un prompt negativo per l'anatomia corretta è già incluso di default (vedi sotto); qui aggiungi solo cose extra da evitare.</span>
       </label>
       <label>Personaggio di riferimento
         <select id="prompt-character-select">
