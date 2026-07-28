@@ -31,19 +31,24 @@ sveglia contenuta nel resto del repository.
   eliminale. Sono riutilizzabili come immagine di riferimento nella
   generazione per mantenere lo stesso aspetto del personaggio. Ogni miniatura
   ha un'icona 👁️ per nasconderla/sfocarla (privacy sullo schermo).
-- **Prompt** — scrivi la scena in italiano, traducila e ottimizzala in inglese
-  (tag comma-separated + booster di qualità) con un click; copia rapida degli
+- **Prompt** — scrivi la scena in italiano (anche a voce, con il pulsante
+  microfono 🎤 di dettatura), traducila e ottimizzala in inglese (tag
+  comma-separated + booster di qualità) con un click; copia rapida degli
   output con un pulsante dedicato. Seleziona un personaggio di riferimento
   (viene preselezionato automaticamente l'ultimo caricato) per mantenerne la
-  coerenza nell'immagine generata. La traduzione usa l'API pubblica MyMemory
-  con fallback automatico a un dizionario locale se non c'è accesso a
-  Internet.
-- **Director's Mode** — due diagrammi trascinabili (non usa la fotocamera del
+  coerenza nell'immagine generata. Testo, stile e personaggio scelto restano
+  salvati anche cambiando scheda o chiudendo il browser. La traduzione usa
+  l'API pubblica MyMemory con fallback automatico a un dizionario locale se
+  non c'è accesso a Internet.
+- **Director's Mode** — tre diagrammi trascinabili (non usa la fotocamera del
   telefono): uno visto dall'alto per scegliere se inquadrare il personaggio
   da davanti/di lato/da dietro (la freccia verde indica dove guarda), uno
-  laterale per l'altezza della camera (dall'alto/a livello occhi/dal basso).
-  Insieme a illuminazione, inquadratura e composizione, il tutto si applica
-  al prompt con un click.
+  laterale per l'altezza della camera (dall'alto/a livello occhi/dal basso), e
+  uno di zoom/inquadratura con anteprima live (una linea trascinabile su una
+  sagoma del personaggio mostra esattamente cosa resta dentro/fuori
+  inquadratura, dal viso alla figura intera). Insieme a illuminazione e
+  composizione, il tutto si applica al prompt con un click. Tutte le
+  impostazioni restano salvate anche cambiando scheda o chiudendo il browser.
 - **Archivio** — galleria delle immagini generate, con icona 👁️ per
   nascondere/sfocare una miniatura (privacy) e toggle "Attiva" per includerla
   nel progetto corrente; download e cancellazione.

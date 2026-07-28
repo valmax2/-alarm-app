@@ -7,9 +7,48 @@ import { ComfyUIClient, ComfyUIError } from "./comfyui.js";
 import { addArchiveImage, refreshArchive } from "./archive.js";
 import { getAppliedDirectorTags } from "./director.js";
 import { generateImageExternal, getProviderMeta, ProviderError } from "./providers.js";
+import { initVoiceDictation } from "./voice.js";
 
 const sessionClientId = uid();
+const DRAFT_KEY = "comic-studio:prompt-draft";
 let lastGenerated = { positive: "", negative: "" };
+
+function saveDraft() {
+  const draft = {
+    sceneIt: qs("#prompt-input-it").value,
+    negIt: qs("#prompt-input-neg-it").value,
+    style: qs("#prompt-style").value,
+    characterId: qs("#prompt-character-select").value,
+    outputEn: qs("#prompt-output-en").value,
+    outputNegEn: qs("#prompt-output-neg-en").value,
+  };
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+}
+
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function restoreDraft() {
+  const draft = loadDraft();
+  if (!draft) return;
+  qs("#prompt-input-it").value = draft.sceneIt || "";
+  qs("#prompt-input-neg-it").value = draft.negIt || "";
+  if (draft.style !== undefined) qs("#prompt-style").value = draft.style;
+  qs("#prompt-output-en").value = draft.outputEn || "";
+  qs("#prompt-output-neg-en").value = draft.outputNegEn || "";
+
+  const select = qs("#prompt-character-select");
+  if (draft.characterId && [...select.options].some((o) => o.value === draft.characterId)) {
+    select.value = draft.characterId;
+  }
+  updateCharacterHint();
+}
 
 function updateCharacterHint() {
   const select = qs("#prompt-character-select");
@@ -87,6 +126,7 @@ async function handleTranslate() {
       source === "api" ? "Prompt tradotto e ottimizzato." : "Tradotto con dizionario locale (API non raggiungibile).",
       source === "api" ? "success" : "info"
     );
+    saveDraft();
   } catch (err) {
     toast(`Errore durante la traduzione: ${err.message}`, "error");
   } finally {
@@ -245,6 +285,7 @@ function updateModeIndicator() {
 
 export function initPrompts() {
   refreshCharacterSelect();
+  restoreDraft();
   window.addEventListener("characters-updated", refreshCharacterSelect);
   window.addEventListener("generation-mode-ui-updated", updateModeIndicator);
   window.addEventListener("storage", updateModeIndicator);
@@ -254,7 +295,16 @@ export function initPrompts() {
   qs("#prompt-copy-btn").addEventListener("click", () => handleCopy("prompt-output-en", "Prompt"));
   qs("#prompt-copy-neg-btn").addEventListener("click", () => handleCopy("prompt-output-neg-en", "Prompt negativo"));
   qs("#prompt-send-btn").addEventListener("click", handleSend);
-  qs("#prompt-character-select").addEventListener("change", updateCharacterHint);
+  qs("#prompt-character-select").addEventListener("change", () => {
+    updateCharacterHint();
+    saveDraft();
+  });
+  qs("#prompt-input-it").addEventListener("input", saveDraft);
+  qs("#prompt-input-neg-it").addEventListener("input", saveDraft);
+  qs("#prompt-style").addEventListener("change", saveDraft);
+
+  initVoiceDictation("prompt-input-it", "prompt-input-it-mic");
+  initVoiceDictation("prompt-input-neg-it", "prompt-input-neg-it-mic");
 
   // Re-check indicator whenever the user switches to the Prompt tab or changes active provider.
   document.querySelectorAll('.tab-btn[data-tab="tab-prompt"]').forEach((btn) =>

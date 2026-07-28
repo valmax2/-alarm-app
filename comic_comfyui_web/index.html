@@ -184,7 +184,10 @@
     <p class="status-box" id="prompt-mode-indicator"></p>
     <div class="card form-grid">
       <label class="full">Descrizione scena (italiano)
-        <textarea id="prompt-input-it" rows="4" placeholder="Es: primo piano di una ragazza guerriera con capelli rossi, armatura scintillante, luce drammatica al tramonto"></textarea>
+        <div class="textarea-with-mic">
+          <textarea id="prompt-input-it" rows="4" placeholder="Es: primo piano di una ragazza guerriera con capelli rossi, armatura scintillante, luce drammatica al tramonto"></textarea>
+          <button type="button" id="prompt-input-it-mic" class="mic-btn" title="Detta a voce">🎤</button>
+        </div>
       </label>
       <label>Stile / medium
         <select id="prompt-style">
@@ -196,7 +199,10 @@
         </select>
       </label>
       <label>Elementi negativi (italiano, opzionale)
-        <textarea id="prompt-input-neg-it" rows="2" placeholder="Es: mani deformi, testo, watermark"></textarea>
+        <div class="textarea-with-mic">
+          <textarea id="prompt-input-neg-it" rows="2" placeholder="Es: mani deformi, testo, watermark"></textarea>
+          <button type="button" id="prompt-input-neg-it-mic" class="mic-btn" title="Detta a voce">🎤</button>
+        </div>
       </label>
       <label>Personaggio di riferimento
         <select id="prompt-character-select">
@@ -246,6 +252,12 @@
           <canvas id="director-elevation" width="200" height="240"></canvas>
           <p class="director-diagram-label" id="director-elevation-label">Altezza occhi</p>
         </div>
+        <div class="director-diagram-box">
+          <h3>Zoom / Inquadratura</h3>
+          <canvas id="director-framing" width="160" height="240"></canvas>
+          <p class="director-diagram-label" id="director-framing-label">Piano medio</p>
+          <p class="hint small">Trascina la linea: l'area scura è ciò che resta fuori dall'inquadratura.</p>
+        </div>
       </div>
       <div class="director-controls card">
         <label>Illuminazione
@@ -256,15 +268,6 @@
             <option value="neon lighting, cyberpunk glow">Neon</option>
             <option value="golden hour sunset lighting">Ora dorata (tramonto)</option>
             <option value="hard studio spotlight, high contrast">Faretto da studio</option>
-          </select>
-        </label>
-        <label>Inquadratura
-          <select id="director-shot">
-            <option value="close-up shot">Primo piano</option>
-            <option value="medium shot">Piano medio</option>
-            <option value="wide shot, full body">Campo lungo</option>
-            <option value="extreme close-up, detailed face">Primissimo piano</option>
-            <option value="over-the-shoulder shot">Sopra la spalla</option>
           </select>
         </label>
         <label>Composizione
@@ -280,6 +283,7 @@
           <button id="director-clear-btn" class="btn ghost" type="button">Svuota</button>
         </div>
         <div id="director-applied-list" class="applied-tags"></div>
+        <p class="hint small">Le impostazioni di regia restano salvate anche cambiando scheda o chiudendo il browser.</p>
       </div>
     </div>
   </section>

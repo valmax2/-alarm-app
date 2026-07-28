@@ -276,6 +276,35 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 }
 .toggle input { accent-color: var(--accent); }
 
+.textarea-with-mic { position: relative; }
+.textarea-with-mic textarea { width: 100%; padding-right: 42px; }
+.mic-btn {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mic-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.mic-btn.listening {
+  background: var(--danger);
+  border-color: var(--danger);
+  animation: mic-pulse 1.2s infinite;
+}
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,92,122,0.5); }
+  50% { box-shadow: 0 0 0 8px rgba(255,92,122,0); }
+}
+
 .output-header { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
 .output-header h3 { margin: 0; font-size: 14px; }
 #prompt-output-en, #prompt-output-neg-en { width: 100%; margin-top: 6px; }
@@ -306,10 +335,11 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
   touch-action: none;
   cursor: grab;
   background: var(--bg-panel);
-  border-radius: 50%;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   max-width: 100%;
 }
+#director-topdown { border-radius: 50%; }
 .director-diagram-label {
   margin: 10px 0 2px;
   font-weight: 600;
