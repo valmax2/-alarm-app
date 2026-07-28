@@ -70,13 +70,24 @@ async function readErrorText(response) {
   }
 }
 
+// When a reference image is attached, these general-purpose edit/generation
+// APIs otherwise happily redraw the character from scratch based on the
+// text alone. Telling them explicitly to preserve identity measurably
+// improves resemblance (still no guarantee, unlike a dedicated
+// face/character-consistency model such as IPAdapter/InstantID in ComfyUI).
+function withIdentityInstruction(promptText, hasReference) {
+  if (!hasReference) return promptText;
+  return `Keep the exact same face, identity, hairstyle and character design as shown in the attached reference image — do not turn them into a different-looking person. Only change the scene, pose, outfit and art style as described here: ${promptText}`;
+}
+
 // --- Gemini (Google AI Studio) ---
 async function generateWithGemini({ apiKey, model }, positive, negative, referenceBlob) {
   if (!apiKey) throw new ProviderError("Gemini: API key mancante.");
   const modelId = model || "gemini-2.5-flash-image";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelId)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
-  const parts = [{ text: negative ? `${positive}\n\nDa evitare: ${negative}` : positive }];
+  const scenePrompt = negative ? `${positive}\n\nDa evitare: ${negative}` : positive;
+  const parts = [{ text: withIdentityInstruction(scenePrompt, !!referenceBlob) }];
   if (referenceBlob) {
     parts.push({
       inlineData: { mimeType: referenceBlob.type || "image/png", data: await blobToBase64(referenceBlob) },
@@ -105,7 +116,8 @@ async function generateWithGemini({ apiKey, model }, positive, negative, referen
 async function generateWithOpenAI({ apiKey, model }, positive, negative, referenceBlob) {
   if (!apiKey) throw new ProviderError("OpenAI: API key mancante.");
   const modelId = model || "gpt-image-1";
-  const promptText = negative ? `${positive}. Da evitare: ${negative}` : positive;
+  const scenePrompt = negative ? `${positive}. Da evitare: ${negative}` : positive;
+  const promptText = withIdentityInstruction(scenePrompt, !!referenceBlob);
 
   let response;
   if (referenceBlob) {
