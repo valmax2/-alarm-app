@@ -245,11 +245,19 @@ async function handleSendLocal(positive, negative) {
   const graph = deepClone(workflow.json);
   const mapping = workflow.mapping || {};
 
-  if (mapping.positive) {
-    graph[mapping.positive.nodeId].inputs[mapping.positive.field] = positive;
+  // Some workflows have several prompt-text nodes (e.g. custom nodes like
+  // TextEncodeQwenImageEdit/TextEncodeQwenImageEditPlus alongside a regular
+  // CLIPTextEncode, or multiple stages of the same node) that all need the
+  // same prompt text — mapping.positives/negatives are arrays; the old
+  // singular mapping.positive/negative is kept for workflows mapped before
+  // multi-node support was added.
+  const positiveMappings = Array.isArray(mapping.positives) ? mapping.positives : mapping.positive ? [mapping.positive] : [];
+  for (const m of positiveMappings) {
+    graph[m.nodeId].inputs[m.field] = positive;
   }
-  if (mapping.negative) {
-    graph[mapping.negative.nodeId].inputs[mapping.negative.field] = negative;
+  const negativeMappings = Array.isArray(mapping.negatives) ? mapping.negatives : mapping.negative ? [mapping.negative] : [];
+  for (const m of negativeMappings) {
+    graph[m.nodeId].inputs[m.field] = negative;
   }
   if (mapping.seed) {
     graph[mapping.seed.nodeId].inputs[mapping.seed.field] = Math.floor(Math.random() * 1e15);

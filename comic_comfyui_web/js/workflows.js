@@ -3,26 +3,54 @@ import { qs, el, uid, toast, formatDate } from "./utils.js";
 import { getActiveWorkflowId, setActiveWorkflowId } from "./state.js";
 
 const STORE = "workflows";
-// "image" is handled separately from these — some workflows have several
-// LoadImage nodes (e.g. multiple IPAdapter stages), so it needs a variable
-// number of node mappings instead of a single fixed one.
-const ROLES = [
-  { key: "positive", label: "Prompt positivo", defaultField: "text" },
-  { key: "negative", label: "Prompt negativo", defaultField: "text" },
-  { key: "seed", label: "Seed", defaultField: "seed" },
+// "seed" stays a single fixed node — everything a scene needs multiple nodes
+// for (prompt text, reference image) is handled as a variable-length group
+// below, since custom/third-party nodes (e.g. TextEncodeQwenImageEdit,
+// TextEncodeQwenImageEditPlus, or whatever ships next) can't be predicted by
+// class_type: mapping is purely "pick any node + any input field", so it
+// works for today's nodes and future ones without code changes.
+const ROLES = [{ key: "seed", label: "Seed", defaultField: "seed" }];
+
+// Each group renders as an add/remove-able list of {nodeId, field} rows.
+// `legacyKey` migrates the old single-node mapping shape (from before
+// multi-node support existed) into a one-item array.
+const DYNAMIC_GROUPS = [
+  {
+    key: "positives",
+    legacyKey: "positive",
+    defaultField: "text",
+    title: "Prompt positivo (uno o più nodi)",
+    hint: "Aggiungi un nodo per ogni encoder di testo positivo del workflow (es. CLIPTextEncode, TextEncodeQwenImageEdit, TextEncodeQwenImageEditPlus o qualsiasi nodo futuro): riceveranno tutti lo stesso prompt.",
+    addLabel: "+ Aggiungi nodo prompt positivo",
+    emptyHint: "Nessun nodo prompt positivo collegato.",
+  },
+  {
+    key: "negatives",
+    legacyKey: "negative",
+    defaultField: "text",
+    title: "Prompt negativo (uno o più nodi)",
+    hint: "Aggiungi un nodo per ogni encoder di testo negativo del workflow: riceveranno tutti lo stesso prompt negativo.",
+    addLabel: "+ Aggiungi nodo prompt negativo",
+    emptyHint: "Nessun nodo prompt negativo collegato.",
+  },
+  {
+    key: "images",
+    legacyKey: "image",
+    defaultField: "image",
+    title: "Immagine di riferimento (uno o più nodi LoadImage)",
+    hint: "Se il workflow ha più nodi LoadImage (es. più stadi IPAdapter), aggiungine uno per ognuno: riceveranno tutti la stessa immagine del personaggio.",
+    addLabel: "+ Aggiungi nodo immagine",
+    emptyHint: "Nessun nodo immagine collegato.",
+  },
 ];
-const IMAGE_DEFAULT_FIELD = "image";
 
 let cache = [];
 let mappingWorkflowId = null;
-let currentImageMappings = [];
+let currentDynamicMappings = {};
 
-// Reads the workflow's image node mappings as an array, migrating the old
-// singular `mapping.image` shape (from before multi-LoadImage support) into
-// a one-item array so existing saved workflows keep working.
-function getImageMappings(workflow) {
-  if (Array.isArray(workflow.mapping?.images)) return workflow.mapping.images;
-  if (workflow.mapping?.image) return [workflow.mapping.image];
+function getDynamicMappings(workflow, group) {
+  if (Array.isArray(workflow.mapping?.[group.key])) return workflow.mapping[group.key];
+  if (workflow.mapping?.[group.legacyKey]) return [workflow.mapping[group.legacyKey]];
   return [];
 }
 
@@ -61,42 +89,44 @@ function nodeOptionsLabel(nodeId, node) {
   return `#${nodeId} · ${node?.class_type || "?"}${title ? " (" + title + ")" : ""}`;
 }
 
-function renderImageMappingRows(container, nodeEntries, images) {
+function renderDynamicMappingRows(container, nodeEntries, list, defaultField, emptyHint) {
   container.innerHTML = "";
-  if (images.length === 0) {
-    container.appendChild(el("p", { class: "hint" }, "Nessun nodo immagine collegato."));
+  if (list.length === 0) {
+    container.appendChild(el("p", { class: "hint" }, emptyHint));
   }
-  images.forEach((current, index) => {
-    const nodeSelect = el("select", {
-      "data-image-index": String(index),
-      "data-image-part": "node",
-      onchange: () => { current.nodeId = nodeSelect.value; },
-    }, [
-      el("option", { value: "" }, "— non usato —"),
-      ...nodeEntries.map(([nodeId, node]) =>
-        el(
-          "option",
-          { value: nodeId, selected: current.nodeId === nodeId ? "selected" : false },
-          nodeOptionsLabel(nodeId, node)
-        )
-      ),
-    ]);
+  list.forEach((current, index) => {
+    const nodeSelect = el(
+      "select",
+      { onchange: () => { current.nodeId = nodeSelect.value; } },
+      [
+        el("option", { value: "" }, "— non usato —"),
+        ...nodeEntries.map(([nodeId, node]) =>
+          el(
+            "option",
+            { value: nodeId, selected: current.nodeId === nodeId ? "selected" : false },
+            nodeOptionsLabel(nodeId, node)
+          )
+        ),
+      ]
+    );
     const fieldInput = el("input", {
       type: "text",
-      "data-image-index": String(index),
-      "data-image-part": "field",
-      value: current.field || IMAGE_DEFAULT_FIELD,
-      placeholder: IMAGE_DEFAULT_FIELD,
+      value: current.field || defaultField,
+      placeholder: defaultField,
       oninput: () => { current.field = fieldInput.value; },
     });
-    const removeBtn = el("button", {
-      class: "btn small danger",
-      type: "button",
-      onclick: () => {
-        images.splice(index, 1);
-        renderImageMappingRows(container, nodeEntries, images);
+    const removeBtn = el(
+      "button",
+      {
+        class: "btn small danger",
+        type: "button",
+        onclick: () => {
+          list.splice(index, 1);
+          renderDynamicMappingRows(container, nodeEntries, list, defaultField, emptyHint);
+        },
       },
-    }, "Rimuovi");
+      "Rimuovi"
+    );
     container.appendChild(el("div", { class: "row image-mapping-row" }, [nodeSelect, fieldInput, removeBtn]));
   });
 }
@@ -133,29 +163,34 @@ function renderMappingPanel(workflow) {
     );
   }
 
-  const imagesContainer = el("div", { class: "image-mappings-list" });
-  currentImageMappings = getImageMappings(workflow).map((m) => ({ ...m }));
-  renderImageMappingRows(imagesContainer, nodeEntries, currentImageMappings);
-  const addImageBtn = el(
-    "button",
-    {
-      class: "btn small",
-      type: "button",
-      onclick: () => {
-        currentImageMappings.push({ nodeId: "", field: IMAGE_DEFAULT_FIELD });
-        renderImageMappingRows(imagesContainer, nodeEntries, currentImageMappings);
+  currentDynamicMappings = {};
+  for (const group of DYNAMIC_GROUPS) {
+    const list = getDynamicMappings(workflow, group).map((m) => ({ ...m }));
+    currentDynamicMappings[group.key] = list;
+
+    const rowsContainer = el("div", { class: "image-mappings-list" });
+    renderDynamicMappingRows(rowsContainer, nodeEntries, list, group.defaultField, group.emptyHint);
+    const addBtn = el(
+      "button",
+      {
+        class: "btn small",
+        type: "button",
+        onclick: () => {
+          list.push({ nodeId: "", field: group.defaultField });
+          renderDynamicMappingRows(rowsContainer, nodeEntries, list, group.defaultField, group.emptyHint);
+        },
       },
-    },
-    "+ Aggiungi nodo immagine"
-  );
-  fieldsRoot.appendChild(
-    el("div", { class: "image-mappings-block" }, [
-      el("div", { class: "step-title", text: "Immagine di riferimento (uno o più nodi LoadImage)" }),
-      el("p", { class: "hint" }, "Se il workflow ha più nodi LoadImage (es. più stadi IPAdapter), aggiungine uno per ognuno: riceveranno tutti la stessa immagine del personaggio."),
-      imagesContainer,
-      addImageBtn,
-    ])
-  );
+      group.addLabel
+    );
+    fieldsRoot.appendChild(
+      el("div", { class: "image-mappings-block" }, [
+        el("div", { class: "step-title", text: group.title }),
+        el("p", { class: "hint" }, group.hint),
+        rowsContainer,
+        addBtn,
+      ])
+    );
+  }
 
   mappingWorkflowId = workflow.id;
   panel.hidden = false;
@@ -175,15 +210,12 @@ async function saveMapping() {
     if (nodeId) mapping[role.key] = { nodeId, field };
   }
 
-  const images = [];
-  currentImageMappings.forEach((_, index) => {
-    const nodeSelect = qs(`select[data-image-index="${index}"][data-image-part="node"]`);
-    const fieldInput = qs(`input[data-image-index="${index}"][data-image-part="field"]`);
-    const nodeId = nodeSelect?.value || "";
-    const field = fieldInput?.value?.trim() || IMAGE_DEFAULT_FIELD;
-    if (nodeId) images.push({ nodeId, field });
-  });
-  mapping.images = images;
+  for (const group of DYNAMIC_GROUPS) {
+    const list = currentDynamicMappings[group.key] || [];
+    mapping[group.key] = list
+      .filter((m) => m.nodeId)
+      .map((m) => ({ nodeId: m.nodeId, field: (m.field || "").trim() || group.defaultField }));
+  }
 
   workflow.mapping = mapping;
   await db.put(STORE, workflow);
