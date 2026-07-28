@@ -13,8 +13,18 @@ const ROLES = [
 let cache = [];
 let mappingWorkflowId = null;
 
+// A proper ComfyUI *API-format* workflow is a flat object keyed by node id,
+// where every value is a { class_type, inputs, ... } node object. A regular
+// (non-API) workflow save instead has top-level "nodes"/"links" arrays and
+// other non-node fields (e.g. last_node_id: 25) — that shape passes a loose
+// "is it an object" check but crashes ComfyUI's /prompt endpoint later with
+// a cryptic server-side TypeError, since it isn't built to run directly.
 function isValidWorkflowJson(json) {
-  return json && typeof json === "object" && !Array.isArray(json) && Object.keys(json).length > 0;
+  if (!json || typeof json !== "object" || Array.isArray(json) || Object.keys(json).length === 0) return false;
+  if (Array.isArray(json.nodes) || Array.isArray(json.links)) return false;
+  return Object.values(json).every(
+    (node) => node && typeof node === "object" && !Array.isArray(node) && "class_type" in node && "inputs" in node
+  );
 }
 
 async function loadAll() {
@@ -156,7 +166,11 @@ async function handleUpload(fileList) {
       const text = await file.text();
       const json = JSON.parse(text);
       if (!isValidWorkflowJson(json)) {
-        toast(`${file.name}: JSON non valido come workflow ComfyUI (formato API).`, "error");
+        toast(
+          `${file.name}: non è nel formato API di ComfyUI. In ComfyUI usa "Export (API)" (o "Save (API Format)" con Dev Mode attiva), non il salvataggio normale del workflow.`,
+          "error",
+          9000
+        );
         continue;
       }
       const record = {

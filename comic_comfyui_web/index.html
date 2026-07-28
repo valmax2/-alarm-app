@@ -142,6 +142,7 @@
   <section id="tab-workflows" class="tab-panel">
     <h2>Gestione Workflow</h2>
     <p class="hint">Carica i workflow ComfyUI esportati in formato API (JSON). Seleziona quello attivo e associa i nodi per prompt, immagine di riferimento e seed.</p>
+    <p class="hint">⚠️ Deve essere il formato <strong>API</strong>: in ComfyUI, menu → <strong>"Export (API)"</strong> (se non lo vedi, attiva prima "Dev Mode" nelle Impostazioni, poi usa "Save (API Format)"). Il salvataggio normale del workflow <strong>non</strong> funziona qui.</p>
     <div class="card">
       <label class="file-drop" for="workflow-upload">
         <input type="file" id="workflow-upload" accept="application/json,.json" multiple hidden>
