@@ -284,14 +284,35 @@ async function handleSendLocal(positive, negative) {
   }
 
   setSendStatus("Generazione in corso su ComfyUI, attendere...");
-  const images = await client.waitForResult(queued.prompt_id, sessionClientId, {
-    onProgress: ({ value, max }) => {
-      if (max > 0) {
-        const pct = Math.round((value / max) * 100);
-        setSendStatus(`Generazione in corso su ComfyUI... ${pct}% (passo ${value}/${max})`);
-      }
-    },
-  });
+  // Server-side progress events aren't guaranteed on every ComfyUI setup (they
+  // can arrive late, not at all for some node types, or get lost if the socket
+  // reconnects) — a local elapsed-time tick keeps the status visibly moving
+  // even with no percentage yet, so a slow/complex generation doesn't look
+  // stuck when it's actually still running.
+  const genStartedAt = Date.now();
+  let lastProgress = null;
+  const tickTimer = setInterval(() => {
+    const elapsedSec = Math.round((Date.now() - genStartedAt) / 1000);
+    const elapsed = elapsedSec < 60 ? `${elapsedSec}s` : `${Math.floor(elapsedSec / 60)}m ${elapsedSec % 60}s`;
+    if (lastProgress && lastProgress.max > 0) {
+      const pct = Math.round((lastProgress.value / lastProgress.max) * 100);
+      setSendStatus(`Generazione in corso su ComfyUI... ${pct}% (passo ${lastProgress.value}/${lastProgress.max}) · ${elapsed}`);
+    } else {
+      setSendStatus(`Generazione in corso su ComfyUI... ${elapsed} (i workflow complessi possono richiedere diversi minuti)`);
+    }
+  }, 1000);
+
+  let images;
+  try {
+    images = await client.waitForResult(queued.prompt_id, sessionClientId, {
+      timeoutMs: 20 * 60 * 1000,
+      onProgress: (p) => {
+        lastProgress = p;
+      },
+    });
+  } finally {
+    clearInterval(tickTimer);
+  }
 
   if (images.length === 0) {
     setSendStatus("Generazione completata ma nessuna immagine restituita.", "error");

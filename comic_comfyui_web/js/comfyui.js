@@ -100,7 +100,7 @@ export class ComfyUIClient {
    * onProgress — purely cosmetic, polling alone still detects completion if
    * the socket never connects or ComfyUI doesn't report progress.
    */
-  async waitForResult(promptId, clientId, { intervalMs = 1500, timeoutMs = 180000, onProgress } = {}) {
+  async waitForResult(promptId, clientId, { intervalMs = 1500, timeoutMs = 20 * 60 * 1000, onProgress } = {}) {
     let ws = null;
     if (clientId && onProgress && typeof WebSocket !== "undefined") {
       try {
@@ -108,9 +108,14 @@ export class ComfyUIClient {
         ws.addEventListener("message", (evt) => {
           try {
             const msg = JSON.parse(evt.data);
-            if (msg.type === "progress" && msg.data && msg.data.prompt_id === promptId) {
-              onProgress({ value: msg.data.value, max: msg.data.max });
-            }
+            if (msg.type !== "progress" || !msg.data) return;
+            // Some ComfyUI versions omit prompt_id on progress events (they only
+            // ever broadcast to this client's own socket, so there's nothing
+            // else it could belong to) — only filter on it when it's present,
+            // otherwise every progress tick gets silently dropped and the
+            // percentage never appears.
+            if (msg.data.prompt_id && msg.data.prompt_id !== promptId) return;
+            onProgress({ value: msg.data.value, max: msg.data.max });
           } catch {
             // Non-JSON or unexpected message shape — ignore, progress is cosmetic.
           }
@@ -134,7 +139,9 @@ export class ComfyUIClient {
         }
         await new Promise((resolve) => setTimeout(resolve, intervalMs));
       }
-      throw new ComfyUIError("Timeout in attesa del risultato da ComfyUI.");
+      throw new ComfyUIError(
+        "Timeout in attesa del risultato da ComfyUI (oltre 20 minuti). Il workflow potrebbe essere ancora in esecuzione sul server: controlla direttamente ComfyUI."
+      );
     } finally {
       ws?.close();
     }
