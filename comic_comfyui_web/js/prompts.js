@@ -274,7 +274,14 @@ async function handleSendLocal(positive, negative) {
   }
 
   setSendStatus("Generazione in corso su ComfyUI, attendere...");
-  const images = await client.waitForResult(queued.prompt_id);
+  const images = await client.waitForResult(queued.prompt_id, sessionClientId, {
+    onProgress: ({ value, max }) => {
+      if (max > 0) {
+        const pct = Math.round((value / max) * 100);
+        setSendStatus(`Generazione in corso su ComfyUI... ${pct}% (passo ${value}/${max})`);
+      }
+    },
+  });
 
   if (images.length === 0) {
     setSendStatus("Generazione completata ma nessuna immagine restituita.", "error");

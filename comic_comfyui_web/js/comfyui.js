@@ -83,26 +83,57 @@ export class ComfyUIClient {
     return `${this.baseUrl}/view?${params.toString()}`;
   }
 
+  _wsUrl(clientId) {
+    const scheme = this.settings.protocol === "https" ? "wss" : "ws";
+    return `${scheme}://${this.settings.ip}:${this.settings.port}/ws?clientId=${encodeURIComponent(clientId)}`;
+  }
+
   /**
    * Polls /history until the queued prompt has finished, returning the list
    * of produced images. ComfyUI has no completion webhook over plain HTTP,
-   * so polling is the simplest transport-agnostic option here.
+   * so polling is the reliable completion check; if a clientId is given, we
+   * also open ComfyUI's WebSocket to relay live step progress via
+   * onProgress — purely cosmetic, polling alone still detects completion if
+   * the socket never connects or ComfyUI doesn't report progress.
    */
-  async waitForResult(promptId, { intervalMs = 1500, timeoutMs = 180000 } = {}) {
-    const start = Date.now();
-    while (Date.now() - start < timeoutMs) {
-      const history = await this.getHistory(promptId);
-      const entry = history?.[promptId];
-      if (entry?.status?.completed) {
-        const images = [];
-        for (const output of Object.values(entry.outputs || {})) {
-          for (const img of output.images || []) images.push(img);
-        }
-        return images;
+  async waitForResult(promptId, clientId, { intervalMs = 1500, timeoutMs = 180000, onProgress } = {}) {
+    let ws = null;
+    if (clientId && onProgress && typeof WebSocket !== "undefined") {
+      try {
+        ws = new WebSocket(this._wsUrl(clientId));
+        ws.addEventListener("message", (evt) => {
+          try {
+            const msg = JSON.parse(evt.data);
+            if (msg.type === "progress" && msg.data && msg.data.prompt_id === promptId) {
+              onProgress({ value: msg.data.value, max: msg.data.max });
+            }
+          } catch {
+            // Non-JSON or unexpected message shape — ignore, progress is cosmetic.
+          }
+        });
+      } catch {
+        ws = null;
       }
-      await new Promise((resolve) => setTimeout(resolve, intervalMs));
     }
-    throw new ComfyUIError("Timeout in attesa del risultato da ComfyUI.");
+
+    try {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        const history = await this.getHistory(promptId);
+        const entry = history?.[promptId];
+        if (entry?.status?.completed) {
+          const images = [];
+          for (const output of Object.values(entry.outputs || {})) {
+            for (const img of output.images || []) images.push(img);
+          }
+          return images;
+        }
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      }
+      throw new ComfyUIError("Timeout in attesa del risultato da ComfyUI.");
+    } finally {
+      ws?.close();
+    }
   }
 
   async fetchImageBlob(imageRef) {
