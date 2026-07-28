@@ -304,15 +304,24 @@
       </div>
       <textarea id="prompt-output-neg-en" rows="2" readonly placeholder="Il prompt negativo tradotto apparirà qui..."></textarea>
 
-      <div class="form-actions">
-        <button id="prompt-send-btn" class="btn success" type="button">🚀 Invia a ComfyUI</button>
-        <button id="prompt-view-archive-btn" class="btn primary" type="button" hidden>📂 Vedi in Archivio</button>
-      </div>
-      <div id="prompt-send-status" class="status-box"></div>
+      <div class="generate-options">
+        <div class="generate-option">
+          <h4>Opzione A — Genera automaticamente</h4>
+          <p class="hint small">Richiede ComfyUI collegato oppure una API key valida e con credito/quota in "IA Esterne".</p>
+          <div class="form-actions">
+            <button id="prompt-send-btn" class="btn success" type="button">🚀 Invia a ComfyUI</button>
+            <button id="prompt-view-archive-btn" class="btn primary" type="button" hidden>📂 Vedi in Archivio</button>
+          </div>
+          <div id="prompt-send-status" class="status-box"></div>
+        </div>
 
-      <div class="manual-bridge">
-        <button id="prompt-copy-open-btn" class="btn primary" type="button">📋🔗 Copia prompt e apri IA</button>
-        <p class="hint small">Copia il prompt negli appunti e apre il sito dell'IA selezionata in "IA Esterne" — incolla lì il testo, poi l'immagine del personaggio (scheda Personaggi → Copia immagine).</p>
+        <div class="generate-option">
+          <h4>Opzione B — Genera senza API (copia e incolla)</h4>
+          <p class="hint small">Nessuna API key richiesta: usa il sito/app che hai già (es. ChatGPT Plus, Gemini). Copia il prompt, apri l'IA, incolla lì il testo e poi l'immagine del personaggio (scheda Personaggi → Copia immagine).</p>
+          <div class="form-actions">
+            <button id="prompt-copy-open-btn" class="btn primary" type="button">📋🔗 Genera senza API — copia e apri</button>
+          </div>
+        </div>
       </div>
     </div>
   </section>
