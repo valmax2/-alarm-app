@@ -14,7 +14,7 @@
     <span class="brand-mark">CS</span>
     <div>
       <h1>Comic Studio</h1>
-      <p class="brand-sub">Creazione fumetti con ComfyUI</p>
+      <p class="brand-sub">Creazione fumetti con ComfyUI <span id="app-version-badge"></span></p>
     </div>
   </div>
   <div class="header-right">
@@ -188,7 +188,41 @@
     <div class="card form-grid">
       <h3 class="step-title full">1. Personaggio</h3>
       <div class="full" id="prompt-character-slots"></div>
+      <label class="full">Riferimento posa (opzionale, guida solo la posa/azione — non l'identità)
+        <input type="file" id="prompt-pose-upload" accept="image/*">
+        <span class="hint small">Usata solo dai nodi immagine mappati con sorgente "Posa" nella scheda Workflow. Se non carichi nulla, quei nodi restano semplicemente non impostati: nessun errore.</span>
+      </label>
+      <div class="full" id="prompt-pose-preview"></div>
       <p class="status-box full" id="prompt-character-hint"></p>
+
+      <label class="full checkbox-row">
+        <input type="checkbox" id="prompt-coherent-mode-toggle">
+        Modalità "Personaggio Coerente" (blocco di coerenza automatico + posa guidata)
+      </label>
+      <label>Posa/azione guidata
+        <select id="prompt-coherent-preset"></select>
+      </label>
+      <div class="full strength-sliders" id="prompt-strength-sliders">
+        <label>Forza identità
+          <input type="range" id="prompt-strength-identity" min="0" max="100" value="70">
+        </label>
+        <label>Forza corpo/costume
+          <input type="range" id="prompt-strength-character" min="0" max="100" value="70">
+        </label>
+        <label>Forza posa
+          <input type="range" id="prompt-strength-pose" min="0" max="100" value="70">
+        </label>
+        <label>Coerenza volto
+          <input type="range" id="prompt-strength-face-coherence" min="0" max="100" value="70">
+        </label>
+        <label>Coerenza costume
+          <input type="range" id="prompt-strength-costume-coherence" min="0" max="100" value="70">
+        </label>
+        <label>Libertà creativa scenario
+          <input type="range" id="prompt-strength-scene-freedom" min="0" max="100" value="60">
+        </label>
+      </div>
+      <div class="full" id="prompt-mapping-summary"></div>
     </div>
 
     <div class="card form-grid">
@@ -375,6 +409,11 @@
   </section>
 
 </main>
+
+<footer class="app-footer">
+  <span id="app-version-label"></span> ·
+  <span class="hint small">🎬 Prossimamente: mappatura video Wan 2.1/2.2 I2V e LTX-Video (fotogramma iniziale dall'immagine generata, durata fino a 10s) — struttura dati già predisposta.</span>
+</footer>
 
 <script type="module" src="js/app.js"></script>
 </body>

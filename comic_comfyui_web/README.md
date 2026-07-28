@@ -1,10 +1,18 @@
 # Comic Studio — ComfyUI Comic Book Creator
 
 Applicazione web statica (HTML/CSS/JS vanilla, nessuna build richiesta) per creare
-fumetti generando le immagini tramite una istanza locale di [ComfyUI](https://github.com/comfyanonymous/ComfyUI).
+fumetti generando le immagini (o animazioni/video) tramite una istanza locale di
+[ComfyUI](https://github.com/comfyanonymous/ComfyUI).
 
 Vive in questa cartella come modulo indipendente rispetto all'app Flutter della
 sveglia contenuta nel resto del repository.
+
+**Versione corrente: v2.0.0** (vedi `js/version.js`, mostrata anche nel footer
+dell'app). Novità principali di questa versione: sistema "Personaggio
+Coerente" (riferimenti identità/personaggio/posa indipendenti + blocco di
+coerenza automatico nel prompt), supporto ai workflow di animazione/video
+(rilevamento output video, frame count/FPS regolabili), formato immagine e
+tag di qualità selezionabili.
 
 ## Moduli
 
@@ -24,19 +32,35 @@ sveglia contenuta nel resto del repository.
   generazione immagini richiamabile da terze parti.
 - **Workflow** — carica uno o più workflow ComfyUI esportati in *formato API*
   (Menu ComfyUI → "Save (API Format)"), selezionane uno come attivo e mappa
-  quali nodi ricevono prompt positivo, prompt negativo, immagine di riferimento
-  e seed.
+  quali nodi ricevono: prompt positivo/negativo (uno o più nodi, campo libero
+  — es. `text` o `prompt` per nodi come TextEncodeQwenImageEdit/Plus), seed,
+  risoluzione (larghezza/altezza), numero di frame e FPS (workflow di
+  animazione), e le immagini di riferimento. Ogni nodo immagine può avere una
+  **sorgente** indipendente — Personaggio (corpo/costume), Identità (volto) o
+  Posa (opzionale, solo posa/composizione) — e un'etichetta, per combinare più
+  personaggi e più tipi di riferimento nello stesso invio.
 - **Personaggi** — il tuo archivio personaggi: carica immagini dalla galleria
   o scattale direttamente con la fotocamera del telefono, rinominale ed
-  eliminale. Sono riutilizzabili come immagine di riferimento nella
-  generazione per mantenere lo stesso aspetto del personaggio. Ogni miniatura
-  ha un'icona 👁️ per nasconderla/sfocarla (privacy sullo schermo).
+  eliminale. Ogni personaggio può avere anche una foto di **identità** (volto)
+  separata dalla foto principale (corpo/costume), usata dal sistema
+  "Personaggio Coerente". Sono riutilizzabili come immagine di riferimento
+  nella generazione per mantenere lo stesso aspetto del personaggio. Ogni
+  miniatura ha un'icona 👁️ per nasconderla/sfocarla (privacy sullo schermo).
 - **Crea Scena** — il flusso principale, tutto su una sola schermata in
   passaggi numerati, senza dover saltare tra schede:
-  1. **Personaggio** — scegli il personaggio di riferimento (preselezionato
-     automaticamente l'ultimo caricato).
+  1. **Personaggio** — un selettore indipendente per ogni immagine mappata nel
+     workflow attivo (identità/personaggio/posa, anche per più personaggi
+     diversi insieme); la posa è un caricamento a parte, opzionale, non legato
+     a un personaggio salvato. Attivando "Personaggio Coerente" si aggiunge
+     automaticamente al prompt un blocco che indica all'IA cosa preservare
+     (identità, lineamenti, costume, colori...) e cosa può cambiare
+     liberamente (scena, azione, luce), con 6 controlli di forza/coerenza e
+     preset di posa (ritratto, azione, combattimento, ecc.). Un riepilogo
+     mostra sorgente/nodo/campo/file assegnato prima dell'invio.
   2. **Scena** — scrivi la descrizione in italiano (anche a voce, con il
-     pulsante microfono 🎤), stile e negativi extra.
+     pulsante microfono 🎤), stile, formato immagine (1:1/16:9/9:16/...), tag
+     di qualità (fotorealistico, cinematografico, 8K...), numero di
+     frame/FPS per workflow di animazione, e negativi extra.
   3. **Regia (camera)** — tre diagrammi trascinabili (non usa la fotocamera
      del telefono): vista dall'alto (davanti/lato/dietro + zoom, trascinando
      la 📷 anche più vicina/lontana dal personaggio), vista laterale (altezza
@@ -57,7 +81,8 @@ sveglia contenuta nel resto del repository.
   mano su ChatGPT/Gemini (es. con un abbonamento Plus) c'è un pulsante che
   copia il prompt e apre direttamente il sito dell'IA scelta; l'immagine del
   personaggio si copia a parte dalla scheda Personaggi.
-- **Archivio** — galleria delle immagini generate, con icona 👁️ per
+- **Archivio** — galleria delle immagini (o video/animazioni, riconosciuti
+  automaticamente e mostrati con player) generate, con icona 👁️ per
   nascondere/sfocare una miniatura (privacy) e toggle "Attiva" per includerla
   nel progetto corrente; download e cancellazione.
 

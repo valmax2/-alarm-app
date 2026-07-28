@@ -59,11 +59,18 @@ const DYNAMIC_GROUPS = [
     legacyKey: "image",
     defaultField: "image",
     withLabel: true,
+    withSource: true,
     title: "Immagini di riferimento (uno o più nodi LoadImage)",
-    hint: "Aggiungi un nodo per ogni immagine di riferimento distinta che il workflow accetta (es. due o tre personaggi insieme in scena) e dai a ciascuno un'etichetta (es. \"Personaggio A\"). In 'Crea Scena' potrai scegliere un personaggio diverso per ogni etichetta invece di mandare sempre la stessa foto a tutti i nodi.",
+    hint: "Aggiungi un nodo per ogni immagine di riferimento distinta che il workflow accetta. Il campo del nodo LoadImage resta sempre \"image\" (i nomi image1/image2/image3 appartengono invece al nodo TextEncodeQwenImageEditPlus a valle, non li tocchiamo qui: colleghiamo solo i nodi LoadImage a monte). Scegli anche la sorgente — Identità (volto), Personaggio (corpo/costume) o Posa (opzionale, guida solo la posa) — e un'etichetta se vuoi combinare più personaggi.",
     addLabel: "+ Aggiungi nodo immagine",
     emptyHint: "Nessun nodo immagine collegato.",
   },
+];
+
+const IMAGE_SOURCES = [
+  { key: "character", label: "Personaggio (corpo / costume)" },
+  { key: "identity", label: "Identità (volto)" },
+  { key: "pose", label: "Posa (opzionale, solo posa/composizione)" },
 ];
 
 let cache = [];
@@ -112,7 +119,7 @@ function nodeOptionsLabel(nodeId, node) {
 }
 
 function renderDynamicMappingRows(container, nodeEntries, list, group) {
-  const { defaultField, emptyHint, withLabel } = group;
+  const { defaultField, emptyHint, withLabel, withSource } = group;
   container.innerHTML = "";
   if (list.length === 0) {
     container.appendChild(el("p", { class: "hint" }, emptyHint));
@@ -139,6 +146,16 @@ function renderDynamicMappingRows(container, nodeEntries, list, group) {
       oninput: () => { current.field = fieldInput.value; },
     });
     const rowChildren = [nodeSelect, fieldInput];
+    if (withSource) {
+      const sourceSelect = el(
+        "select",
+        { onchange: () => { current.source = sourceSelect.value; } },
+        IMAGE_SOURCES.map((s) =>
+          el("option", { value: s.key, selected: (current.source || "character") === s.key ? "selected" : false }, s.label)
+        )
+      );
+      rowChildren.push(sourceSelect);
+    }
     if (withLabel) {
       const labelInput = el("input", {
         type: "text",
@@ -212,7 +229,10 @@ function renderMappingPanel(workflow) {
         class: "btn small",
         type: "button",
         onclick: () => {
-          list.push(group.withLabel ? { nodeId: "", field: group.defaultField, label: "" } : { nodeId: "", field: group.defaultField });
+          const entry = { nodeId: "", field: group.defaultField };
+          if (group.withLabel) entry.label = "";
+          if (group.withSource) entry.source = "character";
+          list.push(entry);
           renderDynamicMappingRows(rowsContainer, nodeEntries, list, group);
         },
       },
@@ -257,6 +277,7 @@ async function saveMapping() {
       .map((m) => {
         const entry = { nodeId: m.nodeId, field: (m.field || "").trim() || group.defaultField };
         if (group.withLabel) entry.label = (m.label || "").trim();
+        if (group.withSource) entry.source = m.source || "character";
         return entry;
       });
   }

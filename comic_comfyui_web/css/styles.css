@@ -195,6 +195,29 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .checkbox-inline { flex-direction: row !important; align-items: center; gap: 6px !important; font-size: 13px; width: auto !important; }
 .checkbox-inline input[type="checkbox"] { width: auto; }
 
+.identity-row { align-items: center; }
+.identity-thumb { width: 36px; height: 36px; object-fit: cover; border-radius: 50%; border: 1px solid var(--border); }
+
+.strength-sliders { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 16px; }
+.strength-sliders label { font-size: 12px; color: var(--text-dim); display: flex; flex-direction: column; gap: 4px; }
+.strength-sliders input[type="range"] { width: 100%; }
+
+.pose-preview-thumb { width: 64px; height: 64px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
+
+.mapping-summary-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 6px; }
+.mapping-summary-table th, .mapping-summary-table td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--border); }
+.mapping-summary-table th { color: var(--text-dim); font-weight: 600; }
+
+.app-footer {
+  padding: 14px 20px 24px;
+  color: var(--text-dim);
+  font-size: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
 .form-actions { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; align-items: center; }
 .form-actions input[type="text"] { flex: 1; min-width: 160px; }
 

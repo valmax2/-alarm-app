@@ -24,6 +24,26 @@ export async function getCharacterById(id) {
   return cache.find((c) => c.id === id) || db.get(STORE, id);
 }
 
+// `character.blob` is the existing full-body/costume reference (unchanged,
+// so nothing that already worked stops working). `identityBlob` is a NEW,
+// optional close-up-of-the-face photo used by the Character Consistency
+// system to keep facial identity stable independently from body/costume.
+async function setCharacterIdentityBlob(character, blob) {
+  character.identityBlob = blob;
+  await db.put(STORE, character);
+  await loadAll();
+  renderGrid();
+  notifyUpdated();
+}
+
+async function removeCharacterIdentityBlob(character) {
+  delete character.identityBlob;
+  await db.put(STORE, character);
+  await loadAll();
+  renderGrid();
+  notifyUpdated();
+}
+
 function renderGrid() {
   const root = qs("#character-grid");
   root.innerHTML = "";
@@ -77,9 +97,43 @@ function renderGrid() {
           onclick: () => removeCharacter(character.id),
         }, "Elimina"),
       ]),
+      renderIdentityRow(character),
     ]);
     root.appendChild(card);
   }
+}
+
+// Optional secondary "identity" (face close-up) reference, kept independent
+// from the main character.blob (body/costume) — used by Personaggio Coerente
+// to feed a dedicated identity node without touching the body/costume node.
+function renderIdentityRow(character) {
+  if (character.identityBlob) {
+    const url = URL.createObjectURL(character.identityBlob);
+    return el("div", { class: "row identity-row" }, [
+      el("img", { src: url, alt: "Volto", class: "identity-thumb" }),
+      el("span", { class: "hint small" }, "Foto identità (volto)"),
+      el("button", {
+        class: "btn small danger",
+        type: "button",
+        onclick: () => removeCharacterIdentityBlob(character),
+      }, "Rimuovi volto"),
+    ]);
+  }
+  return el("div", { class: "row identity-row" }, [
+    el("label", { class: "btn small" }, [
+      "➕ Foto volto (identità, opzionale)",
+      el("input", {
+        type: "file",
+        accept: "image/*",
+        hidden: true,
+        onchange: (e) => {
+          const file = e.target.files?.[0];
+          if (file) setCharacterIdentityBlob(character, file);
+          e.target.value = "";
+        },
+      }),
+    ]),
+  ]);
 }
 
 function startRename(character, nameDisplay) {

@@ -8,6 +8,7 @@ import { initDirector } from "./director.js";
 import { initArchive } from "./archive.js";
 import { initProviders } from "./providers-ui.js";
 import { initScenes } from "./scenes.js";
+import { APP_VERSION, APP_VERSION_LABEL, APP_VERSION_NOTES } from "./version.js";
 
 function switchTab(tabId) {
   qsa(".tab-btn").forEach((btn) => {
@@ -115,7 +116,16 @@ function initModeSwitch() {
   });
 }
 
+function initVersionLabel() {
+  document.title = `${document.title.split(" · v")[0]} · v${APP_VERSION}`;
+  const footerLabel = qs("#app-version-label");
+  if (footerLabel) footerLabel.textContent = `${APP_VERSION_LABEL} — ${APP_VERSION_NOTES}`;
+  const badge = qs("#app-version-badge");
+  if (badge) badge.textContent = `· v${APP_VERSION}`;
+}
+
 async function init() {
+  initVersionLabel();
   initTabs();
   initModeSwitch();
   initConnection();
