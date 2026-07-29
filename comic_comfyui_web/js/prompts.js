@@ -21,6 +21,11 @@ let lastGenerated = { positive: "", negative: "" };
 // "Traduci & Ottimizza" again after tweaking the camera.
 let lastSceneEn = null;
 let lastNegAdditionEn = "";
+// Separate from lastSceneEn: character-specific details (hair, eyes, scars,
+// voice...) typed in step 1, distinct from the scene/action description in
+// step 2. Both get translated on "Traduci & Ottimizza" and merged into the
+// same positive prompt, character description first.
+let lastCharacterDescEn = "";
 
 // Quality/detail checkboxes and the aspect-ratio select, like the style
 // select, carry their actual English prompt tag directly as the option/input
@@ -72,6 +77,7 @@ function saveDraft() {
   const draft = {
     sceneIt: qs("#prompt-input-it").value,
     negIt: qs("#prompt-input-neg-it").value,
+    characterDescIt: qs("#prompt-character-desc-it").value,
     style: qs("#prompt-style").value,
     qualityTags: getQualityTags(),
     aspectRatio: qs("#prompt-aspect-ratio").value,
@@ -85,6 +91,7 @@ function saveDraft() {
     outputNegEn: qs("#prompt-output-neg-en").value,
     lastSceneEn,
     lastNegAdditionEn,
+    lastCharacterDescEn,
   };
   localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
 }
@@ -113,6 +120,7 @@ function restoreDraft() {
   if (!draft) return;
   qs("#prompt-input-it").value = draft.sceneIt || "";
   qs("#prompt-input-neg-it").value = draft.negIt || "";
+  qs("#prompt-character-desc-it").value = draft.characterDescIt || "";
   if (draft.style !== undefined) qs("#prompt-style").value = draft.style;
   if (draft.aspectRatio !== undefined) qs("#prompt-aspect-ratio").value = draft.aspectRatio;
   setQualityTags(draft.qualityTags);
@@ -126,6 +134,7 @@ function restoreDraft() {
   qs("#prompt-output-neg-en").value = draft.outputNegEn || "";
   lastSceneEn = draft.lastSceneEn ?? null;
   lastNegAdditionEn = draft.lastNegAdditionEn || "";
+  lastCharacterDescEn = draft.lastCharacterDescEn || "";
 
   setSelectedCharacterIdsByIndex(draftCharacterIdsByIndex(draft));
 }
@@ -140,6 +149,7 @@ export function getSceneDraftForSaving() {
   return {
     sceneIt: qs("#prompt-input-it").value,
     negIt: qs("#prompt-input-neg-it").value,
+    characterDescIt: qs("#prompt-character-desc-it").value,
     style: qs("#prompt-style").value,
     qualityTags: getQualityTags(),
     aspectRatio: qs("#prompt-aspect-ratio").value,
@@ -154,12 +164,14 @@ export function getSceneDraftForSaving() {
     outputNegEn: qs("#prompt-output-neg-en").value,
     lastSceneEn,
     lastNegAdditionEn,
+    lastCharacterDescEn,
   };
 }
 
 export function applySceneDraft(draft) {
   qs("#prompt-input-it").value = draft.sceneIt || "";
   qs("#prompt-input-neg-it").value = draft.negIt || "";
+  qs("#prompt-character-desc-it").value = draft.characterDescIt || "";
   if (draft.style !== undefined) qs("#prompt-style").value = draft.style;
   if (draft.aspectRatio !== undefined) qs("#prompt-aspect-ratio").value = draft.aspectRatio;
   setQualityTags(draft.qualityTags);
@@ -171,6 +183,7 @@ export function applySceneDraft(draft) {
   setStrengths(draft.strengths);
   lastSceneEn = draft.lastSceneEn ?? null;
   lastNegAdditionEn = draft.lastNegAdditionEn || "";
+  lastCharacterDescEn = draft.lastCharacterDescEn || "";
 
   setSelectedCharacterIdsByIndex(draftCharacterIdsByIndex(draft));
   rebuildOutputs();
@@ -201,7 +214,10 @@ function rebuildOutputs() {
     if (block) extraTags.push(block);
   }
 
-  const positive = optimizePrompt(lastSceneEn, { style, extraTags });
+  // Character details (step 1) come first, then the scene/action description
+  // (step 2) — both get tag-optimized and merged into a single prompt.
+  const sceneText = lastCharacterDescEn ? `${lastCharacterDescEn}. ${lastSceneEn}` : lastSceneEn;
+  const positive = optimizePrompt(sceneText, { style, extraTags });
   qs("#prompt-output-en").value = positive;
   lastGenerated.positive = positive;
 
@@ -471,6 +487,7 @@ function setSendStatus(message, type = "") {
 async function handleTranslate() {
   const sceneIt = qs("#prompt-input-it").value.trim();
   const negIt = qs("#prompt-input-neg-it").value.trim();
+  const characterDescIt = qs("#prompt-character-desc-it").value.trim();
 
   if (!sceneIt) {
     toast("Inserisci prima una descrizione della scena.", "error");
@@ -485,6 +502,7 @@ async function handleTranslate() {
     const { text: sceneEn, source } = await translateItToEn(sceneIt);
     lastSceneEn = sceneEn;
     lastNegAdditionEn = negIt ? (await translateItToEn(negIt)).text : "";
+    lastCharacterDescEn = characterDescIt ? (await translateItToEn(characterDescIt)).text : "";
     rebuildOutputs();
 
     toast(
@@ -816,6 +834,7 @@ export async function initPrompts() {
   qs("#prompt-copy-open-btn").addEventListener("click", handleCopyAndOpen);
   qs("#prompt-input-it").addEventListener("input", saveDraft);
   qs("#prompt-input-neg-it").addEventListener("input", saveDraft);
+  qs("#prompt-character-desc-it").addEventListener("input", saveDraft);
   qs("#prompt-style").addEventListener("change", rebuildOutputs);
   qs("#prompt-aspect-ratio").addEventListener("change", rebuildOutputs);
   qsa('#prompt-quality-options input[type="checkbox"]').forEach((cb) => cb.addEventListener("change", rebuildOutputs));
@@ -846,6 +865,7 @@ export async function initPrompts() {
 
   initVoiceDictation("prompt-input-it", "prompt-input-it-mic");
   initVoiceDictation("prompt-input-neg-it", "prompt-input-neg-it-mic");
+  initVoiceDictation("prompt-character-desc-it", "prompt-character-desc-it-mic");
 
   // Re-check indicator whenever the user switches to the Prompt tab or changes active provider.
   document.querySelectorAll('.tab-btn[data-tab="tab-prompt"]').forEach((btn) =>

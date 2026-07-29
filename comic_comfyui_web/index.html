@@ -188,6 +188,13 @@
     <div class="card form-grid">
       <h3 class="step-title full">1. Personaggio</h3>
       <div class="full" id="prompt-character-slots"></div>
+      <label class="full">Descrizione personaggio (opzionale, italiano)
+        <div class="textarea-with-mic">
+          <textarea id="prompt-character-desc-it" rows="3" placeholder="Es: capelli rossi mossi, occhi verdi, cicatrice sopra il sopracciglio destro, voce calma e sicura"></textarea>
+          <button type="button" id="prompt-character-desc-it-mic" class="mic-btn" title="Detta a voce">🎤</button>
+        </div>
+        <span class="hint small">Dettagli del personaggio (non della scena/azione): si aggiungono all'inizio del prompt insieme alla descrizione della scena qui sotto.</span>
+      </label>
       <label class="full">Riferimento posa (opzionale, guida solo la posa/azione — non l'identità)
         <input type="file" id="prompt-pose-upload" accept="image/*">
         <span class="hint small">Usata solo dai nodi immagine mappati con sorgente "Posa" nella scheda Workflow. Se non carichi nulla, quei nodi restano semplicemente non impostati: nessun errore.</span>
