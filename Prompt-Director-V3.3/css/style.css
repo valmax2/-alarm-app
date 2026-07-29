@@ -36,3 +36,17 @@
 .node-name-row b{color:#9fb0c9;font-weight:600}
 .node-name-row small{color:#7c8ba3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:850px){.node-name-row{grid-template-columns:30px 1fr}.node-name-row input{grid-column:span 2}}
+
+/* V3.5 — sezioni "Crea Scena" richiudibili in accordion, per un'interfaccia più ordinata */
+#scene{background:none;border:0;padding:0;margin-bottom:0}
+details.accordion{background:rgba(21,29,43,.86);border:1px solid var(--line);border-radius:14px;margin-bottom:14px;overflow:hidden}
+details.accordion>summary{list-style:none;cursor:pointer;padding:15px 18px;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:space-between;user-select:none}
+details.accordion>summary::-webkit-details-marker{display:none}
+details.accordion>summary::after{content:'›';color:var(--blue);font-size:20px;font-weight:700;transition:transform .15s;transform:rotate(90deg)}
+details.accordion[open]>summary::after{transform:rotate(-90deg)}
+details.accordion>summary:hover{background:rgba(85,167,255,.07)}
+details.accordion[open]>summary{border-bottom:1px solid var(--line)}
+details.accordion>.accordion-body{padding:16px 18px 18px;display:flex;flex-direction:column;gap:14px}
+details.accordion>.accordion-body>*{margin-bottom:0}
+fieldset.flat{background:transparent;border:0;padding:0;margin:0}
+#scene>h3{margin:20px 0 12px}
