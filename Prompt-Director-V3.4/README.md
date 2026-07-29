@@ -1,6 +1,15 @@
-# Prompt Director V3.3 — Comic Studio
+# Prompt Director V3.4 — Comic Studio
 
 Applicazione web statica in HTML, CSS e JavaScript vanilla per creare prompt, gestire personaggi coerenti, workflow ComfyUI, regia visuale, provider esterni, scene e archivio.
+
+## Novità V3.4
+
+- **Import workflow ComfyUI "normale":** oltre al formato API, ora si può importare anche il workflow salvato di default da ComfyUI (`Save`, con `nodes`/`links`). Viene convertito automaticamente in formato API leggendo `/object_info` da una connessione ComfyUI attiva, e da lì si mappa esattamente come un workflow API.
+- **Nomi personalizzati per i nodi:** nel pannello "Mappa nodi" si può assegnare un nome semplice a ogni nodo (utile per custom node poco leggibili); se il workflow importato aveva già un titolo da ComfyUI, viene ripreso automaticamente.
+- **Scheda "Crea Scena" riorganizzata in accordion:** Stile e formato, Qualità visiva, Personaggio coerente & Sanitizer, Regia (camera/luce/composizione) sono ora sezioni richiudibili, per un'interfaccia più pulita.
+- **Archivio molto più ricco:** Illuminazione (6 → 24 opzioni), Composizione (4 → 16 opzioni), Qualità visiva (6 → 20 opzioni), più un nuovo selettore **Obiettivo / lente** (13 opzioni: grandangolo, teleobiettivo, fisheye, macro, tilt-shift, anamorfico, profondità di campo, drone...).
+- **Header e barra tab più compatti**, sempre fissi in alto durante lo scroll.
+- Corretto un bug per cui "Carica scena" rompeva le interazioni successive del Director's Mode.
 
 ## Novità V3.3
 
