@@ -1,0 +1,494 @@
+{
+  "version": "1.1",
+  "description": "Smart Replacement Dictionary bilingue integrato in Prompt Director",
+  "replacements": [
+    {
+      "from": "camicia con scollatura profonda",
+      "to": "camicia elegante con scollo a V discreto"
+    },
+    {
+      "from": "camicia con scollatura",
+      "to": "camicia elegante con scollo a V"
+    },
+    {
+      "from": "camicetta con scollatura",
+      "to": "camicetta elegante con scollo a V"
+    },
+    {
+      "from": "blusa con scollatura",
+      "to": "blusa elegante con scollo a V"
+    },
+    {
+      "from": "scollatura profonda",
+      "to": "scollo a V discreto"
+    },
+    {
+      "from": "scollatura generosa",
+      "to": "scollo elegante"
+    },
+    {
+      "from": "scollatura provocante",
+      "to": "scollo elegante"
+    },
+    {
+      "from": "scollatura",
+      "to": "scollo elegante"
+    },
+    {
+      "from": "vestito scollato",
+      "to": "vestito elegante"
+    },
+    {
+      "from": "abito scollato",
+      "to": "abito elegante"
+    },
+    {
+      "from": "camicia scollata",
+      "to": "camicia elegante"
+    },
+    {
+      "from": "camicetta scollata",
+      "to": "camicetta elegante"
+    },
+    {
+      "from": "blusa scollata",
+      "to": "blusa aderente ed elegante"
+    },
+    {
+      "from": "vestito trasparente",
+      "to": "vestito in tessuto leggero ma coprente"
+    },
+    {
+      "from": "camicia trasparente",
+      "to": "camicia in tessuto leggero ma coprente"
+    },
+    {
+      "from": "camicetta trasparente",
+      "to": "camicetta in tessuto leggero ma coprente"
+    },
+    {
+      "from": "senza vestiti",
+      "to": "con abbigliamento elegante"
+    },
+    {
+      "from": "senza abiti",
+      "to": "con abbigliamento elegante"
+    },
+    {
+      "from": "senza veli",
+      "to": "con abbigliamento elegante"
+    },
+    {
+      "from": "svestita",
+      "to": "completamente vestita"
+    },
+    {
+      "from": "svestito",
+      "to": "completamente vestito"
+    },
+    {
+      "from": "nuda",
+      "to": "completamente vestita"
+    },
+    {
+      "from": "nudo",
+      "to": "completamente vestito"
+    },
+    {
+      "from": "topless",
+      "to": "fully dressed"
+    },
+    {
+      "from": "seno molto grande",
+      "to": "silhouette femminile naturale"
+    },
+    {
+      "from": "seno grande",
+      "to": "silhouette femminile naturale"
+    },
+    {
+      "from": "seno generoso",
+      "to": "figura elegante"
+    },
+    {
+      "from": "bel seno",
+      "to": "proporzioni eleganti"
+    },
+    {
+      "from": "seni grandi",
+      "to": "silhouette femminile naturale"
+    },
+    {
+      "from": "seni generosi",
+      "to": "figura elegante"
+    },
+    {
+      "from": "seno",
+      "to": "parte superiore del corpo"
+    },
+    {
+      "from": "sensuale espressione",
+      "to": "espressione sicura e calorosa"
+    },
+    {
+      "from": "espressione sensuale",
+      "to": "espressione sicura e calorosa"
+    },
+    {
+      "from": "sguardo seducente",
+      "to": "sguardo dolce e sicuro"
+    },
+    {
+      "from": "sorriso seducente",
+      "to": "sorriso affascinante"
+    },
+    {
+      "from": "posa provocante",
+      "to": "posa sicura"
+    },
+    {
+      "from": "posa seducente",
+      "to": "posa elegante"
+    },
+    {
+      "from": "posa sexy",
+      "to": "posa da moda"
+    },
+    {
+      "from": "molto sexy",
+      "to": "glamour ed elegante"
+    },
+    {
+      "from": "sexy",
+      "to": "elegant"
+    },
+    {
+      "from": "sensuale",
+      "to": "sicura e affascinante"
+    },
+    {
+      "from": "seducente",
+      "to": "affascinante"
+    },
+    {
+      "from": "provocante",
+      "to": "elegante"
+    },
+    {
+      "from": "erotica",
+      "to": "artistica ed elegante"
+    },
+    {
+      "from": "erotico",
+      "to": "artistico ed elegante"
+    },
+    {
+      "from": "solleva la gonna",
+      "to": "tiene naturalmente i lati della gonna"
+    },
+    {
+      "from": "alzare la gonna",
+      "to": "tenere naturalmente i lati della gonna"
+    },
+    {
+      "from": "alza la gonna",
+      "to": "tiene naturalmente i lati della gonna"
+    },
+    {
+      "from": "mostra la biancheria",
+      "to": "indossa un abbigliamento sobrio"
+    },
+    {
+      "from": "gambe divaricate",
+      "to": "posizione rilassata e naturale"
+    },
+    {
+      "from": "tocca il seno",
+      "to": "mani vicino alla parte superiore del busto"
+    },
+    {
+      "from": "tocca il sedere",
+      "to": "mani lungo i fianchi"
+    },
+    {
+      "from": "beautiful generous breasts",
+      "to": "elegant V-neckline"
+    },
+    {
+      "from": "large breasts",
+      "to": "feminine silhouette"
+    },
+    {
+      "from": "big breasts",
+      "to": "natural feminine silhouette"
+    },
+    {
+      "from": "huge breasts",
+      "to": "elegant feminine figure"
+    },
+    {
+      "from": "perfect breasts",
+      "to": "elegant proportions"
+    },
+    {
+      "from": "voluptuous breasts",
+      "to": "graceful figure"
+    },
+    {
+      "from": "deep cleavage",
+      "to": "tasteful V-neckline"
+    },
+    {
+      "from": "revealing cleavage",
+      "to": "elegant V-neck blouse"
+    },
+    {
+      "from": "plunging neckline",
+      "to": "tasteful V-neckline"
+    },
+    {
+      "from": "low-cut neckline",
+      "to": "elegant neckline"
+    },
+    {
+      "from": "low cut blouse",
+      "to": "fitted elegant blouse"
+    },
+    {
+      "from": "cleavage",
+      "to": "elegant neckline"
+    },
+    {
+      "from": "busty",
+      "to": "elegant figure"
+    },
+    {
+      "from": "boobs",
+      "to": "upper body"
+    },
+    {
+      "from": "breasts",
+      "to": "upper body"
+    },
+    {
+      "from": "extremely sexy",
+      "to": "glamorous"
+    },
+    {
+      "from": "super hot",
+      "to": "beautiful"
+    },
+    {
+      "from": "hot",
+      "to": "attractive"
+    },
+    {
+      "from": "provocative",
+      "to": "stylish"
+    },
+    {
+      "from": "erotic",
+      "to": "artistic and elegant"
+    },
+    {
+      "from": "lustful",
+      "to": "confident"
+    },
+    {
+      "from": "horny",
+      "to": "excited"
+    },
+    {
+      "from": "aroused",
+      "to": "emotionally engaged"
+    },
+    {
+      "from": "sensual expression",
+      "to": "confident, warm expression"
+    },
+    {
+      "from": "seductive smile",
+      "to": "charming smile"
+    },
+    {
+      "from": "flirty look",
+      "to": "friendly gaze"
+    },
+    {
+      "from": "bedroom eyes",
+      "to": "soft gaze"
+    },
+    {
+      "from": "seductive",
+      "to": "charming"
+    },
+    {
+      "from": "tempting",
+      "to": "graceful"
+    },
+    {
+      "from": "sensual",
+      "to": "confident"
+    },
+    {
+      "from": "provocative pose",
+      "to": "confident pose"
+    },
+    {
+      "from": "seductive pose",
+      "to": "elegant pose"
+    },
+    {
+      "from": "sexual pose",
+      "to": "fashion pose"
+    },
+    {
+      "from": "pin-up pose",
+      "to": "glamour pose"
+    },
+    {
+      "from": "legs spread",
+      "to": "relaxed stance"
+    },
+    {
+      "from": "arching back seductively",
+      "to": "graceful posture"
+    },
+    {
+      "from": "revealing dress",
+      "to": "elegant dress"
+    },
+    {
+      "from": "revealing blouse",
+      "to": "fitted blouse"
+    },
+    {
+      "from": "tiny skirt",
+      "to": "short skirt"
+    },
+    {
+      "from": "micro skirt",
+      "to": "stylish mini skirt"
+    },
+    {
+      "from": "transparent clothes",
+      "to": "lightweight, opaque fabric"
+    },
+    {
+      "from": "transparent blouse",
+      "to": "lightweight, opaque blouse"
+    },
+    {
+      "from": "see-through shirt",
+      "to": "lightweight, opaque blouse"
+    },
+    {
+      "from": "lingerie",
+      "to": "elegant nightwear"
+    },
+    {
+      "from": "bra visible",
+      "to": "layered clothing"
+    },
+    {
+      "from": "without clothes",
+      "to": "wearing elegant clothing"
+    },
+    {
+      "from": "remove clothes",
+      "to": "adjust clothing"
+    },
+    {
+      "from": "bottomless",
+      "to": "fully dressed"
+    },
+    {
+      "from": "completely naked",
+      "to": "fully dressed"
+    },
+    {
+      "from": "naked",
+      "to": "fully dressed"
+    },
+    {
+      "from": "nude",
+      "to": "fully dressed artistic figure"
+    },
+    {
+      "from": "undress",
+      "to": "change outfit"
+    },
+    {
+      "from": "strip",
+      "to": "change clothes"
+    },
+    {
+      "from": "nipples",
+      "to": "upper body"
+    },
+    {
+      "from": "underboob",
+      "to": "blouse"
+    },
+    {
+      "from": "sideboob",
+      "to": "blouse"
+    },
+    {
+      "from": "cameltoe",
+      "to": "clothing"
+    },
+    {
+      "from": "genitals",
+      "to": "clothing"
+    },
+    {
+      "from": "groin",
+      "to": "waist area"
+    },
+    {
+      "from": "crotch",
+      "to": "waist area"
+    },
+    {
+      "from": "booty",
+      "to": "silhouette"
+    },
+    {
+      "from": "butt",
+      "to": "lower body"
+    },
+    {
+      "from": "ass",
+      "to": "lower body"
+    },
+    {
+      "from": "lift skirt",
+      "to": "hold skirt naturally"
+    },
+    {
+      "from": "raise skirt",
+      "to": "gently hold the skirt"
+    },
+    {
+      "from": "spread legs",
+      "to": "relaxed standing pose"
+    },
+    {
+      "from": "show underwear",
+      "to": "modest outfit"
+    },
+    {
+      "from": "remove bra",
+      "to": "elegant outfit"
+    },
+    {
+      "from": "touch breasts",
+      "to": "hands near upper torso"
+    },
+    {
+      "from": "touch butt",
+      "to": "hands at sides"
+    }
+  ]
+}
