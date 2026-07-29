@@ -49,4 +49,7 @@ details.accordion[open]>summary{border-bottom:1px solid var(--line)}
 details.accordion>.accordion-body{padding:16px 18px 18px;display:flex;flex-direction:column;gap:14px}
 details.accordion>.accordion-body>*{margin-bottom:0}
 fieldset.flat{background:transparent;border:0;padding:0;margin:0}
+fieldset.flat legend{font-weight:700;font-size:12.5px;color:var(--blue);text-transform:uppercase;letter-spacing:.02em;padding:0;margin-bottom:6px}
+select optgroup{color:#7c8ba3;font-style:normal;font-weight:700}
+select option{color:#ecf2ff}
 #scene>h3{margin:20px 0 12px}
