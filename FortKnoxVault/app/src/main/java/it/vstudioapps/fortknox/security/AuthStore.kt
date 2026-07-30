@@ -24,6 +24,9 @@ class AuthStore(context: Context) {
     var passwordEnabled: Boolean
         get() = prefs.getBoolean(KEY_PASSWORD, false)
         set(value) = prefs.edit().putBoolean(KEY_PASSWORD, value).apply()
+    var backupWarningShown: Boolean
+        get() = prefs.getBoolean(KEY_BACKUP_WARNING_SHOWN, false)
+        set(value) = prefs.edit().putBoolean(KEY_BACKUP_WARNING_SHOWN, value).apply()
 
     fun configure(secret: CharArray, recoveryCode: CharArray) {
         require(secret.size >= 4)
@@ -110,6 +113,7 @@ class AuthStore(context: Context) {
         private const val KEY_DIAL = "dial_enabled"
         private const val KEY_PIN = "pin_enabled"
         private const val KEY_PASSWORD = "password_enabled"
+        private const val KEY_BACKUP_WARNING_SHOWN = "backup_warning_shown"
         private const val KEY_FAILURES = "failed_attempts"
         private const val KEY_LOCKED_UNTIL = "locked_until"
     }
