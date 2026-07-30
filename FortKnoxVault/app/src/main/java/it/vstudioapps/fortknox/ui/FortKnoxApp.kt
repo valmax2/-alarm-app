@@ -326,6 +326,11 @@ private fun UnlockScreen(
                 Spacer(Modifier.height(24.dp))
                 Text("FORT KNOX", color = Silver, letterSpacing = 5.sp, fontWeight = FontWeight.Bold)
                 Text("PRIVATE VAULT", color = Brass, fontSize = 12.sp, letterSpacing = 3.sp)
+                Text(
+                    "build ${it.vstudioapps.fortknox.BuildConfig.GIT_SHA}",
+                    color = Silver.copy(alpha = .4f),
+                    fontSize = 10.sp
+                )
             }
 
             if (authStore.dialEnabled && !recoveryMode) {
