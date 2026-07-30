@@ -1,7 +1,20 @@
+import java.io.ByteArrayOutputStream
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+}
+
+fun gitShortSha(): String = try {
+    val out = ByteArrayOutputStream()
+    exec {
+        commandLine("git", "rev-parse", "--short", "HEAD")
+        standardOutput = out
+    }
+    out.toString().trim()
+} catch (e: Exception) {
+    "unknown"
 }
 
 android {
@@ -14,6 +27,10 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0-prototype"
+
+        // Surfaced in the app's unlock screen so testers can confirm exactly which
+        // build is installed, since debug APKs carry no visible build number otherwise.
+        buildConfigField("String", "GIT_SHA", "\"${gitShortSha()}\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
