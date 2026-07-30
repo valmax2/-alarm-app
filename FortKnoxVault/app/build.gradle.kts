@@ -19,7 +19,22 @@ android {
         vectorDrawables.useSupportLibrary = true
     }
 
+    signingConfigs {
+        getByName("debug") {
+            // Fixed keystore checked into the repo so every CI build shares the same
+            // signature: CI runners otherwise generate a fresh debug key per run,
+            // which makes Android refuse to install a new APK over the previous one.
+            storeFile = file("../debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
