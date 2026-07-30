@@ -1,5 +1,8 @@
 package it.vstudioapps.fortknox.ui
 
+import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.text.format.Formatter
@@ -112,6 +115,7 @@ import it.vstudioapps.fortknox.model.VaultFolder
 import it.vstudioapps.fortknox.model.VaultItem
 import it.vstudioapps.fortknox.model.VaultSnapshot
 import it.vstudioapps.fortknox.security.AuthStore
+import it.vstudioapps.fortknox.security.FortKnoxDeviceAdminReceiver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -205,6 +209,7 @@ fun FortKnoxApp(
                         )
                         Screen.SETTINGS -> SettingsScreen(
                             authStore = authStore,
+                            onLaunchingExternalActivity = { suppressAutoLock = true },
                             onBack = { screen = Screen.HOME },
                             onLock = {
                                 unlocked = false
@@ -1165,6 +1170,7 @@ private fun PreviewDialog(
 @Composable
 private fun SettingsScreen(
     authStore: AuthStore,
+    onLaunchingExternalActivity: () -> Unit,
     onBack: () -> Unit,
     onLock: () -> Unit
 ) {
@@ -1172,6 +1178,20 @@ private fun SettingsScreen(
     var pin by remember { mutableStateOf(authStore.pinEnabled) }
     var password by remember { mutableStateOf(authStore.passwordEnabled) }
     var biometric by remember { mutableStateOf(authStore.biometricEnabled) }
+
+    val context = LocalContext.current
+    val devicePolicyManager = remember {
+        context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+    }
+    val adminComponent = remember {
+        ComponentName(context, FortKnoxDeviceAdminReceiver::class.java)
+    }
+    var uninstallBlocked by remember { mutableStateOf(devicePolicyManager.isAdminActive(adminComponent)) }
+    val adminLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        uninstallBlocked = devicePolicyManager.isAdminActive(adminComponent)
+    }
 
     Scaffold(
         containerColor = SteelBlack,
@@ -1209,6 +1229,46 @@ private fun SettingsScreen(
                                     "password) e salvalo altrove.",
                                 color = Silver.copy(alpha = .85f),
                                 style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            }
+            item {
+                Card(colors = CardDefaults.cardColors(containerColor = Steel)) {
+                    Column(Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Blocca disinstallazione", fontWeight = FontWeight.Medium)
+                                Text(
+                                    "Impedisce a Android di disinstallare l'app finché non disattivi " +
+                                        "questa opzione. Da qui o da Impostazioni > Sicurezza > App di " +
+                                        "amministrazione dispositivo.",
+                                    color = Silver.copy(alpha = .6f),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            Switch(
+                                checked = uninstallBlocked,
+                                onCheckedChange = { enable ->
+                                    if (enable) {
+                                        onLaunchingExternalActivity()
+                                        adminLauncher.launch(
+                                            Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+                                                putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent)
+                                                putExtra(
+                                                    DevicePolicyManager.EXTRA_ADD_EXPLANATION,
+                                                    "Impedisce la disinstallazione accidentale di Fort Knox " +
+                                                        "Vault: dovrai prima disattivare questa opzione qui " +
+                                                        "o da Impostazioni > Sicurezza."
+                                                )
+                                            }
+                                        )
+                                    } else {
+                                        devicePolicyManager.removeActiveAdmin(adminComponent)
+                                        uninstallBlocked = false
+                                    }
+                                }
                             )
                         }
                     }
