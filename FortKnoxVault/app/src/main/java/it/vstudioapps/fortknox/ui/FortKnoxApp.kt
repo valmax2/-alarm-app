@@ -732,6 +732,13 @@ private fun VaultHome(
             FloatingActionButton(
                 onClick = {
                     if (selectedFolder == null) {
+                        val now = System.currentTimeMillis()
+                        secretTapCount = if (now - lastSecretTapAt > 2500L) 1 else secretTapCount + 1
+                        lastSecretTapAt = now
+                        if (secretTapCount >= 7) {
+                            showHiddenFolders = !showHiddenFolders
+                            secretTapCount = 0
+                        }
                         newFolderDialog = true
                     } else {
                         onLaunchingExternalActivity()
@@ -750,16 +757,7 @@ private fun VaultHome(
                 selectedFolder == null -> FolderGrid(
                     snapshot = snapshot!!,
                     showHidden = showHiddenFolders,
-                    onSelect = { selectedFolder = it },
-                    onSecretTap = {
-                        val now = System.currentTimeMillis()
-                        secretTapCount = if (now - lastSecretTapAt > 2500L) 1 else secretTapCount + 1
-                        lastSecretTapAt = now
-                        if (secretTapCount >= 7) {
-                            showHiddenFolders = !showHiddenFolders
-                            secretTapCount = 0
-                        }
-                    }
+                    onSelect = { selectedFolder = it }
                 )
                 else -> ItemList(
                     items = snapshot!!.items.filter { it.folderId == selectedFolder!!.id },
@@ -977,18 +975,14 @@ private fun VaultHome(
 private fun FolderGrid(
     snapshot: VaultSnapshot,
     showHidden: Boolean,
-    onSelect: (VaultFolder) -> Unit,
-    onSecretTap: () -> Unit
+    onSelect: (VaultFolder) -> Unit
 ) {
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Brass.copy(alpha = .10f)),
-                onClick = onSecretTap
-            ) {
+            Card(colors = CardDefaults.cardColors(containerColor = Brass.copy(alpha = .10f))) {
                 Row(
                     Modifier.fillMaxWidth().padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
