@@ -35,6 +35,21 @@
             </intent-filter>
         </activity>
 
+        <!-- Optional, user-enabled from Settings: while active, Android requires the user to
+             deactivate device administration for this app (Settings > Security) before it can
+             be uninstalled, as a real block rather than a dismissible warning. -->
+        <receiver
+            android:name=".security.FortKnoxDeviceAdminReceiver"
+            android:exported="true"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.share"
