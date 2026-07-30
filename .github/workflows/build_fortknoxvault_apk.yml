@@ -1,0 +1,42 @@
+name: Build FortKnoxVault APK
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'FortKnoxVault/**'
+      - '.github/workflows/build_fortknoxvault_apk.yml'
+  workflow_dispatch: # Permette di avviare la build manualmente da GitHub
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: FortKnoxVault
+
+    steps:
+      # 1. Scarica il codice sorgente
+      - uses: actions/checkout@v4
+
+      # 2. Configura Java 17 (richiesto da AGP 8.7.3 / compileSdk 35)
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      # 3. Configura Android SDK e accetta le licenze
+      - uses: android-actions/setup-android@v3
+
+      # 4. Rende eseguibile il wrapper Gradle
+      - run: chmod +x gradlew
+
+      # 5. Compila l'APK in modalità debug
+      - run: ./gradlew assembleDebug --stacktrace
+
+      # 6. Carica l'APK tra gli allegati scaricabili della build
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fortknoxvault-debug-apk
+          path: FortKnoxVault/app/build/outputs/apk/debug/app-debug.apk
