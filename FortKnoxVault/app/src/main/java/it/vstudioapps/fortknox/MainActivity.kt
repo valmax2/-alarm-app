@@ -14,12 +14,16 @@ import it.vstudioapps.fortknox.ui.FortKnoxApp
 class MainActivity : FragmentActivity() {
     private lateinit var authStore: AuthStore
     private lateinit var repository: VaultRepository
+    private lateinit var crashPrefs: android.content.SharedPreferences
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         authStore = AuthStore(this)
         repository = VaultRepository(this)
+        crashPrefs = getSharedPreferences("crash_log_v1", MODE_PRIVATE)
+        installCrashHandler()
+        val lastCrash = crashPrefs.getString(KEY_LAST_CRASH, null)
 
         setContentView(
             ComposeView(this).apply {
@@ -27,11 +31,27 @@ class MainActivity : FragmentActivity() {
                     FortKnoxApp(
                         authStore = authStore,
                         repository = repository,
-                        requestBiometric = ::requestBiometric
+                        requestBiometric = ::requestBiometric,
+                        lastCrashReport = lastCrash,
+                        onCrashReportDismissed = {
+                            crashPrefs.edit().remove(KEY_LAST_CRASH).apply()
+                        }
                     )
                 }
             }
         )
+    }
+
+    private fun installCrashHandler() {
+        val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            runCatching {
+                crashPrefs.edit()
+                    .putString(KEY_LAST_CRASH, throwable.stackTraceToString().take(6000))
+                    .commit()
+            }
+            previousHandler?.uncaughtException(thread, throwable)
+        }
     }
 
     override fun onStop() {
@@ -75,5 +95,9 @@ class MainActivity : FragmentActivity() {
                 .setNegativeButtonText("Usa combinazione")
                 .build()
         )
+    }
+
+    companion object {
+        private const val KEY_LAST_CRASH = "last_crash"
     }
 }
