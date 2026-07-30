@@ -3,7 +3,8 @@ package it.vstudioapps.fortknox.model
 data class VaultFolder(
     val id: String,
     val name: String,
-    val createdAt: Long
+    val createdAt: Long,
+    val hidden: Boolean = false
 )
 
 data class VaultItem(

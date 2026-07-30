@@ -1,11 +1,16 @@
 package it.vstudioapps.fortknox
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.content.ContextCompat
+import androidx.core.content.IntentCompat
 import androidx.fragment.app.FragmentActivity
 import it.vstudioapps.fortknox.data.VaultRepository
 import it.vstudioapps.fortknox.security.AuthStore
@@ -15,6 +20,7 @@ class MainActivity : FragmentActivity() {
     private lateinit var authStore: AuthStore
     private lateinit var repository: VaultRepository
     private lateinit var crashPrefs: android.content.SharedPreferences
+    private val pendingShareUris = mutableStateOf<List<Uri>?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -24,10 +30,12 @@ class MainActivity : FragmentActivity() {
         crashPrefs = getSharedPreferences("crash_log_v1", MODE_PRIVATE)
         installCrashHandler()
         val lastCrash = crashPrefs.getString(KEY_LAST_CRASH, null)
+        pendingShareUris.value = extractSharedUris(intent)
 
         setContentView(
             ComposeView(this).apply {
                 setContent {
+                    val shareUris by pendingShareUris
                     FortKnoxApp(
                         authStore = authStore,
                         repository = repository,
@@ -35,11 +43,29 @@ class MainActivity : FragmentActivity() {
                         lastCrashReport = lastCrash,
                         onCrashReportDismissed = {
                             crashPrefs.edit().remove(KEY_LAST_CRASH).apply()
-                        }
+                        },
+                        pendingShareUris = shareUris,
+                        onPendingShareHandled = { pendingShareUris.value = null }
                     )
                 }
             }
         )
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        extractSharedUris(intent)?.let { pendingShareUris.value = it }
+    }
+
+    private fun extractSharedUris(intent: Intent): List<Uri>? = when (intent.action) {
+        Intent.ACTION_SEND ->
+            IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
+                ?.let { listOf(it) }
+        Intent.ACTION_SEND_MULTIPLE ->
+            IntentCompat.getParcelableArrayListExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
+                ?.takeIf { it.isNotEmpty() }
+        else -> null
     }
 
     private fun installCrashHandler() {

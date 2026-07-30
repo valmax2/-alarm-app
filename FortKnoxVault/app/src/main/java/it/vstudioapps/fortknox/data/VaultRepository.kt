@@ -34,11 +34,13 @@ class VaultRepository(private val context: Context) {
     @Synchronized
     fun snapshot(): VaultSnapshot {
         if (!indexFile.exists()) {
+            val now = System.currentTimeMillis()
             val initial = VaultSnapshot(
                 folders = listOf(
-                    VaultFolder("photos", "Immagini", System.currentTimeMillis()),
-                    VaultFolder("documents", "Documenti", System.currentTimeMillis()),
-                    VaultFolder("videos", "Video", System.currentTimeMillis())
+                    VaultFolder("photos", "Immagini", now),
+                    VaultFolder("documents", "Documenti", now),
+                    VaultFolder("videos", "Video", now),
+                    VaultFolder(HIDDEN_FOLDER_ID, "Cartella Nascosta", now, hidden = true)
                 ),
                 items = emptyList()
             )
@@ -48,7 +50,23 @@ class VaultRepository(private val context: Context) {
         return runCatching {
             val plain = ByteArrayOutputStream()
             FileInputStream(indexFile).use { crypto.decrypt(it, plain) }
-            parse(JSONObject(plain.toString(Charsets.UTF_8.name())))
+            val parsed = parse(JSONObject(plain.toString(Charsets.UTF_8.name())))
+            // Vaults created before the hidden-folder feature existed won't have one: add it
+            // once, transparently, so existing testers get it without losing their data.
+            if (parsed.folders.none { it.hidden }) {
+                val migrated = parsed.copy(
+                    folders = parsed.folders + VaultFolder(
+                        HIDDEN_FOLDER_ID,
+                        "Cartella Nascosta",
+                        System.currentTimeMillis(),
+                        hidden = true
+                    )
+                )
+                save(migrated)
+                migrated
+            } else {
+                parsed
+            }
         }.getOrElse {
             throw IllegalStateException("Impossibile leggere l'indice cifrato", it)
         }
@@ -299,6 +317,7 @@ class VaultRepository(private val context: Context) {
                     put("id", folder.id)
                     put("name", folder.name)
                     put("createdAt", folder.createdAt)
+                    put("hidden", folder.hidden)
                 })
             }
         })
@@ -321,7 +340,12 @@ class VaultRepository(private val context: Context) {
         val folders = json.getJSONArray("folders").let { array ->
             List(array.length()) { index ->
                 array.getJSONObject(index).let {
-                    VaultFolder(it.getString("id"), it.getString("name"), it.getLong("createdAt"))
+                    VaultFolder(
+                        it.getString("id"),
+                        it.getString("name"),
+                        it.getLong("createdAt"),
+                        it.optBoolean("hidden", false)
+                    )
                 }
             }
         }
@@ -341,5 +365,9 @@ class VaultRepository(private val context: Context) {
             }
         }
         return VaultSnapshot(folders, items)
+    }
+
+    companion object {
+        private const val HIDDEN_FOLDER_ID = "hidden_vault"
     }
 }
