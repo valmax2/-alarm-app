@@ -22,14 +22,18 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -130,7 +134,9 @@ private enum class Screen { LOCK, HOME, SETTINGS }
 fun FortKnoxApp(
     authStore: AuthStore,
     repository: VaultRepository,
-    requestBiometric: ((Boolean, String?) -> Unit) -> Unit
+    requestBiometric: ((Boolean, String?) -> Unit) -> Unit,
+    lastCrashReport: String? = null,
+    onCrashReportDismissed: () -> Unit = {}
 ) {
     MaterialTheme(
         colorScheme = androidx.compose.material3.darkColorScheme(
@@ -204,6 +210,38 @@ fun FortKnoxApp(
                     }
                 }
             }
+        }
+
+        var crashReport by remember { mutableStateOf(lastCrashReport) }
+        if (crashReport != null) {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text("L'app si è chiusa per un errore") },
+                text = {
+                    Column {
+                        Text(
+                            "Fai uno screenshot di questo testo (o selezionalo e copialo) e mandalo per capire " +
+                                "cosa è successo:",
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        SelectionContainer {
+                            Text(
+                                crashReport.orEmpty(),
+                                modifier = Modifier
+                                    .heightIn(max = 320.dp)
+                                    .verticalScroll(rememberScrollState()),
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        onCrashReportDismissed()
+                        crashReport = null
+                    }) { Text("HO SALVATO IL TESTO") }
+                }
+            )
         }
     }
 }
