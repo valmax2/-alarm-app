@@ -146,13 +146,20 @@ fun FortKnoxApp(
         var configured by remember { mutableStateOf(authStore.isConfigured) }
         var unlocked by rememberSaveable { mutableStateOf(false) }
         var screen by rememberSaveable { mutableStateOf(Screen.LOCK) }
+        var suppressAutoLock by remember { mutableStateOf(false) }
         val lifecycleOwner = LocalLifecycleOwner.current
 
         DisposableEffect(lifecycleOwner) {
             val observer = LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_STOP && unlocked) {
-                    unlocked = false
-                    screen = Screen.LOCK
+                when (event) {
+                    Lifecycle.Event.ON_STOP -> {
+                        if (unlocked && !suppressAutoLock) {
+                            unlocked = false
+                            screen = Screen.LOCK
+                        }
+                    }
+                    Lifecycle.Event.ON_RESUME -> suppressAutoLock = false
+                    else -> Unit
                 }
             }
             lifecycleOwner.lifecycle.addObserver(observer)
@@ -178,6 +185,7 @@ fun FortKnoxApp(
                         Screen.HOME -> VaultHome(
                             repository = repository,
                             authStore = authStore,
+                            onLaunchingExternalActivity = { suppressAutoLock = true },
                             onSettings = { screen = Screen.SETTINGS },
                             onLock = {
                                 unlocked = false
@@ -583,6 +591,7 @@ private fun CombinationDial(
 private fun VaultHome(
     repository: VaultRepository,
     authStore: AuthStore,
+    onLaunchingExternalActivity: () -> Unit,
     onSettings: () -> Unit,
     onLock: () -> Unit
 ) {
@@ -653,7 +662,10 @@ private fun VaultHome(
                 },
                 actions = {
                     if (selectedFolder != null) {
-                        IconButton(onClick = { protectedPicker.launch(arrayOf("application/octet-stream", "*/*")) }) {
+                        IconButton(onClick = {
+                            onLaunchingExternalActivity()
+                            protectedPicker.launch(arrayOf("application/octet-stream", "*/*"))
+                        }) {
                             Icon(Icons.Default.LockOpen, "Importa pacchetto protetto")
                         }
                     }
@@ -666,7 +678,12 @@ private fun VaultHome(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    if (selectedFolder == null) newFolderDialog = true else picker.launch(arrayOf("*/*"))
+                    if (selectedFolder == null) {
+                        newFolderDialog = true
+                    } else {
+                        onLaunchingExternalActivity()
+                        picker.launch(arrayOf("*/*"))
+                    }
                 },
                 containerColor = Brass
             ) {
@@ -746,6 +763,7 @@ private fun VaultHome(
                                 "${context.packageName}.share",
                                 file
                             )
+                            onLaunchingExternalActivity()
                             context.startActivity(
                                 Intent.createChooser(
                                     Intent(Intent.ACTION_SEND).apply {
