@@ -77,6 +77,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -136,7 +137,9 @@ fun FortKnoxApp(
     repository: VaultRepository,
     requestBiometric: ((Boolean, String?) -> Unit) -> Unit,
     lastCrashReport: String? = null,
-    onCrashReportDismissed: () -> Unit = {}
+    onCrashReportDismissed: () -> Unit = {},
+    pendingShareUris: List<android.net.Uri>? = null,
+    onPendingShareHandled: () -> Unit = {}
 ) {
     MaterialTheme(
         colorScheme = androidx.compose.material3.darkColorScheme(
@@ -192,6 +195,8 @@ fun FortKnoxApp(
                             repository = repository,
                             authStore = authStore,
                             onLaunchingExternalActivity = { suppressAutoLock = true },
+                            pendingShareUris = pendingShareUris,
+                            onPendingShareHandled = onPendingShareHandled,
                             onSettings = { screen = Screen.SETTINGS },
                             onLock = {
                                 unlocked = false
@@ -635,6 +640,8 @@ private fun VaultHome(
     repository: VaultRepository,
     authStore: AuthStore,
     onLaunchingExternalActivity: () -> Unit,
+    pendingShareUris: List<android.net.Uri>?,
+    onPendingShareHandled: () -> Unit,
     onSettings: () -> Unit,
     onLock: () -> Unit
 ) {
@@ -651,6 +658,9 @@ private fun VaultHome(
     var protectedPackageUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var protectedPackagePassword by remember { mutableStateOf("") }
     var showBackupWarning by remember { mutableStateOf(false) }
+    var showHiddenFolders by remember { mutableStateOf(false) }
+    var secretTapCount by remember { mutableIntStateOf(0) }
+    var lastSecretTapAt by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(Unit) {
         snapshot = withContext(Dispatchers.IO) { repository.snapshot() }
@@ -739,7 +749,17 @@ private fun VaultHome(
                 snapshot == null || busy -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 selectedFolder == null -> FolderGrid(
                     snapshot = snapshot!!,
-                    onSelect = { selectedFolder = it }
+                    showHidden = showHiddenFolders,
+                    onSelect = { selectedFolder = it },
+                    onSecretTap = {
+                        val now = System.currentTimeMillis()
+                        secretTapCount = if (now - lastSecretTapAt > 2500L) 1 else secretTapCount + 1
+                        lastSecretTapAt = now
+                        if (secretTapCount >= 7) {
+                            showHiddenFolders = !showHiddenFolders
+                            secretTapCount = 0
+                        }
+                    }
                 )
                 else -> ItemList(
                     items = snapshot!!.items.filter { it.folderId == selectedFolder!!.id },
@@ -895,6 +915,44 @@ private fun VaultHome(
         )
     }
 
+    if (pendingShareUris != null && snapshot != null) {
+        AlertDialog(
+            onDismissRequest = onPendingShareHandled,
+            title = { Text("Importa in Fort Knox") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Scegli la cartella in cui importare il file ricevuto:")
+                    snapshot!!.folders.filter { !it.hidden }.forEach { folder ->
+                        TextButton(
+                            onClick = {
+                                val uris = pendingShareUris
+                                scope.launch {
+                                    busy = true
+                                    val result = withContext(Dispatchers.IO) {
+                                        repository.importUris(uris, folder.id)
+                                    }
+                                    snapshot = withContext(Dispatchers.IO) { repository.snapshot() }
+                                    busy = false
+                                    onPendingShareHandled()
+                                    snackbar.showSnackbar("Importati ${result.imported} in \"${folder.name}\"")
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Folder, null, tint = Brass)
+                            Spacer(Modifier.width(8.dp))
+                            Text(folder.name, modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = onPendingShareHandled) { Text("ANNULLA") }
+            }
+        )
+    }
+
     if (showBackupWarning) {
         AlertDialog(
             onDismissRequest = { showBackupWarning = false },
@@ -916,13 +974,21 @@ private fun VaultHome(
 }
 
 @Composable
-private fun FolderGrid(snapshot: VaultSnapshot, onSelect: (VaultFolder) -> Unit) {
+private fun FolderGrid(
+    snapshot: VaultSnapshot,
+    showHidden: Boolean,
+    onSelect: (VaultFolder) -> Unit,
+    onSecretTap: () -> Unit
+) {
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Card(colors = CardDefaults.cardColors(containerColor = Brass.copy(alpha = .10f))) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Brass.copy(alpha = .10f)),
+                onClick = onSecretTap
+            ) {
                 Row(
                     Modifier.fillMaxWidth().padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -939,17 +1005,24 @@ private fun FolderGrid(snapshot: VaultSnapshot, onSelect: (VaultFolder) -> Unit)
                 }
             }
         }
-        items(snapshot.folders, key = { it.id }) { folder ->
+        items(snapshot.folders.filter { !it.hidden || showHidden }, key = { it.id }) { folder ->
             val count = snapshot.items.count { it.folderId == folder.id }
             Card(
                 onClick = { onSelect(folder) },
-                colors = CardDefaults.cardColors(containerColor = Steel)
+                colors = CardDefaults.cardColors(
+                    containerColor = if (folder.hidden) Danger.copy(alpha = .10f) else Steel
+                )
             ) {
                 Row(
                     Modifier.fillMaxWidth().padding(20.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Folder, null, tint = Brass, modifier = Modifier.size(36.dp))
+                    Icon(
+                        if (folder.hidden) Icons.Default.LockOpen else Icons.Default.Folder,
+                        null,
+                        tint = Brass,
+                        modifier = Modifier.size(36.dp)
+                    )
                     Spacer(Modifier.width(16.dp))
                     Column(Modifier.weight(1f)) {
                         Text(folder.name, fontWeight = FontWeight.SemiBold)
