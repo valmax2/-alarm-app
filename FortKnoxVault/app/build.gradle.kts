@@ -92,6 +92,12 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.biometric:biometric:1.1.0")
     implementation("androidx.documentfile:documentfile:1.0.1")
+    // androidx.biometric:1.1.0 transitively pulls an old androidx.fragment release whose
+    // FragmentActivity.checkForValidRequestCode() rejects the large request codes the modern
+    // Activity Result API (rememberLauncherForActivityResult) generates, crashing with
+    // "Can only use lower 16 bits for requestCode" the moment any picker is launched. Forcing
+    // a current fragment version here wins Gradle's dependency resolution and fixes it.
+    implementation("androidx.fragment:fragment-ktx:1.8.5")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
