@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -176,6 +177,7 @@ fun FortKnoxApp(
                     when (target) {
                         Screen.HOME -> VaultHome(
                             repository = repository,
+                            authStore = authStore,
                             onSettings = { screen = Screen.SETTINGS },
                             onLock = {
                                 unlocked = false
@@ -580,6 +582,7 @@ private fun CombinationDial(
 @Composable
 private fun VaultHome(
     repository: VaultRepository,
+    authStore: AuthStore,
     onSettings: () -> Unit,
     onLock: () -> Unit
 ) {
@@ -595,6 +598,7 @@ private fun VaultHome(
     var sharePassword by remember { mutableStateOf("") }
     var protectedPackageUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var protectedPackagePassword by remember { mutableStateOf("") }
+    var showBackupWarning by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         snapshot = withContext(Dispatchers.IO) { repository.snapshot() }
@@ -618,6 +622,10 @@ private fun VaultHome(
                     "Rimossi ${result.originalsDeleted}/${result.imported} originali: elimina manualmente quelli protetti dal provider."
                 }
                 snackbar.showSnackbar("Importati ${result.imported}. $removal")
+                if (result.imported > 0 && !authStore.backupWarningShown) {
+                    authStore.backupWarningShown = true
+                    showBackupWarning = true
+                }
             }
         }
     }
@@ -823,6 +831,25 @@ private fun VaultHome(
             item = item,
             loadBytes = { repository.decryptBytes(item) },
             onDismiss = { previewItem = null }
+        )
+    }
+
+    if (showBackupWarning) {
+        AlertDialog(
+            onDismissRequest = { showBackupWarning = false },
+            icon = { Icon(Icons.Default.Warning, null, tint = Danger) },
+            title = { Text("Nessun backup automatico") },
+            text = {
+                Text(
+                    "Questo prototipo conserva l'archivio solo sul telefono. Se disinstalli l'app o cancelli " +
+                        "i suoi dati, i file cifrati vengono persi per sempre. Prima di disinstallare, esporta " +
+                        "ogni file importante con \"Condividi\" (icona di condivisione) per creare una copia " +
+                        ".vsafe protetta da password da salvare altrove."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showBackupWarning = false }) { Text("HO CAPITO") }
+            }
         )
     }
 }
@@ -1035,6 +1062,30 @@ private fun SettingsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            item {
+                Card(colors = CardDefaults.cardColors(containerColor = Danger.copy(alpha = .16f))) {
+                    Row(Modifier.fillMaxWidth().padding(16.dp)) {
+                        Icon(Icons.Default.Warning, null, tint = Danger)
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                "Attenzione prima di disinstallare",
+                                fontWeight = FontWeight.Bold,
+                                color = Danger
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "Questo prototipo non ha un backup cloud. Disinstallare l'app o cancellarne i " +
+                                    "dati elimina per sempre l'archivio cifrato. Prima di disinstallare, esporta " +
+                                    "ogni file importante con \"Condividi\" (crea un pacchetto .vsafe protetto da " +
+                                    "password) e salvalo altrove.",
+                                color = Silver.copy(alpha = .85f),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            }
             item { SectionTitle("METODI DI SBLOCCO") }
             item {
                 SettingToggle("Ghiera con combinazione", "Interfaccia meccanica della cassaforte", dial) {
