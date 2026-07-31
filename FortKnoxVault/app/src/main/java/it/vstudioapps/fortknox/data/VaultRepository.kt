@@ -145,6 +145,39 @@ class VaultRepository(private val context: Context) {
         return output.toByteArray()
     }
 
+    /** Decrypts every item into [destinationTree] (an OpenDocumentTree URI), one subfolder per
+     * vault folder, so the user has a plain, app-independent backup. Returns how many exported. */
+    fun exportAllTo(destinationTree: Uri): Int {
+        val destinationRoot = requireNotNull(DocumentFile.fromTreeUri(context, destinationTree)) {
+            "Cartella di destinazione non valida"
+        }
+        val current = snapshot()
+        var exported = 0
+        current.folders.forEach { folder ->
+            val items = current.items.filter { it.folderId == folder.id }
+            if (items.isEmpty()) return@forEach
+            val folderName = folder.name.replace(Regex("[^A-Za-z0-9._ -]"), "_").take(60)
+            val destinationFolder = destinationRoot.findFile(folderName)
+                ?.takeIf { it.isDirectory }
+                ?: destinationRoot.createDirectory(folderName)
+                ?: destinationRoot
+            items.forEach { item ->
+                runCatching {
+                    val safeName = item.displayName.replace(Regex("[^A-Za-z0-9._-]"), "_").take(80)
+                    val target = destinationFolder.createFile(item.mimeType, safeName)
+                        ?: return@runCatching
+                    context.contentResolver.openOutputStream(target.uri)?.use { output ->
+                        FileInputStream(File(vaultDir, item.encryptedFileName)).use { source ->
+                            crypto.decrypt(source, output)
+                        }
+                    }
+                    exported++
+                }
+            }
+        }
+        return exported
+    }
+
     fun exportPlain(item: VaultItem): File {
         val shareDir = File(context.cacheDir, "share").apply {
             deleteRecursively()

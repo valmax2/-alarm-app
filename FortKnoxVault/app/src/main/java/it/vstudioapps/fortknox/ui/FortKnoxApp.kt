@@ -209,6 +209,7 @@ fun FortKnoxApp(
                         )
                         Screen.SETTINGS -> SettingsScreen(
                             authStore = authStore,
+                            repository = repository,
                             onLaunchingExternalActivity = { suppressAutoLock = true },
                             onBack = { screen = Screen.HOME },
                             onLock = {
@@ -1198,6 +1199,7 @@ private fun PreviewDialog(
 @Composable
 private fun SettingsScreen(
     authStore: AuthStore,
+    repository: VaultRepository,
     onLaunchingExternalActivity: () -> Unit,
     onBack: () -> Unit,
     onLock: () -> Unit
@@ -1208,6 +1210,7 @@ private fun SettingsScreen(
     var biometric by remember { mutableStateOf(authStore.biometricEnabled) }
 
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val devicePolicyManager = remember {
         context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
     }
@@ -1219,6 +1222,21 @@ private fun SettingsScreen(
         ActivityResultContracts.StartActivityForResult()
     ) {
         uninstallBlocked = devicePolicyManager.isAdminActive(adminComponent)
+    }
+
+    var exportingBackup by remember { mutableStateOf(false) }
+    var backupResultMessage by remember { mutableStateOf<String?>(null) }
+    val exportTreeLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { treeUri ->
+        if (treeUri != null) {
+            exportingBackup = true
+            scope.launch {
+                val count = withContext(Dispatchers.IO) { repository.exportAllTo(treeUri) }
+                exportingBackup = false
+                backupResultMessage = "Esportati $count file nella cartella scelta."
+            }
+        }
     }
 
     Scaffold(
@@ -1258,6 +1276,36 @@ private fun SettingsScreen(
                                 color = Silver.copy(alpha = .85f),
                                 style = MaterialTheme.typography.bodySmall
                             )
+                        }
+                    }
+                }
+            }
+            item {
+                Card(colors = CardDefaults.cardColors(containerColor = Steel)) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("Backup completo", fontWeight = FontWeight.Medium)
+                        Text(
+                            "Copia tutti i file, decifrati, in una cartella del telefono a tua scelta " +
+                                "(fuori dall'archivio). Utile prima di disinstallare o cambiare telefono.",
+                            color = Silver.copy(alpha = .6f),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Button(
+                            enabled = !exportingBackup,
+                            onClick = {
+                                onLaunchingExternalActivity()
+                                exportTreeLauncher.launch(null)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            if (exportingBackup) {
+                                Text("ESPORTAZIONE IN CORSO…")
+                            } else {
+                                Icon(Icons.Default.UploadFile, null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("ESPORTA TUTTO")
+                            }
                         }
                     }
                 }
@@ -1372,6 +1420,17 @@ private fun SettingsScreen(
                 )
             }
         }
+    }
+
+    backupResultMessage?.let { message ->
+        AlertDialog(
+            onDismissRequest = { backupResultMessage = null },
+            title = { Text("Backup completato") },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = { backupResultMessage = null }) { Text("OK") }
+            }
+        )
     }
 }
 
