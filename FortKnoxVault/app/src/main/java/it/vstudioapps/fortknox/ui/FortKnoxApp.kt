@@ -44,6 +44,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Backspace
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Fingerprint
@@ -421,21 +422,21 @@ private fun UnlockScreen(
                             }
                         }
                     }
-                    if (authStore.pinEnabled || authStore.passwordEnabled) {
+                    if (authStore.passwordEnabled) {
                         OutlinedTextField(
                             value = entered,
                             onValueChange = { entered = it.take(64) },
-                            label = { Text("PIN o password") },
+                            label = { Text("Password") },
                             visualTransformation = PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = if (authStore.passwordEnabled) {
-                                    KeyboardType.Password
-                                } else {
-                                    KeyboardType.NumberPassword
-                                }
-                            ),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
+                        )
+                    } else if (authStore.pinEnabled) {
+                        NumericKeypad(
+                            digitCount = entered.length,
+                            onDigit = { digit -> if (entered.length < 12) entered += digit },
+                            onBackspace = { if (entered.isNotEmpty()) entered = entered.dropLast(1) }
                         )
                     }
                     Button(
@@ -516,6 +517,51 @@ private fun UnlockScreen(
                 Spacer(Modifier.height(8.dp))
             }
         }
+    }
+}
+
+@Composable
+private fun NumericKeypad(
+    digitCount: Int,
+    onDigit: (Char) -> Unit,
+    onBackspace: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            repeat(digitCount.coerceAtMost(10)) {
+                Box(Modifier.size(10.dp).background(Brass, CircleShape))
+            }
+            if (digitCount == 0) {
+                Text("Inserisci il PIN", color = Silver.copy(alpha = .6f))
+            }
+        }
+        Spacer(Modifier.height(18.dp))
+        listOf("123", "456", "789").forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                row.forEach { digit -> KeypadButton(digit.toString()) { onDigit(digit) } }
+            }
+            Spacer(Modifier.height(14.dp))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Spacer(Modifier.size(60.dp))
+            KeypadButton("0") { onDigit('0') }
+            IconButton(onClick = onBackspace, modifier = Modifier.size(60.dp)) {
+                Icon(Icons.Default.Backspace, "Cancella", tint = Silver)
+            }
+        }
+    }
+}
+
+@Composable
+private fun KeypadButton(label: String, onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        shape = CircleShape,
+        contentPadding = PaddingValues(0.dp),
+        modifier = Modifier.size(60.dp)
+    ) {
+        Text(label, fontSize = 22.sp, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -667,6 +713,7 @@ private fun VaultHome(
     var newFolderDialog by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var protectedShareItem by remember { mutableStateOf<VaultItem?>(null) }
+    var deleteConfirmItem by remember { mutableStateOf<VaultItem?>(null) }
     var previewItem by remember { mutableStateOf<VaultItem?>(null) }
     var sharePassword by remember { mutableStateOf("") }
     var protectedPackageUri by remember { mutableStateOf<android.net.Uri?>(null) }
@@ -809,15 +856,39 @@ private fun VaultHome(
                         }
                     },
                     onShareProtected = { protectedShareItem = it },
-                    onDelete = { item ->
-                        scope.launch {
-                            snapshot = withContext(Dispatchers.IO) { repository.deleteItem(item) }
-                            snackbar.showSnackbar("File eliminato definitivamente")
-                        }
-                    }
+                    onDelete = { item -> deleteConfirmItem = item }
                 )
             }
         }
+    }
+
+    deleteConfirmItem?.let { item ->
+        AlertDialog(
+            onDismissRequest = { deleteConfirmItem = null },
+            icon = { Icon(Icons.Default.Warning, null, tint = Danger) },
+            title = { Text("Eliminare questo file?") },
+            text = {
+                Text(
+                    "\"${item.displayName}\" verrà eliminato definitivamente dall'archivio cifrato. " +
+                        "Questa azione non si può annullare."
+                )
+            },
+            confirmButton = {
+                Button(
+                    colors = ButtonDefaults.buttonColors(containerColor = Danger),
+                    onClick = {
+                        scope.launch {
+                            snapshot = withContext(Dispatchers.IO) { repository.deleteItem(item) }
+                            deleteConfirmItem = null
+                            snackbar.showSnackbar("File eliminato definitivamente")
+                        }
+                    }
+                ) { Text("ELIMINA") }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteConfirmItem = null }) { Text("ANNULLA") }
+            }
+        )
     }
 
     if (newFolderDialog) {
@@ -1020,6 +1091,12 @@ private fun VaultHome(
     }
 }
 
+private fun visibleFileCount(snapshot: VaultSnapshot, showHidden: Boolean): Int {
+    if (showHidden) return snapshot.items.size
+    val hiddenFolderIds = snapshot.folders.filter { it.hidden }.map { it.id }.toSet()
+    return snapshot.items.count { it.folderId !in hiddenFolderIds }
+}
+
 @Composable
 private fun FolderGrid(
     snapshot: VaultSnapshot,
@@ -1041,7 +1118,7 @@ private fun FolderGrid(
                     Column {
                         Text("Archivio protetto", fontWeight = FontWeight.Bold)
                         Text(
-                            "${snapshot.items.size} file cifrati • AES-256-GCM",
+                            "${visibleFileCount(snapshot, showHidden)} file cifrati • AES-256-GCM",
                             color = Silver.copy(alpha = .7f)
                         )
                     }
@@ -1310,13 +1387,25 @@ private fun SettingsScreen(
 
     var exportingBackup by remember { mutableStateOf(false) }
     var backupResultMessage by remember { mutableStateOf<String?>(null) }
+    var exportChoiceOpen by remember { mutableStateOf(false) }
+    var exportPasswordPromptOpen by remember { mutableStateOf(false) }
+    var exportPasswordInput by remember { mutableStateOf("") }
+    var pendingProtectedExportPassword by remember { mutableStateOf<String?>(null) }
     val exportTreeLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
     ) { treeUri ->
+        val protectedPassword = pendingProtectedExportPassword
+        pendingProtectedExportPassword = null
         if (treeUri != null) {
             exportingBackup = true
             scope.launch {
-                val count = withContext(Dispatchers.IO) { repository.exportAllTo(treeUri) }
+                val count = withContext(Dispatchers.IO) {
+                    if (protectedPassword != null) {
+                        repository.exportAllToProtected(treeUri, protectedPassword.toCharArray())
+                    } else {
+                        repository.exportAllTo(treeUri)
+                    }
+                }
                 exportingBackup = false
                 backupResultMessage = "Esportati $count file nella cartella scelta."
             }
@@ -1369,18 +1458,16 @@ private fun SettingsScreen(
                     Column(Modifier.padding(16.dp)) {
                         Text("Backup completo", fontWeight = FontWeight.Medium)
                         Text(
-                            "Copia tutti i file, decifrati, in una cartella del telefono a tua scelta " +
-                                "(fuori dall'archivio). Utile prima di disinstallare o cambiare telefono.",
+                            "Copia tutti i file in una cartella del telefono a tua scelta (fuori " +
+                                "dall'archivio), in chiaro oppure cifrati con una password. Utile prima " +
+                                "di disinstallare o cambiare telefono.",
                             color = Silver.copy(alpha = .6f),
                             style = MaterialTheme.typography.bodySmall
                         )
                         Spacer(Modifier.height(10.dp))
                         Button(
                             enabled = !exportingBackup,
-                            onClick = {
-                                onLaunchingExternalActivity()
-                                exportTreeLauncher.launch(null)
-                            },
+                            onClick = { exportChoiceOpen = true },
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             if (exportingBackup) {
@@ -1513,6 +1600,68 @@ private fun SettingsScreen(
             text = { Text(message) },
             confirmButton = {
                 TextButton(onClick = { backupResultMessage = null }) { Text("OK") }
+            }
+        )
+    }
+
+    if (exportChoiceOpen) {
+        AlertDialog(
+            onDismissRequest = { exportChoiceOpen = false },
+            title = { Text("Come vuoi esportare?") },
+            text = { Text("Scegli se copiare i file leggibili da chiunque o protetti da una password.") },
+            confirmButton = {
+                Button(onClick = {
+                    exportChoiceOpen = false
+                    pendingProtectedExportPassword = null
+                    onLaunchingExternalActivity()
+                    exportTreeLauncher.launch(null)
+                }) { Text("IN CHIARO") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    exportChoiceOpen = false
+                    exportPasswordPromptOpen = true
+                }) { Text("CIFRATO CON PASSWORD") }
+            }
+        )
+    }
+
+    if (exportPasswordPromptOpen) {
+        AlertDialog(
+            onDismissRequest = {
+                exportPasswordPromptOpen = false
+                exportPasswordInput = ""
+            },
+            title = { Text("Password del backup") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Ogni file verrà salvato come pacchetto .vsafe protetto da questa password.")
+                    OutlinedTextField(
+                        value = exportPasswordInput,
+                        onValueChange = { exportPasswordInput = it.take(64) },
+                        label = { Text("Password (minimo 6 caratteri)") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    enabled = exportPasswordInput.length >= 6,
+                    onClick = {
+                        pendingProtectedExportPassword = exportPasswordInput
+                        exportPasswordInput = ""
+                        exportPasswordPromptOpen = false
+                        onLaunchingExternalActivity()
+                        exportTreeLauncher.launch(null)
+                    }
+                ) { Text("CONTINUA") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    exportPasswordPromptOpen = false
+                    exportPasswordInput = ""
+                }) { Text("ANNULLA") }
             }
         )
     }
