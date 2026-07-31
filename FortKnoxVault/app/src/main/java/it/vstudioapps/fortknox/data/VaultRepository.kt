@@ -16,6 +16,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.OutputStream
 import java.security.SecureRandom
 import java.util.UUID
 import javax.crypto.Cipher
@@ -199,6 +200,53 @@ class VaultRepository(private val context: Context) {
         }
         val safeName = item.displayName.replace(Regex("[^A-Za-z0-9._-]"), "_").take(80)
         val target = File(shareDir, "$safeName.vsafe")
+        try {
+            FileOutputStream(target).use { output -> writeProtectedPackage(item, password, output) }
+        } finally {
+            password.fill('\u0000')
+        }
+        return target
+    }
+
+    /** Decrypts every item into [destinationTree], each wrapped as a password-protected .vsafe
+     * package (the same [password] is reused across all files), one subfolder per vault folder. */
+    fun exportAllToProtected(destinationTree: Uri, password: CharArray): Int {
+        require(password.size >= 6) { "La password di backup deve avere almeno 6 caratteri" }
+        val destinationRoot = requireNotNull(DocumentFile.fromTreeUri(context, destinationTree)) {
+            "Cartella di destinazione non valida"
+        }
+        val current = snapshot()
+        var exported = 0
+        try {
+            current.folders.forEach { folder ->
+                val items = current.items.filter { it.folderId == folder.id }
+                if (items.isEmpty()) return@forEach
+                val folderName = folder.name.replace(Regex("[^A-Za-z0-9._ -]"), "_").take(60)
+                val destinationFolder = destinationRoot.findFile(folderName)
+                    ?.takeIf { it.isDirectory }
+                    ?: destinationRoot.createDirectory(folderName)
+                    ?: destinationRoot
+                items.forEach { item ->
+                    runCatching {
+                        val safeName = item.displayName.replace(Regex("[^A-Za-z0-9._-]"), "_").take(80)
+                        val target = destinationFolder.createFile(
+                            "application/octet-stream",
+                            "$safeName.vsafe"
+                        ) ?: return@runCatching
+                        context.contentResolver.openOutputStream(target.uri)?.use { output ->
+                            writeProtectedPackage(item, password, output)
+                        }
+                        exported++
+                    }
+                }
+            }
+        } finally {
+            password.fill('\u0000')
+        }
+        return exported
+    }
+
+    private fun writeProtectedPackage(item: VaultItem, password: CharArray, output: OutputStream) {
         val salt = ByteArray(32).also(SecureRandom()::nextBytes)
         val iv = ByteArray(12).also(SecureRandom()::nextBytes)
         val spec = PBEKeySpec(password, salt, 250_000, 256)
@@ -206,7 +254,6 @@ class VaultRepository(private val context: Context) {
             SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
         } finally {
             spec.clearPassword()
-            password.fill('\u0000')
         }
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply {
             init(Cipher.ENCRYPT_MODE, SecretKeySpec(keyBytes, "AES"), GCMParameterSpec(128, iv))
@@ -214,21 +261,18 @@ class VaultRepository(private val context: Context) {
         }
         keyBytes.fill(0)
 
-        FileOutputStream(target).use { output ->
-            output.write("VSAFE1".toByteArray(Charsets.US_ASCII))
-            output.write(salt)
-            output.write(iv)
-            val name = item.displayName.toByteArray(Charsets.UTF_8)
-            output.write((name.size ushr 8) and 0xff)
-            output.write(name.size and 0xff)
-            output.write(name)
-            CipherOutputStream(output, cipher).use { encrypted ->
-                FileInputStream(File(vaultDir, item.encryptedFileName)).use { source ->
-                    crypto.decrypt(source, encrypted)
-                }
+        output.write("VSAFE1".toByteArray(Charsets.US_ASCII))
+        output.write(salt)
+        output.write(iv)
+        val name = item.displayName.toByteArray(Charsets.UTF_8)
+        output.write((name.size ushr 8) and 0xff)
+        output.write(name.size and 0xff)
+        output.write(name)
+        CipherOutputStream(output, cipher).use { encrypted ->
+            FileInputStream(File(vaultDir, item.encryptedFileName)).use { source ->
+                crypto.decrypt(source, encrypted)
             }
         }
-        return target
     }
 
     @Synchronized
