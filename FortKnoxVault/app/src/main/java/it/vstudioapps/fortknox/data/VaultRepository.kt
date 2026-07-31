@@ -145,6 +145,19 @@ class VaultRepository(private val context: Context) {
         return output.toByteArray()
     }
 
+    fun exportPlain(item: VaultItem): File {
+        val shareDir = File(context.cacheDir, "share").apply {
+            deleteRecursively()
+            mkdirs()
+        }
+        val safeName = item.displayName.replace(Regex("[^A-Za-z0-9._-]"), "_").take(80)
+        val target = File(shareDir, safeName)
+        FileInputStream(File(vaultDir, item.encryptedFileName)).use { source ->
+            FileOutputStream(target).use { output -> crypto.decrypt(source, output) }
+        }
+        return target
+    }
+
     fun createProtectedPackage(item: VaultItem, password: CharArray): File {
         require(password.size >= 6) { "La password di condivisione deve avere almeno 6 caratteri" }
         val shareDir = File(context.cacheDir, "share").apply {

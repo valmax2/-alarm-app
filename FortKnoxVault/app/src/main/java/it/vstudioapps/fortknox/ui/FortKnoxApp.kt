@@ -657,7 +657,7 @@ private fun VaultHome(
     var selectedFolder by remember { mutableStateOf<VaultFolder?>(null) }
     var newFolderDialog by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
-    var selectedItem by remember { mutableStateOf<VaultItem?>(null) }
+    var protectedShareItem by remember { mutableStateOf<VaultItem?>(null) }
     var previewItem by remember { mutableStateOf<VaultItem?>(null) }
     var sharePassword by remember { mutableStateOf("") }
     var protectedPackageUri by remember { mutableStateOf<android.net.Uri?>(null) }
@@ -767,7 +767,28 @@ private fun VaultHome(
                 else -> ItemList(
                     items = snapshot!!.items.filter { it.folderId == selectedFolder!!.id },
                     onPreview = { previewItem = it },
-                    onShare = { selectedItem = it },
+                    onShare = { item ->
+                        scope.launch {
+                            val file = withContext(Dispatchers.IO) { repository.exportPlain(item) }
+                            val uri = FileProvider.getUriForFile(
+                                context,
+                                "${context.packageName}.share",
+                                file
+                            )
+                            onLaunchingExternalActivity()
+                            context.startActivity(
+                                Intent.createChooser(
+                                    Intent(Intent.ACTION_SEND).apply {
+                                        type = item.mimeType
+                                        putExtra(Intent.EXTRA_STREAM, uri)
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    },
+                                    "Condividi file"
+                                )
+                            )
+                        }
+                    },
+                    onShareProtected = { protectedShareItem = it },
                     onDelete = { item ->
                         scope.launch {
                             snapshot = withContext(Dispatchers.IO) { repository.deleteItem(item) }
@@ -795,10 +816,10 @@ private fun VaultHome(
         )
     }
 
-    selectedItem?.let { item ->
+    protectedShareItem?.let { item ->
         AlertDialog(
             onDismissRequest = {
-                selectedItem = null
+                protectedShareItem = null
                 sharePassword = ""
             },
             title = { Text("Condivisione protetta") },
@@ -840,14 +861,17 @@ private fun VaultHome(
                                     "Condividi pacchetto cifrato"
                                 )
                             )
-                            selectedItem = null
+                            protectedShareItem = null
                             sharePassword = ""
                         }
                     }
                 ) { Text("CONDIVIDI") }
             },
             dismissButton = {
-                TextButton(onClick = { selectedItem = null; sharePassword = "" }) {
+                TextButton(onClick = {
+                    protectedShareItem = null
+                    sharePassword = ""
+                }) {
                     Text("ANNULLA")
                 }
             }
@@ -1047,6 +1071,7 @@ private fun ItemList(
     items: List<VaultItem>,
     onPreview: (VaultItem) -> Unit,
     onShare: (VaultItem) -> Unit,
+    onShareProtected: (VaultItem) -> Unit,
     onDelete: (VaultItem) -> Unit
 ) {
     if (items.isEmpty()) {
@@ -1094,6 +1119,9 @@ private fun ItemList(
                     }
                     IconButton(onClick = { onShare(item) }) {
                         Icon(Icons.Default.Share, "Condividi", tint = Silver)
+                    }
+                    IconButton(onClick = { onShareProtected(item) }) {
+                        Icon(Icons.Default.LockOpen, "Condividi pacchetto cifrato", tint = Silver.copy(alpha = .6f))
                     }
                     IconButton(onClick = { onDelete(item) }) {
                         Icon(Icons.Default.Delete, "Elimina", tint = Danger)
