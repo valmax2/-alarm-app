@@ -17,6 +17,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -30,6 +31,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -44,6 +48,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Image as ImageIcon
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
@@ -51,6 +56,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -94,6 +100,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -134,6 +141,7 @@ private val Silver = Color(0xFFD8DEE2)
 private val Danger = Color(0xFFE26D68)
 
 private enum class Screen { LOCK, HOME, SETTINGS }
+private enum class ItemViewMode { LIST, GRID }
 
 @Composable
 fun FortKnoxApp(
@@ -665,6 +673,7 @@ private fun VaultHome(
     var protectedPackagePassword by remember { mutableStateOf("") }
     var showBackupWarning by remember { mutableStateOf(false) }
     var showHiddenFolders by remember { mutableStateOf(false) }
+    var viewMode by remember { mutableStateOf(ItemViewMode.LIST) }
     var secretTapCount by remember { mutableIntStateOf(0) }
     var lastSecretTapAt by remember { mutableLongStateOf(0L) }
 
@@ -722,6 +731,14 @@ private fun VaultHome(
                 actions = {
                     if (selectedFolder != null) {
                         IconButton(onClick = {
+                            viewMode = if (viewMode == ItemViewMode.LIST) ItemViewMode.GRID else ItemViewMode.LIST
+                        }) {
+                            Icon(
+                                if (viewMode == ItemViewMode.LIST) Icons.Default.GridView else Icons.Default.ViewList,
+                                "Cambia visualizzazione"
+                            )
+                        }
+                        IconButton(onClick = {
                             onLaunchingExternalActivity()
                             protectedPicker.launch(arrayOf("application/octet-stream", "*/*"))
                         }) {
@@ -767,6 +784,8 @@ private fun VaultHome(
                 )
                 else -> ItemList(
                     items = snapshot!!.items.filter { it.folderId == selectedFolder!!.id },
+                    viewMode = viewMode,
+                    loadThumbnail = { repository.decryptBytes(it) },
                     onPreview = { previewItem = it },
                     onShare = { item ->
                         scope.launch {
@@ -1070,6 +1089,8 @@ private fun FolderGrid(
 @Composable
 private fun ItemList(
     items: List<VaultItem>,
+    viewMode: ItemViewMode,
+    loadThumbnail: suspend (VaultItem) -> ByteArray,
     onPreview: (VaultItem) -> Unit,
     onShare: (VaultItem) -> Unit,
     onShareProtected: (VaultItem) -> Unit,
@@ -1082,6 +1103,26 @@ private fun ItemList(
                 Spacer(Modifier.height(12.dp))
                 Text("Cartella vuota", style = MaterialTheme.typography.titleLarge)
                 Text("Usa + per importare file", color = Silver.copy(alpha = .6f))
+            }
+        }
+        return
+    }
+    if (viewMode == ItemViewMode.GRID) {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(3),
+            contentPadding = PaddingValues(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(items, key = { it.id }) { item ->
+                Card(
+                    onClick = { onPreview(item) },
+                    colors = CardDefaults.cardColors(containerColor = Steel)
+                ) {
+                    Box(Modifier.fillMaxWidth().aspectRatio(1f)) {
+                        Thumbnail(item = item, loadBytes = { loadThumbnail(item) })
+                    }
+                }
             }
         }
         return
@@ -1099,13 +1140,9 @@ private fun ItemList(
                     Modifier.fillMaxWidth().padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        if (item.mimeType.startsWith("image/")) Icons.Default.ImageIcon
-                        else Icons.Default.Description,
-                        null,
-                        tint = Brass,
-                        modifier = Modifier.size(34.dp)
-                    )
+                    Box(Modifier.size(44.dp).clip(RoundedCornerShape(8.dp))) {
+                        Thumbnail(item = item, loadBytes = { loadThumbnail(item) })
+                    }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(item.displayName, maxLines = 1, fontWeight = FontWeight.Medium)
@@ -1129,6 +1166,53 @@ private fun ItemList(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun Thumbnail(item: VaultItem, loadBytes: suspend () -> ByteArray) {
+    if (!item.mimeType.startsWith("image/")) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Icon(Icons.Default.Description, null, tint = Brass, modifier = Modifier.size(28.dp))
+        }
+        return
+    }
+    var bitmap by remember(item.id) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+    var failed by remember(item.id) { mutableStateOf(false) }
+    LaunchedEffect(item.id) {
+        runCatching {
+            withContext(Dispatchers.IO) {
+                val bytes = loadBytes()
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+                var sample = 1
+                while (bounds.outWidth / (sample * 2) >= 160 && bounds.outHeight / (sample * 2) >= 160) {
+                    sample *= 2
+                }
+                val decoded = BitmapFactory.decodeByteArray(
+                    bytes,
+                    0,
+                    bytes.size,
+                    BitmapFactory.Options().apply { inSampleSize = sample }
+                )
+                bytes.fill(0)
+                decoded
+            }
+        }.onSuccess { bitmap = it?.asImageBitmap() }
+            .onFailure { failed = true }
+    }
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        val current = bitmap
+        when {
+            current != null -> Image(
+                current,
+                contentDescription = item.displayName,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            failed -> Icon(Icons.Default.ImageIcon, null, tint = Brass, modifier = Modifier.size(28.dp))
+            else -> CircularProgressIndicator(Modifier.size(20.dp))
         }
     }
 }
