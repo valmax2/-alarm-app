@@ -15,6 +15,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
@@ -109,6 +110,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -376,7 +378,7 @@ private fun UnlockScreen(
             .padding(20.dp)
     ) {
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
@@ -520,6 +522,10 @@ private fun UnlockScreen(
     }
 }
 
+private val CyberCyan = Color(0xFF00F0FF)
+private val CyberMagenta = Color(0xFFFF2079)
+private val CyberBg = Color(0xFF060A0C)
+
 @Composable
 private fun NumericKeypad(
     digitCount: Int,
@@ -527,41 +533,66 @@ private fun NumericKeypad(
     onBackspace: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            repeat(digitCount.coerceAtMost(10)) {
-                Box(Modifier.size(10.dp).background(Brass, CircleShape))
-            }
+    Column(
+        modifier
+            .background(CyberBg, RoundedCornerShape(18.dp))
+            .border(1.dp, CyberCyan.copy(alpha = .35f), RoundedCornerShape(18.dp))
+            .padding(vertical = 14.dp, horizontal = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (digitCount == 0) {
-                Text("Inserisci il PIN", color = Silver.copy(alpha = .6f))
+                Text(
+                    "· · · ·",
+                    color = CyberCyan.copy(alpha = .35f),
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 4.sp
+                )
+            } else {
+                repeat(digitCount.coerceAtMost(10)) {
+                    Box(Modifier.size(9.dp).background(CyberCyan, RoundedCornerShape(2.dp)))
+                }
             }
         }
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(14.dp))
         listOf("123", "456", "789").forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                row.forEach { digit -> KeypadButton(digit.toString()) { onDigit(digit) } }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                row.forEach { digit -> CyberKey(digit.toString()) { onDigit(digit) } }
             }
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(10.dp))
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Spacer(Modifier.size(60.dp))
-            KeypadButton("0") { onDigit('0') }
-            IconButton(onClick = onBackspace, modifier = Modifier.size(60.dp)) {
-                Icon(Icons.Default.Backspace, "Cancella", tint = Silver)
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Spacer(Modifier.size(52.dp))
+            CyberKey("0") { onDigit('0') }
+            Box(
+                Modifier
+                    .size(52.dp)
+                    .clickable(onClick = onBackspace),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Backspace, "Cancella", tint = CyberMagenta)
             }
         }
     }
 }
 
 @Composable
-private fun KeypadButton(label: String, onClick: () -> Unit) {
-    OutlinedButton(
-        onClick = onClick,
-        shape = CircleShape,
-        contentPadding = PaddingValues(0.dp),
-        modifier = Modifier.size(60.dp)
+private fun CyberKey(label: String, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .size(52.dp)
+            .background(CyberCyan.copy(alpha = .08f), RoundedCornerShape(10.dp))
+            .border(1.dp, CyberCyan.copy(alpha = .7f), RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
     ) {
-        Text(label, fontSize = 22.sp, fontWeight = FontWeight.Medium)
+        Text(
+            label,
+            color = CyberCyan,
+            fontFamily = FontFamily.Monospace,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
