@@ -14,8 +14,11 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
@@ -45,6 +48,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Backspace
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
@@ -173,14 +178,17 @@ fun FortKnoxApp(
         var suppressAutoLock by remember { mutableStateOf(false) }
         val lifecycleOwner = LocalLifecycleOwner.current
 
+        fun lock() {
+            ThumbnailCache.clear()
+            unlocked = false
+            screen = Screen.LOCK
+        }
+
         DisposableEffect(lifecycleOwner) {
             val observer = LifecycleEventObserver { _, event ->
                 when (event) {
                     Lifecycle.Event.ON_STOP -> {
-                        if (unlocked && !suppressAutoLock) {
-                            unlocked = false
-                            screen = Screen.LOCK
-                        }
+                        if (unlocked && !suppressAutoLock) lock()
                     }
                     Lifecycle.Event.ON_RESUME -> suppressAutoLock = false
                     else -> Unit
@@ -213,20 +221,14 @@ fun FortKnoxApp(
                             pendingShareUris = pendingShareUris,
                             onPendingShareHandled = onPendingShareHandled,
                             onSettings = { screen = Screen.SETTINGS },
-                            onLock = {
-                                unlocked = false
-                                screen = Screen.LOCK
-                            }
+                            onLock = { lock() }
                         )
                         Screen.SETTINGS -> SettingsScreen(
                             authStore = authStore,
                             repository = repository,
                             onLaunchingExternalActivity = { suppressAutoLock = true },
                             onBack = { screen = Screen.HOME },
-                            onLock = {
-                                unlocked = false
-                                screen = Screen.LOCK
-                            }
+                            onLock = { lock() }
                         )
                         Screen.LOCK -> Unit
                     }
@@ -745,6 +747,7 @@ private fun VaultHome(
     var busy by remember { mutableStateOf(false) }
     var protectedShareItem by remember { mutableStateOf<VaultItem?>(null) }
     var deleteConfirmItem by remember { mutableStateOf<VaultItem?>(null) }
+    var bulkDeleteConfirm by remember { mutableStateOf(false) }
     var previewItem by remember { mutableStateOf<VaultItem?>(null) }
     var sharePassword by remember { mutableStateOf("") }
     var protectedPackageUri by remember { mutableStateOf<android.net.Uri?>(null) }
@@ -752,12 +755,14 @@ private fun VaultHome(
     var showBackupWarning by remember { mutableStateOf(false) }
     var showHiddenFolders by remember { mutableStateOf(false) }
     var viewMode by remember { mutableStateOf(ItemViewMode.LIST) }
+    var selectedItemIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var secretTapCount by remember { mutableIntStateOf(0) }
     var lastSecretTapAt by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(Unit) {
         snapshot = withContext(Dispatchers.IO) { repository.snapshot() }
     }
+    LaunchedEffect(selectedFolder) { selectedItemIds = emptySet() }
 
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments()
@@ -795,39 +800,56 @@ private fun VaultHome(
         snackbarHost = { SnackbarHost(snackbar) },
         containerColor = SteelBlack,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(selectedFolder?.name ?: "La mia cassaforte", fontWeight = FontWeight.Bold)
-                },
-                navigationIcon = {
-                    if (selectedFolder != null) {
-                        IconButton(onClick = { selectedFolder = null }) {
-                            Icon(Icons.Default.ArrowBack, "Indietro")
+            if (selectedItemIds.isNotEmpty()) {
+                TopAppBar(
+                    title = { Text("${selectedItemIds.size} selezionati", fontWeight = FontWeight.Bold) },
+                    navigationIcon = {
+                        IconButton(onClick = { selectedItemIds = emptySet() }) {
+                            Icon(Icons.Default.Close, "Annulla selezione")
                         }
-                    }
-                },
-                actions = {
-                    if (selectedFolder != null) {
-                        IconButton(onClick = {
-                            viewMode = if (viewMode == ItemViewMode.LIST) ItemViewMode.GRID else ItemViewMode.LIST
-                        }) {
-                            Icon(
-                                if (viewMode == ItemViewMode.LIST) Icons.Default.GridView else Icons.Default.ViewList,
-                                "Cambia visualizzazione"
-                            )
+                    },
+                    actions = {
+                        IconButton(onClick = { bulkDeleteConfirm = true }) {
+                            Icon(Icons.Default.Delete, "Elimina selezionati", tint = Danger)
                         }
-                        IconButton(onClick = {
-                            onLaunchingExternalActivity()
-                            protectedPicker.launch(arrayOf("application/octet-stream", "*/*"))
-                        }) {
-                            Icon(Icons.Default.LockOpen, "Importa pacchetto protetto")
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Steel)
+                )
+            } else {
+                TopAppBar(
+                    title = {
+                        Text(selectedFolder?.name ?: "La mia cassaforte", fontWeight = FontWeight.Bold)
+                    },
+                    navigationIcon = {
+                        if (selectedFolder != null) {
+                            IconButton(onClick = { selectedFolder = null }) {
+                                Icon(Icons.Default.ArrowBack, "Indietro")
+                            }
                         }
-                    }
-                    IconButton(onClick = onLock) { Icon(Icons.Default.Lock, "Blocca") }
-                    IconButton(onClick = onSettings) { Icon(Icons.Default.Settings, "Impostazioni") }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Steel)
-            )
+                    },
+                    actions = {
+                        if (selectedFolder != null) {
+                            IconButton(onClick = {
+                                viewMode = if (viewMode == ItemViewMode.LIST) ItemViewMode.GRID else ItemViewMode.LIST
+                            }) {
+                                Icon(
+                                    if (viewMode == ItemViewMode.LIST) Icons.Default.GridView else Icons.Default.ViewList,
+                                    "Cambia visualizzazione"
+                                )
+                            }
+                            IconButton(onClick = {
+                                onLaunchingExternalActivity()
+                                protectedPicker.launch(arrayOf("application/octet-stream", "*/*"))
+                            }) {
+                                Icon(Icons.Default.LockOpen, "Importa pacchetto protetto")
+                            }
+                        }
+                        IconButton(onClick = onLock) { Icon(Icons.Default.Lock, "Blocca") }
+                        IconButton(onClick = onSettings) { Icon(Icons.Default.Settings, "Impostazioni") }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Steel)
+                )
+            }
         },
         floatingActionButton = {
             FloatingActionButton(
@@ -864,6 +886,14 @@ private fun VaultHome(
                     items = snapshot!!.items.filter { it.folderId == selectedFolder!!.id },
                     viewMode = viewMode,
                     loadThumbnail = { repository.decryptBytes(it) },
+                    selectedIds = selectedItemIds,
+                    onToggleSelect = { item ->
+                        selectedItemIds = if (item.id in selectedItemIds) {
+                            selectedItemIds - item.id
+                        } else {
+                            selectedItemIds + item.id
+                        }
+                    },
                     onPreview = { previewItem = it },
                     onShare = { item ->
                         scope.launch {
@@ -910,6 +940,7 @@ private fun VaultHome(
                     onClick = {
                         scope.launch {
                             snapshot = withContext(Dispatchers.IO) { repository.deleteItem(item) }
+                            ThumbnailCache.remove(item.id)
                             deleteConfirmItem = null
                             snackbar.showSnackbar("File eliminato definitivamente")
                         }
@@ -918,6 +949,45 @@ private fun VaultHome(
             },
             dismissButton = {
                 TextButton(onClick = { deleteConfirmItem = null }) { Text("ANNULLA") }
+            }
+        )
+    }
+
+    if (bulkDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { bulkDeleteConfirm = false },
+            icon = { Icon(Icons.Default.Warning, null, tint = Danger) },
+            title = { Text("Eliminare ${selectedItemIds.size} file?") },
+            text = {
+                Text(
+                    "I file selezionati verranno eliminati definitivamente dall'archivio cifrato. " +
+                        "Questa azione non si può annullare."
+                )
+            },
+            confirmButton = {
+                Button(
+                    colors = ButtonDefaults.buttonColors(containerColor = Danger),
+                    onClick = {
+                        val idsToDelete = selectedItemIds
+                        scope.launch {
+                            val itemsToDelete = snapshot?.items?.filter { it.id in idsToDelete }.orEmpty()
+                            var updated = snapshot
+                            withContext(Dispatchers.IO) {
+                                itemsToDelete.forEach { item ->
+                                    updated = repository.deleteItem(item)
+                                }
+                            }
+                            snapshot = updated
+                            itemsToDelete.forEach { ThumbnailCache.remove(it.id) }
+                            selectedItemIds = emptySet()
+                            bulkDeleteConfirm = false
+                            snackbar.showSnackbar("${itemsToDelete.size} file eliminati definitivamente")
+                        }
+                    }
+                ) { Text("ELIMINA") }
+            },
+            dismissButton = {
+                TextButton(onClick = { bulkDeleteConfirm = false }) { Text("ANNULLA") }
             }
         )
     }
@@ -1195,10 +1265,13 @@ private fun FolderGrid(
 }
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 private fun ItemList(
     items: List<VaultItem>,
     viewMode: ItemViewMode,
     loadThumbnail: suspend (VaultItem) -> ByteArray,
+    selectedIds: Set<String>,
+    onToggleSelect: (VaultItem) -> Unit,
     onPreview: (VaultItem) -> Unit,
     onShare: (VaultItem) -> Unit,
     onShareProtected: (VaultItem) -> Unit,
@@ -1223,12 +1296,28 @@ private fun ItemList(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(items, key = { it.id }) { item ->
+                val selected = item.id in selectedIds
                 Card(
-                    onClick = { onPreview(item) },
-                    colors = CardDefaults.cardColors(containerColor = Steel)
+                    modifier = Modifier.combinedClickable(
+                        onClick = {
+                            if (selectedIds.isNotEmpty()) onToggleSelect(item) else onPreview(item)
+                        },
+                        onLongClick = { onToggleSelect(item) }
+                    ),
+                    colors = CardDefaults.cardColors(containerColor = Steel),
+                    border = if (selected) BorderStroke(2.dp, Brass) else null
                 ) {
                     Box(Modifier.fillMaxWidth().aspectRatio(1f)) {
                         Thumbnail(item = item, loadBytes = { loadThumbnail(item) })
+                        if (selected) {
+                            Box(Modifier.fillMaxSize().background(Brass.copy(alpha = .28f)))
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                null,
+                                tint = Brass,
+                                modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(20.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -1278,6 +1367,38 @@ private fun ItemList(
     }
 }
 
+/** Small in-memory LRU cache of already-decoded thumbnails, keyed by item id, so scrolling a
+ * grid/list back and forth doesn't re-decrypt and re-decode images already shown this session.
+ * Cleared on lock, since it holds decrypted pixel data. */
+private object ThumbnailCache {
+    private const val MAX_ENTRIES = 120
+    private val cache = object : LinkedHashMap<String, androidx.compose.ui.graphics.ImageBitmap>(
+        MAX_ENTRIES,
+        0.75f,
+        true
+    ) {
+        override fun removeEldestEntry(
+            eldest: MutableMap.MutableEntry<String, androidx.compose.ui.graphics.ImageBitmap>
+        ) = size > MAX_ENTRIES
+    }
+
+    @Synchronized
+    fun get(key: String) = cache[key]
+
+    @Synchronized
+    fun put(key: String, bitmap: androidx.compose.ui.graphics.ImageBitmap) {
+        cache[key] = bitmap
+    }
+
+    @Synchronized
+    fun remove(key: String) {
+        cache.remove(key)
+    }
+
+    @Synchronized
+    fun clear() = cache.clear()
+}
+
 @Composable
 private fun Thumbnail(item: VaultItem, loadBytes: suspend () -> ByteArray) {
     if (!item.mimeType.startsWith("image/")) {
@@ -1286,9 +1407,12 @@ private fun Thumbnail(item: VaultItem, loadBytes: suspend () -> ByteArray) {
         }
         return
     }
-    var bitmap by remember(item.id) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+    var bitmap by remember(item.id) {
+        mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(ThumbnailCache.get(item.id))
+    }
     var failed by remember(item.id) { mutableStateOf(false) }
     LaunchedEffect(item.id) {
+        if (bitmap != null) return@LaunchedEffect
         runCatching {
             withContext(Dispatchers.IO) {
                 val bytes = loadBytes()
@@ -1307,8 +1431,11 @@ private fun Thumbnail(item: VaultItem, loadBytes: suspend () -> ByteArray) {
                 bytes.fill(0)
                 decoded
             }
-        }.onSuccess { bitmap = it?.asImageBitmap() }
-            .onFailure { failed = true }
+        }.onSuccess { decoded ->
+            val imageBitmap = decoded?.asImageBitmap()
+            bitmap = imageBitmap
+            if (imageBitmap != null) ThumbnailCache.put(item.id, imageBitmap)
+        }.onFailure { failed = true }
     }
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         val current = bitmap
