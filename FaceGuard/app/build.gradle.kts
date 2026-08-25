@@ -1,4 +1,13 @@
 import java.io.ByteArrayOutputStream
+import java.util.Properties
+
+// Release signing material lives outside version control (see .gitignore) — CI and any fresh
+// checkout simply won't have it, which is why every use of it below is conditional. See
+// keystore.properties.example for what the developer's own local copy needs to contain.
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) load(keystorePropertiesFile.inputStream())
+}
 
 plugins {
     id("com.android.application")
@@ -46,6 +55,14 @@ android {
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
+        if (keystorePropertiesFile.exists()) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -59,6 +76,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Only present on the machine that has keystore.properties (never CI, never a
+            // fresh checkout) — without it, ./gradlew bundleRelease still compiles, it just
+            // produces an unsigned bundle Play Console would reject.
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

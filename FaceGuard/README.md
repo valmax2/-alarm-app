@@ -1,20 +1,30 @@
-# FaceGuard — prototipo Android
+# FaceGuard — app Android
 
-Prototipo nativo Android in Kotlin e Jetpack Compose che monitora la presenza
-dell'utente tramite la fotocamera frontale e attiva una schermata di
-copertura quando il volto non viene più rilevato per un tempo configurabile.
+App nativa Android in Kotlin e Jetpack Compose che riconosce il volto del
+proprietario del telefono tramite la fotocamera frontale e attiva una
+schermata di copertura quando non lo riconosce più per un tempo configurabile.
 
 ## Funzioni incluse
 
-- rilevamento del volto in tempo reale con ML Kit (CameraX + Face Detection);
+- **riconoscimento del proprietario**, non solo rilevamento generico: durante
+  la registrazione (protetta da conferma biometrica di sistema) l'app calcola
+  un'impronta geometrica del volto da ML Kit Face Detection, cifrata con
+  AES-256 nell'Android Keystore; solo un volto che corrisponde tiene lo
+  schermo sbloccato;
 - foreground service dedicato, con notifica persistente di stato;
-- tre modalità di copertura selezionabili: immagine personalizzata,
-  schermo nero, blocco schermo (richiede l'amministratore del dispositivo);
+- tre modalità di copertura: schermo nero (gratis), immagine personalizzata
+  e blocco schermo (**FaceGuard Pro**, sblocco unico via Google Play Billing);
 - copertura disegnata sopra qualunque altra app tramite permesso
   "disegna sopra le altre app" (`SYSTEM_ALERT_WINDOW`);
-- soglia di assenza configurabile (3–60 secondi);
+- soglia di assenza configurabile da 0 a 60 secondi, con slider e campo di
+  testo per il valore esatto;
+- riavvio automatico del monitoraggio dopo un riavvio del telefono, richiesta
+  di esclusione dall'ottimizzazione batteria, log locale degli arresti anomali;
 - tema chiaro/scuro/sistema selezionabile dall'utente, indipendente dal
   tema di sistema, con interfaccia Material 3.
+
+Per la pubblicazione su Google Play vedi [`RELEASE.md`](RELEASE.md) e
+[`PLAY_STORE_LISTING.md`](PLAY_STORE_LISTING.md).
 
 ## Come aprire il progetto
 
@@ -45,6 +55,10 @@ serve ciascuno prima di aprire le impostazioni di sistema:
 - **Amministratore dispositivo**: necessaria solo per "Blocco schermo", per
   poter chiamare `DevicePolicyManager#lockNow()`. Revocabile in qualsiasi
   momento dalla schermata "Monitor".
+- **Ottimizzazione batteria**: consigliata (non obbligatoria) per evitare che
+  alcuni produttori terminino il servizio in background.
+- **Impronta/Face Unlock di sistema**: richiesta solo per confermare
+  l'identità prima di registrare o sostituire il profilo del volto.
 
 ## Limiti consapevoli del prototipo
 
