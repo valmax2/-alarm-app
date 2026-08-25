@@ -45,9 +45,11 @@ class DriveRestClient(private val accessToken: String) {
 
     suspend fun caricaFile(file: File, idCartella: String, mimeType: String): Result<String> = runCatching {
         val metadati = """{"name":"${file.name}","parents":["$idCartella"]}"""
-        val corpo = MultipartBody.Builder().setType(MultipartBody.FORM)
-            .addPart(MultipartBody.Part.create(null, metadati, "application/json".toMediaType()))
-            .addFormDataPart("file", file.name, file.readBytes().toRequestBody(mimeType.toMediaType()))
+        // Il protocollo "multipart upload" di Drive vuole multipart/related (due parti: metadati
+        // JSON + contenuto), non multipart/form-data: niente nomi di campo o Content-Disposition.
+        val corpo = MultipartBody.Builder().setType("multipart/related".toMediaType())
+            .addPart(metadati.toRequestBody("application/json; charset=UTF-8".toMediaType()))
+            .addPart(file.readBytes().toRequestBody(mimeType.toMediaType()))
             .build()
         val richiesta = Request.Builder()
             .url("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart")

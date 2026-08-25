@@ -70,6 +70,10 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+        // Material 3 marca ancora @ExperimentalMaterial3Api molte API ampiamente usate
+        // (TopAppBar, Card cliccabile, FilterChip, AssistChip, ...): l'opt-in a livello di
+        // modulo evita di annotare ogni singolo Composable che le usa.
+        freeCompilerArgs += listOf("-opt-in=androidx.compose.material3.ExperimentalMaterial3Api")
     }
 
     buildFeatures {
