@@ -22,32 +22,40 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import it.vstudioapps.stylestudio3d.domain.model.ProfiloStile
+import it.vstudioapps.stylestudio3d.ui.AppContainer
 import it.vstudioapps.stylestudio3d.ui.components.CategoryButton
 import it.vstudioapps.stylestudio3d.ui.navigation.Destinations
 
 private data class VoceHome(val etichetta: String, val icona: ImageVector, val rotta: String)
-
-private val voci = listOf(
-    VoceHome("Capelli & Barba", Icons.Filled.ContentCut, Destinations.CAPELLI_BARBA),
-    VoceHome("Trucco", Icons.Filled.Face, Destinations.TRUCCO),
-    VoceHome("Abbigliamento", Icons.Filled.Checkroom, Destinations.ABBIGLIAMENTO),
-    VoceHome("Scarpe", Icons.Filled.DirectionsWalk, Destinations.SCARPE),
-    VoceHome("Armocromia", Icons.Filled.Palette, Destinations.ARMOCROMIA),
-    VoceHome("Figura intera", Icons.Filled.Person, Destinations.FIGURA_INTERA),
-    VoceHome("Studio Fotografico", Icons.Filled.PhotoCamera, Destinations.STUDIO_FOTOGRAFICO),
-    VoceHome("Impostazioni", Icons.Filled.Settings, Destinations.IMPOSTAZIONI),
-)
 
 /**
  * Home: una griglia fissa di pulsanti categoria, tutta visibile senza scorrimento infinito —
  * ogni voce porta a una schermata dedicata, mai a un unico feed che mischia tutto.
  */
 @Composable
-fun HomeScreen(onNavigate: (String) -> Unit) {
+fun HomeScreen(appContainer: AppContainer, onNavigate: (String) -> Unit) {
+    val preferenze by appContainer.preferenzeUtente.preferenze.collectAsState(initial = null)
+    val etichettaCapelli = if (preferenze?.profiloStile == ProfiloStile.DONNA) "Capelli" else "Capelli & Barba"
+
+    val voci = listOf(
+        VoceHome(etichettaCapelli, Icons.Filled.ContentCut, Destinations.CAPELLI_BARBA),
+        VoceHome("Trucco", Icons.Filled.Face, Destinations.TRUCCO),
+        VoceHome("Abbigliamento", Icons.Filled.Checkroom, Destinations.ABBIGLIAMENTO),
+        VoceHome("Scarpe", Icons.Filled.DirectionsWalk, Destinations.SCARPE),
+        VoceHome("Armocromia", Icons.Filled.Palette, Destinations.ARMOCROMIA),
+        VoceHome("Figura intera", Icons.Filled.Person, Destinations.FIGURA_INTERA),
+        VoceHome("Studio Fotografico", Icons.Filled.PhotoCamera, Destinations.STUDIO_INTRO),
+        VoceHome("Impostazioni", Icons.Filled.Settings, Destinations.IMPOSTAZIONI),
+    )
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -57,7 +65,7 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                         Icon(Icons.Filled.Settings, contentDescription = "Impostazioni")
                     }
                 },
-                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
                     actionIconContentColor = MaterialTheme.colorScheme.onPrimary,

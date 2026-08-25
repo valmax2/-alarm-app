@@ -5,7 +5,9 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -15,6 +17,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -33,6 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import it.vstudioapps.stylestudio3d.domain.model.StyleCatalogEntry
 import it.vstudioapps.stylestudio3d.domain.model.StyleCategory
+import it.vstudioapps.stylestudio3d.export.ExternalChatExportHelper
 import it.vstudioapps.stylestudio3d.ui.AppContainer
 import it.vstudioapps.stylestudio3d.ui.components.CreateStyleDialog
 import it.vstudioapps.stylestudio3d.ui.components.LoadingOverlay
@@ -73,6 +77,9 @@ fun MakeupScreen(appContainer: AppContainer, sessionViewModel: StyleSessionViewM
         }
         voceInImportazione = null
     }
+    val selettoreRisultatoEsterno = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) sessionViewModel.importaRisultatoEsterno(uri)
+    }
 
     LaunchedEffect(operazione) {
         val stato = operazione
@@ -100,6 +107,29 @@ fun MakeupScreen(appContainer: AppContainer, sessionViewModel: StyleSessionViewM
                 ) {
                     Icon(Icons.Filled.PhotoLibrary, contentDescription = null)
                     Text(text = if (fotoScelta == null) "  Carica una tua foto e applica" else "  Cambia foto e riapplica", modifier = Modifier.padding(start = 4.dp))
+                }
+
+                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            val id = statoSessione.makeupEntryId ?: return@OutlinedButton
+                            scope.launch {
+                                val risultato = sessionViewModel.preparaEsportazioneStile(id, fotoScelta)
+                                if (risultato != null) {
+                                    context.startActivity(ExternalChatExportHelper.condividiStile(context, risultato.first, risultato.second))
+                                } else {
+                                    snackbarHostState.showSnackbar("Carica prima una tua foto.")
+                                }
+                            }
+                        },
+                        enabled = statoSessione.makeupEntryId != null,
+                        modifier = Modifier.weight(1f),
+                    ) { Text("Chat esterna ↗", maxLines = 1) }
+
+                    OutlinedButton(
+                        onClick = { selettoreRisultatoEsterno.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                        modifier = Modifier.weight(1f).padding(start = 8.dp),
+                    ) { Text("Importa risultato ↓", maxLines = 1) }
                 }
 
                 StyleCatalogGrid(

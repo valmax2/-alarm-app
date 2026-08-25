@@ -69,7 +69,11 @@ fun ResultScreen(appContainer: AppContainer, sessionViewModel: StyleSessionViewM
                     onClick = {},
                     label = {
                         Text(
-                            if (risultato.source == GenerationSource.ABBONAMENTO_AI) "Generato dal tuo abbonamento AI" else "Anteprima locale (nessun abbonamento AI collegato)",
+                            when (risultato.source) {
+                                GenerationSource.ABBONAMENTO_AI -> "Generato dal tuo abbonamento AI"
+                                GenerationSource.CHAT_ESTERNA -> "Importato da una chat AI esterna"
+                                GenerationSource.ANTEPRIMA_LOCALE -> "Anteprima locale (nessun abbonamento AI collegato)"
+                            },
                         )
                     },
                     modifier = Modifier.padding(vertical = 12.dp),

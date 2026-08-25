@@ -17,10 +17,12 @@ import it.vstudioapps.stylestudio3d.ui.home.HomeScreen
 import it.vstudioapps.stylestudio3d.ui.makeup.MakeupScreen
 import it.vstudioapps.stylestudio3d.ui.navigation.Destinations
 import it.vstudioapps.stylestudio3d.ui.onboarding.OnboardingScreen
+import it.vstudioapps.stylestudio3d.ui.onboarding.ProfileSelectionScreen
 import it.vstudioapps.stylestudio3d.ui.result.ResultScreen
 import it.vstudioapps.stylestudio3d.ui.session.StyleSessionViewModel
 import it.vstudioapps.stylestudio3d.ui.settings.SettingsScreen
 import it.vstudioapps.stylestudio3d.ui.studio.PhotoStudioScreen
+import it.vstudioapps.stylestudio3d.ui.studio.StudioIntroScreen
 import it.vstudioapps.stylestudio3d.ui.wardrobe.WardrobeScreen
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.launch
@@ -29,7 +31,7 @@ import kotlinx.coroutines.launch
 fun StyleStudioApp(appContainer: AppContainer) {
     val navController = rememberNavController()
     val preferenze by appContainer.preferenzeUtente.preferenze
-        .distinctUntilChangedBy { it.onboardingCompletato }
+        .distinctUntilChangedBy { it.onboardingCompletato to it.profiloStile }
         .collectAsState(initial = null)
 
     val sessionViewModel: StyleSessionViewModel = viewModel(
@@ -47,9 +49,19 @@ fun StyleStudioApp(appContainer: AppContainer) {
     // Aspetta di conoscere lo stato di onboarding prima di scegliere la rotta iniziale, per non
     // mostrare per un istante la Home a chi non ha ancora completato il tutorial.
     val statoNoto = preferenze ?: return
-    val partenza = if (statoNoto.onboardingCompletato) Destinations.HOME else Destinations.ONBOARDING
+    val partenza = when {
+        statoNoto.profiloStile == null -> Destinations.SCELTA_PROFILO
+        !statoNoto.onboardingCompletato -> Destinations.ONBOARDING
+        else -> Destinations.HOME
+    }
 
     NavHost(navController = navController, startDestination = partenza) {
+        composable(Destinations.SCELTA_PROFILO) {
+            ProfileSelectionScreen(onScelto = { profilo ->
+                appContainer.scopeApp.launch { appContainer.preferenzeUtente.setProfiloStile(profilo) }
+                navController.navigateSingolo(Destinations.ONBOARDING)
+            })
+        }
         composable(Destinations.ONBOARDING) {
             OnboardingScreen(
                 guidaVocale = appContainer.guidaVocale,
@@ -60,7 +72,7 @@ fun StyleStudioApp(appContainer: AppContainer) {
             )
         }
         composable(Destinations.HOME) {
-            HomeScreen(onNavigate = { rotta -> navController.navigate(rotta) })
+            HomeScreen(appContainer, onNavigate = { rotta -> navController.navigate(rotta) })
         }
         composable(Destinations.CAPELLI_BARBA) {
             HairAndBeardScreen(appContainer, sessionViewModel, onIndietro = { navController.popBackStack() })
@@ -91,7 +103,13 @@ fun StyleStudioApp(appContainer: AppContainer) {
             FullBodyViewerScreen(
                 sessionViewModel,
                 onIndietro = { navController.popBackStack() },
-                onProsegui = { navController.navigate(Destinations.STUDIO_FOTOGRAFICO) },
+                onProsegui = { navController.navigate(Destinations.STUDIO_INTRO) },
+            )
+        }
+        composable(Destinations.STUDIO_INTRO) {
+            StudioIntroScreen(
+                onIndietro = { navController.popBackStack() },
+                onEntra = { navController.navigate(Destinations.STUDIO_FOTOGRAFICO) },
             )
         }
         composable(Destinations.STUDIO_FOTOGRAFICO) {

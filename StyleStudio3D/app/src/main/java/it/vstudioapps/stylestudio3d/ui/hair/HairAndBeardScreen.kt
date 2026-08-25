@@ -1,10 +1,13 @@
 package it.vstudioapps.stylestudio3d.ui.hair
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -14,6 +17,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -33,8 +37,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import it.vstudioapps.stylestudio3d.domain.model.ProfiloStile
 import it.vstudioapps.stylestudio3d.domain.model.StyleCatalogEntry
 import it.vstudioapps.stylestudio3d.domain.model.StyleCategory
+import it.vstudioapps.stylestudio3d.export.ExternalChatExportHelper
 import it.vstudioapps.stylestudio3d.ui.AppContainer
 import it.vstudioapps.stylestudio3d.ui.components.CreateStyleDialog
 import it.vstudioapps.stylestudio3d.ui.components.LoadingOverlay
@@ -45,15 +51,21 @@ import it.vstudioapps.stylestudio3d.util.ImageIo
 import kotlinx.coroutines.launch
 import java.io.File
 
-/** Capelli e Barba/Baffi in un'unica schermata a tab: categorie diverse, stesso flusso di scelta e creazione. */
+/**
+ * Capelli e Barba/Baffi in un'unica schermata a tab. Se il profilo scelto e' "Donna" la barba
+ * non compare proprio: niente tab, niente voce nel catalogo — non solo un suggerimento.
+ */
 @Composable
 fun HairAndBeardScreen(appContainer: AppContainer, sessionViewModel: StyleSessionViewModel, onIndietro: () -> Unit) {
+    val preferenze by appContainer.preferenzeUtente.preferenze.collectAsState(initial = null)
+    val mostraBarba = preferenze?.profiloStile != ProfiloStile.DONNA
+
     var tabIndex by remember { mutableIntStateOf(0) }
-    val categoria = if (tabIndex == 0) StyleCategory.CAPELLI else StyleCategory.BARBA
+    val categoria = if (mostraBarba && tabIndex == 1) StyleCategory.BARBA else StyleCategory.CAPELLI
     val tutteLeVoci by appContainer.catalogoStili.stili.collectAsState()
     val voci = tutteLeVoci.filter { it.category == categoria }
     val statoSessione by sessionViewModel.stato.collectAsState()
-    val selezionatoId = if (tabIndex == 0) statoSessione.hairEntryId else statoSessione.beardEntryId
+    val selezionatoId = if (categoria == StyleCategory.CAPELLI) statoSessione.hairEntryId else statoSessione.beardEntryId
 
     var mostraDialogCrea by remember { mutableStateOf(false) }
     var fotoScelta by remember { mutableStateOf<android.net.Uri?>(null) }
@@ -80,6 +92,9 @@ fun HairAndBeardScreen(appContainer: AppContainer, sessionViewModel: StyleSessio
         }
         voceInImportazione = null
     }
+    val selettoreRisultatoEsterno = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) sessionViewModel.importaRisultatoEsterno(uri)
+    }
 
     LaunchedEffect(operazione) {
         val stato = operazione
@@ -89,7 +104,7 @@ fun HairAndBeardScreen(appContainer: AppContainer, sessionViewModel: StyleSessio
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (tabIndex == 0) "Capelli" else "Barba & Baffi") },
+                title = { Text(if (categoria == StyleCategory.CAPELLI) "Capelli" else "Barba & Baffi") },
                 navigationIcon = { IconButton(onClick = onIndietro) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Indietro") } },
             )
         },
@@ -100,13 +115,15 @@ fun HairAndBeardScreen(appContainer: AppContainer, sessionViewModel: StyleSessio
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             Column {
-                TabRow(selectedTabIndex = tabIndex) {
-                    Tab(selected = tabIndex == 0, onClick = { tabIndex = 0 }, text = { Text("Capelli") })
-                    Tab(selected = tabIndex == 1, onClick = { tabIndex = 1 }, text = { Text("Barba & Baffi") })
+                if (mostraBarba) {
+                    TabRow(selectedTabIndex = tabIndex) {
+                        Tab(selected = tabIndex == 0, onClick = { tabIndex = 0 }, text = { Text("Capelli") })
+                        Tab(selected = tabIndex == 1, onClick = { tabIndex = 1 }, text = { Text("Barba & Baffi") })
+                    }
                 }
 
                 Button(
-                    onClick = { selettoreFoto.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                    onClick = { selettoreFoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                     modifier = Modifier.padding(16.dp),
                     enabled = selezionatoId != null,
                 ) {
@@ -114,18 +131,43 @@ fun HairAndBeardScreen(appContainer: AppContainer, sessionViewModel: StyleSessio
                     Text(text = if (fotoScelta == null) "  Carica una tua foto e applica" else "  Cambia foto e riapplica", modifier = Modifier.padding(start = 4.dp))
                 }
 
+                // Senza abbonamento IA collegato: prepara comunque foto + prompt per una chat esterna
+                // (es. ChatGPT), poi reimporta qui il risultato ottenuto manualmente.
+                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            val id = selezionatoId ?: return@OutlinedButton
+                            scope.launch {
+                                val risultato = sessionViewModel.preparaEsportazioneStile(id, fotoScelta)
+                                if (risultato != null) {
+                                    context.startActivity(ExternalChatExportHelper.condividiStile(context, risultato.first, risultato.second))
+                                } else {
+                                    snackbarHostState.showSnackbar("Carica prima una tua foto.")
+                                }
+                            }
+                        },
+                        enabled = selezionatoId != null,
+                        modifier = Modifier.weight(1f),
+                    ) { Text("Chat esterna ↗", maxLines = 1) }
+
+                    OutlinedButton(
+                        onClick = { selettoreRisultatoEsterno.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                        modifier = Modifier.weight(1f).padding(start = 8.dp),
+                    ) { Text("Importa risultato ↓", maxLines = 1) }
+                }
+
                 StyleCatalogGrid(
                     voci = voci,
                     selezionatoId = selezionatoId,
                     onSeleziona = { voce ->
-                        if (tabIndex == 0) sessionViewModel.selezionaCapelli(voce.id) else sessionViewModel.selezionaBarba(voce.id)
+                        if (categoria == StyleCategory.CAPELLI) sessionViewModel.selezionaCapelli(voce.id) else sessionViewModel.selezionaBarba(voce.id)
                         val foto = fotoScelta
                         if (foto != null) sessionViewModel.applicaStileAFoto(categoria, voce.id, foto)
                     },
                     modifier = Modifier.padding(horizontal = 12.dp),
                     onRichiediImportazioneAnteprima = { voce ->
                         voceInImportazione = voce
-                        selettoreAnteprimaReale.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        selettoreAnteprimaReale.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                     },
                     onElimina = { voce -> scope.launch { appContainer.catalogoStili.eliminaStilePersonalizzato(voce.id) } },
                 )

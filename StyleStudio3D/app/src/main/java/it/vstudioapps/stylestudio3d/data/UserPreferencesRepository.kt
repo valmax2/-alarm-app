@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import it.vstudioapps.stylestudio3d.domain.model.AiProviderConfig
 import it.vstudioapps.stylestudio3d.domain.model.AiProviderPreset
+import it.vstudioapps.stylestudio3d.domain.model.ProfiloStile
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -14,6 +15,8 @@ private val Context.dataStore by preferencesDataStore(name = "user_prefs")
 
 data class UserPreferences(
     val onboardingCompletato: Boolean = false,
+    /** Null finche' l'utente non ha ancora scelto (prima schermata dell'onboarding). */
+    val profiloStile: ProfiloStile? = null,
     val narrazioneAttiva: Boolean = true,
     val aiPreset: AiProviderPreset = AiProviderPreset.OPENAI_COMPATIBLE,
     val aiBaseUrl: String = "",
@@ -37,11 +40,13 @@ class UserPreferencesRepository(private val context: Context) {
         val AI_BASE_URL = stringPreferencesKey("ai_base_url")
         val AI_MODEL = stringPreferencesKey("ai_model")
         val AI_HAS_KEY = booleanPreferencesKey("ai_has_key")
+        val PROFILO_STILE = stringPreferencesKey("profilo_stile")
     }
 
     val preferenze: Flow<UserPreferences> = context.dataStore.data.map { prefs ->
         UserPreferences(
             onboardingCompletato = prefs[Keys.ONBOARDING_DONE] ?: false,
+            profiloStile = prefs[Keys.PROFILO_STILE]?.let { runCatching { ProfiloStile.valueOf(it) }.getOrNull() },
             narrazioneAttiva = prefs[Keys.NARRATION_ON] ?: true,
             aiPreset = prefs[Keys.AI_PRESET]?.let { runCatching { AiProviderPreset.valueOf(it) }.getOrNull() }
                 ?: AiProviderPreset.OPENAI_COMPATIBLE,
@@ -57,6 +62,10 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun setNarrazioneAttiva(valore: Boolean) {
         context.dataStore.edit { it[Keys.NARRATION_ON] = valore }
+    }
+
+    suspend fun setProfiloStile(valore: ProfiloStile) {
+        context.dataStore.edit { it[Keys.PROFILO_STILE] = valore.name }
     }
 
     suspend fun salvaConfigurazioneAi(preset: AiProviderPreset, baseUrl: String, model: String, hasApiKey: Boolean) {

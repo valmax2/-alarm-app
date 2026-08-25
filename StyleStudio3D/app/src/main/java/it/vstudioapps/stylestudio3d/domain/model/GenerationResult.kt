@@ -9,6 +9,8 @@ enum class GenerationSource {
     ANTEPRIMA_LOCALE,
     /** Prodotto da un servizio IA esterno tramite l'abbonamento configurato dall'utente. */
     ABBONAMENTO_AI,
+    /** Importato dopo essere stato generato manualmente in una chat AI esterna (es. ChatGPT). */
+    CHAT_ESTERNA,
 }
 
 /** Uno scatto salvato nella cronologia delle creazioni (sincronizzabile su Google Drive). */

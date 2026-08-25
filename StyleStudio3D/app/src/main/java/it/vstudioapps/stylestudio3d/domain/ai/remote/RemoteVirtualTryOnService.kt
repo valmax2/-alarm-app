@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Base64
 import it.vstudioapps.stylestudio3d.domain.ai.AiOutcome
+import it.vstudioapps.stylestudio3d.domain.ai.PromptBuilder
 import it.vstudioapps.stylestudio3d.domain.ai.VirtualTryOnService
 import it.vstudioapps.stylestudio3d.domain.model.GenerationSource
 import it.vstudioapps.stylestudio3d.domain.model.WardrobeItem
@@ -43,9 +44,7 @@ class RemoteVirtualTryOnService(
                 }
 
                 val png = ByteArrayOutputStream().also { fotoUtente.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
-                val prompt = "Vesti la persona nella prima immagine con il capo mostrato nella seconda immagine " +
-                    "(categoria: ${capo.category.etichetta.lowercase()}, nome: \"${capo.name}\"). " +
-                    "Adatta il capo a posa e proporzioni della persona, mantenendo viso e sfondo invariati."
+                val prompt = PromptBuilder.perTryOn(capo)
 
                 val corpo = MultipartBody.Builder().setType(MultipartBody.FORM)
                     .addFormDataPart("image", "persona.png", png.toRequestBody("image/png".toMediaType()))

@@ -1,6 +1,7 @@
 package it.vstudioapps.stylestudio3d.ui.session
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -10,6 +11,7 @@ import it.vstudioapps.stylestudio3d.data.StyleCatalogRepository
 import it.vstudioapps.stylestudio3d.data.WardrobeRepository
 import it.vstudioapps.stylestudio3d.domain.ai.AiOutcome
 import it.vstudioapps.stylestudio3d.domain.ai.AiServiceFactory
+import it.vstudioapps.stylestudio3d.domain.ai.PromptBuilder
 import it.vstudioapps.stylestudio3d.domain.model.ColorSeason
 import it.vstudioapps.stylestudio3d.domain.model.GarmentCategory
 import it.vstudioapps.stylestudio3d.domain.model.GenerationResult
@@ -30,6 +32,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.util.UUID
 
 /** Stato di un'operazione IA in corso (editing capelli/barba/trucco, prova virtuale, scatto finale). */
@@ -76,6 +79,16 @@ class StyleSessionViewModel(
     fun impostaColorSeason(stagione: ColorSeason) = _stato.update { it.copy(colorSeason = stagione) }
     fun impostaStudioSpec(spec: PhotoStudioSpec) = _stato.update { it.copy(studioSpec = spec) }
 
+    /** Foto di base su cui lavorare: quella gia' modificata in sessione, altrimenti quella appena scelta. */
+    private suspend fun risolviFotoBase(fotoUriIniziale: Uri?): Bitmap? = withContext(Dispatchers.IO) {
+        val basePath = _stato.value.fotoUtenteModificataPath
+        when {
+            basePath != null -> ImageIo.decodificaBitmapDaFile(basePath)
+            fotoUriIniziale != null -> ImageIo.decodificaBitmapDaUri(appContext, fotoUriIniziale)
+            else -> null
+        }
+    }
+
     /**
      * Applica lo stile scelto alla foto dell'utente. Se una foto e' gia' stata modificata in
      * precedenza nella sessione (es. hai gia' cambiato i capelli e ora cambi il trucco), l'editing
@@ -85,14 +98,7 @@ class StyleSessionViewModel(
         val voce = catalogoStili.stili.value.find { it.id == entryId && it.category == categoria } ?: return
         viewModelScope.launch {
             _operazione.value = OperazioneUiState.InCorso
-            val basePath = _stato.value.fotoUtenteModificataPath
-            val fotoBase = withContext(Dispatchers.IO) {
-                when {
-                    basePath != null -> ImageIo.decodificaBitmapDaFile(basePath)
-                    fotoUriIniziale != null -> ImageIo.decodificaBitmapDaUri(appContext, fotoUriIniziale)
-                    else -> null
-                }
-            }
+            val fotoBase = risolviFotoBase(fotoUriIniziale)
             if (fotoBase == null) {
                 _operazione.value = OperazioneUiState.NonRiuscita("Carica prima una tua foto per applicare lo stile.")
                 return@launch
@@ -112,14 +118,7 @@ class StyleSessionViewModel(
         val capo = guardaroba.capi.value.find { it.id == capoId } ?: return
         viewModelScope.launch {
             _operazione.value = OperazioneUiState.InCorso
-            val basePath = _stato.value.fotoUtenteModificataPath
-            val fotoBase = withContext(Dispatchers.IO) {
-                when {
-                    basePath != null -> ImageIo.decodificaBitmapDaFile(basePath)
-                    fotoUriIniziale != null -> ImageIo.decodificaBitmapDaUri(appContext, fotoUriIniziale)
-                    else -> null
-                }
-            }
+            val fotoBase = risolviFotoBase(fotoUriIniziale)
             if (fotoBase == null) {
                 _operazione.value = OperazioneUiState.NonRiuscita("Carica prima una tua foto per la prova virtuale.")
                 return@launch
@@ -138,6 +137,43 @@ class StyleSessionViewModel(
                 }
                 else -> _operazione.value = OperazioneUiState.NonRiuscita(messaggioPer(esito))
             }
+        }
+    }
+
+    /**
+     * Prepara foto + prompt per lo stile scelto da mandare a una chat AI esterna (ChatGPT o
+     * simili), per chi non ha collegato nessun abbonamento nelle Impostazioni. Ritorna null se
+     * non c'e' ancora nessuna foto da usare.
+     */
+    suspend fun preparaEsportazioneStile(entryId: String, fotoUriIniziale: Uri?): Pair<File, String>? {
+        val voce = catalogoStili.stili.value.find { it.id == entryId } ?: return null
+        val fotoBase = risolviFotoBase(fotoUriIniziale) ?: return null
+        val file = withContext(Dispatchers.IO) { ImageIo.salvaBitmapInCache(appContext, fotoBase, "sessione") }
+        return file to PromptBuilder.perStile(voce)
+    }
+
+    /** Come [preparaEsportazioneStile] ma per la prova virtuale: due foto (persona + capo) piu' il prompt. */
+    suspend fun preparaEsportazioneTryOn(capoId: String, fotoUriIniziale: Uri?): Triple<File, File, String>? {
+        val capo = guardaroba.capi.value.find { it.id == capoId } ?: return null
+        val fileCapo = File(capo.photoPath)
+        if (!fileCapo.exists()) return null
+        val fotoBase = risolviFotoBase(fotoUriIniziale) ?: return null
+        val filePersona = withContext(Dispatchers.IO) { ImageIo.salvaBitmapInCache(appContext, fotoBase, "sessione") }
+        return Triple(filePersona, fileCapo, PromptBuilder.perTryOn(capo))
+    }
+
+    /** Riporta nell'app il risultato ottenuto manualmente in una chat AI esterna. */
+    fun importaRisultatoEsterno(uri: Uri) {
+        viewModelScope.launch {
+            _operazione.value = OperazioneUiState.InCorso
+            val bitmap = withContext(Dispatchers.IO) { ImageIo.decodificaBitmapDaUri(appContext, uri) }
+            if (bitmap == null) {
+                _operazione.value = OperazioneUiState.NonRiuscita("Non riesco a leggere l'immagine scelta.")
+                return@launch
+            }
+            val file = withContext(Dispatchers.IO) { ImageIo.salvaBitmapInCache(appContext, bitmap, "sessione") }
+            _stato.update { it.copy(fotoUtenteModificataPath = file.absolutePath, fonteFotoUtente = GenerationSource.CHAT_ESTERNA) }
+            _operazione.value = OperazioneUiState.Completata(GenerationSource.CHAT_ESTERNA)
         }
     }
 

@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.util.Base64
 import it.vstudioapps.stylestudio3d.domain.ai.AiOutcome
 import it.vstudioapps.stylestudio3d.domain.ai.HairMakeupAiService
+import it.vstudioapps.stylestudio3d.domain.ai.PromptBuilder
 import it.vstudioapps.stylestudio3d.domain.model.GenerationSource
 import it.vstudioapps.stylestudio3d.domain.model.StyleCatalogEntry
 import kotlinx.coroutines.Dispatchers
@@ -60,13 +61,7 @@ class RemoteHairMakeupAiService(
 
     private fun creaRichiesta(fotoBase: Bitmap, stile: StyleCatalogEntry): Request {
         val png = ByteArrayOutputStream().also { fotoBase.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
-        val prompt = buildString {
-            append("Modifica la foto applicando questo stile di ${stile.category.etichetta.lowercase()}: \"${stile.name}\". ")
-            append("Lunghezza: ${stile.attributes.length.etichetta}. Volume: ${stile.attributes.volume.etichetta}. ")
-            append("Colore riferimento: ${stile.attributes.colorHex}. ")
-            if (stile.attributes.tags.isNotEmpty()) append("Tag: ${stile.attributes.tags.joinToString(", ")}. ")
-            append("Mantieni il viso e l'identita' della persona invariati, cambia solo lo stile richiesto.")
-        }
+        val prompt = PromptBuilder.perStile(stile)
         val corpo = MultipartBody.Builder().setType(MultipartBody.FORM)
             .addFormDataPart("image", "foto.png", png.toRequestBody("image/png".toMediaType()))
             .addFormDataPart("prompt", prompt)

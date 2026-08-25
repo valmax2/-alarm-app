@@ -2,6 +2,7 @@ package it.vstudioapps.stylestudio3d.ui.navigation
 
 /** Rotte di navigazione. Una schermata per ogni categoria del pulsante nella Home. */
 object Destinations {
+    const val SCELTA_PROFILO = "scelta_profilo"
     const val ONBOARDING = "onboarding"
     const val HOME = "home"
     const val CAPELLI_BARBA = "capelli_barba"
@@ -10,6 +11,7 @@ object Destinations {
     const val SCARPE = "scarpe"
     const val ARMOCROMIA = "armocromia"
     const val FIGURA_INTERA = "figura_intera"
+    const val STUDIO_INTRO = "studio_intro"
     const val STUDIO_FOTOGRAFICO = "studio_fotografico"
     const val RISULTATO = "risultato"
     const val IMPOSTAZIONI = "impostazioni"

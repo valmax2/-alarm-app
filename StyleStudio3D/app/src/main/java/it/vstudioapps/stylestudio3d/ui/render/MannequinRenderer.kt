@@ -57,20 +57,16 @@ object MannequinRenderer {
         val paintTinta = Paint().apply { color = tinta; alpha = 55 }
         canvas.drawRect(0f, 0f, w, h, paintTinta)
 
+        // Vignettatura leggera: il fondale da studio (vedi StudioBackdropRenderer) ne applica gia' una sua,
+        // qui basta un tocco in piu' per legare la tinta della luce scelta al resto dello scatto.
         val vignetta = Paint().apply {
-            shader = RadialGradient(w / 2f, h / 2f, max(w, h) * 0.75f, Color.TRANSPARENT, Color.argb(70, 0, 0, 0), Shader.TileMode.CLAMP)
+            shader = RadialGradient(w / 2f, h / 2f, max(w, h) * 0.8f, Color.TRANSPARENT, Color.argb(35, 0, 0, 0), Shader.TileMode.CLAMP)
         }
         canvas.drawRect(0f, 0f, w, h, vignetta)
     }
 
     private fun disegnaSfondo(canvas: Canvas, w: Float, h: Float, parametri: MannequinParams) {
-        val coloreSfondo = coloreSicuro(parametri.sfondo.colorHex, Color.LTGRAY)
-        canvas.drawColor(coloreSfondo)
-        // Linea d'orizzonte morbida: da l'idea di un set fotografico invece di un colore piatto.
-        val paintPavimento = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            shader = LinearGradient(0f, h * 0.72f, 0f, h, coloreSfondo, scurisci(coloreSfondo, 0.18f), Shader.TileMode.CLAMP)
-        }
-        canvas.drawRect(0f, h * 0.72f, w, h, paintPavimento)
+        StudioBackdropRenderer.disegna(canvas, w.toInt(), h.toInt(), parametri.sfondo, parametri.illuminazione)
     }
 
     private fun applicaInquadratura(canvas: Canvas, w: Float, h: Float, inquadratura: CameraFraming) {
@@ -100,72 +96,98 @@ object MannequinRenderer {
         val mezzaLarghezzaVita = w * 0.10f
         val mezzaLarghezzaGambe = w * 0.045f
 
-        // Gambe (dietro al busto per profondita').
-        paint.color = coloreSicuro(p.colorePantaloni ?: p.coloreAbito ?: p.colorePelle, Color.DKGRAY)
+        // Ombra di contatto: ancora la figura al pavimento dello studio invece di sembrare "incollata".
+        val paintOmbra = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(90, 0, 0, 0) }
+        canvas.drawOval(RectF(cx - mezzaLarghezzaSpalle * 0.9f, yPiede + h * 0.005f, cx + mezzaLarghezzaSpalle * 0.9f, yPiede + h * 0.03f), paintOmbra)
+
+        // Gambe (dietro al busto per profondita'), leggermente rastremate verso la caviglia.
+        val coloreGambe = coloreSicuro(p.colorePantaloni ?: p.coloreAbito ?: p.colorePelle, Color.DKGRAY)
         listOf(-1f, 1f).forEach { lato ->
             val xGamba = cx + lato * mezzaLarghezzaVita * 0.55f
-            canvas.drawRoundRect(
-                RectF(xGamba - mezzaLarghezzaGambe, yVita, xGamba + mezzaLarghezzaGambe, yCaviglia),
-                mezzaLarghezzaGambe, mezzaLarghezzaGambe, paint,
-            )
+            val gamba = Path().apply {
+                moveTo(xGamba - mezzaLarghezzaGambe * 1.15f, yVita)
+                lineTo(xGamba + mezzaLarghezzaGambe * 1.15f, yVita)
+                quadTo(xGamba + mezzaLarghezzaGambe * 1.05f, (yVita + yCaviglia) / 2f, xGamba + mezzaLarghezzaGambe * 0.8f, yCaviglia)
+                lineTo(xGamba - mezzaLarghezzaGambe * 0.8f, yCaviglia)
+                quadTo(xGamba - mezzaLarghezzaGambe * 1.05f, (yVita + yCaviglia) / 2f, xGamba - mezzaLarghezzaGambe * 1.15f, yVita)
+                close()
+            }
+            paint.shader = LinearGradient(xGamba - mezzaLarghezzaGambe, 0f, xGamba + mezzaLarghezzaGambe, 0f, schiarisci(coloreGambe, 0.12f), scurisci(coloreGambe, 0.12f), Shader.TileMode.CLAMP)
+            canvas.drawPath(gamba, paint)
+            paint.shader = null
         }
 
-        // Scarpe.
+        // Scarpe: sagoma ovale allungata invece di un blocco squadrato.
         paint.color = coloreSicuro(p.coloreScarpe, Color.BLACK)
         listOf(-1f, 1f).forEach { lato ->
             val xGamba = cx + lato * mezzaLarghezzaVita * 0.55f
-            canvas.drawRoundRect(
-                RectF(xGamba - mezzaLarghezzaGambe * 1.3f, yCaviglia - h * 0.01f, xGamba + mezzaLarghezzaGambe * 1.3f, yPiede),
-                mezzaLarghezzaGambe, mezzaLarghezzaGambe, paint,
+            canvas.drawOval(
+                RectF(xGamba - mezzaLarghezzaGambe * 1.35f, yCaviglia - h * 0.015f, xGamba + mezzaLarghezzaGambe * 1.35f, yPiede),
+                paint,
             )
         }
 
         // Braccia (colore pelle: si assume manica corta salvo outerwear, semplificazione consapevole).
-        paint.color = coloreSicuro(p.colorePelle, Color.parseColor("#D9A97A"))
+        val colorePelleSicuro = coloreSicuro(p.colorePelle, Color.parseColor("#D9A97A"))
+        paint.color = colorePelleSicuro
         listOf(-1f, 1f).forEach { lato ->
             val xSpalla = cx + lato * mezzaLarghezzaSpalle * 0.9f
             val xMano = cx + lato * mezzaLarghezzaSpalle * 1.05f
             val braccio = Path().apply {
                 moveTo(xSpalla, ySpalle)
-                lineTo(xMano, yVita + h * 0.05f)
+                quadTo(xSpalla + lato * w * 0.01f, (ySpalle + yVita) / 2f, xMano, yVita + h * 0.05f)
             }
             paint.style = Paint.Style.STROKE
-            paint.strokeWidth = w * 0.05f
+            paint.strokeWidth = w * 0.045f
             paint.strokeCap = Paint.Cap.ROUND
             canvas.drawPath(braccio, paint)
             paint.style = Paint.Style.FILL
         }
 
-        // Busto: abito se presente, altrimenti top; outerwear sopra, leggermente piu' largo.
+        // Spalle arrotondate: due cerchi dietro al busto, cosi' l'attacco non sembra squadrato.
+        paint.color = colorePelleSicuro
+        listOf(-1f, 1f).forEach { lato -> canvas.drawCircle(cx + lato * mezzaLarghezzaSpalle * 0.92f, ySpalle, w * 0.028f, paint) }
+
+        // Busto: abito se presente, altrimenti top; taper morbido verso la vita con curve invece di linee dritte.
+        val yBaseBusto = if (p.coloreAbito != null) yCaviglia * 0.9f else yVita
         val busto = Path().apply {
             moveTo(cx - mezzaLarghezzaSpalle, ySpalle)
             lineTo(cx + mezzaLarghezzaSpalle, ySpalle)
-            lineTo(cx + mezzaLarghezzaVita, if (p.coloreAbito != null) yCaviglia * 0.9f else yVita)
-            lineTo(cx - mezzaLarghezzaVita, if (p.coloreAbito != null) yCaviglia * 0.9f else yVita)
+            quadTo(cx + mezzaLarghezzaSpalle * 0.94f, (ySpalle + yBaseBusto) / 2f, cx + mezzaLarghezzaVita, yBaseBusto)
+            lineTo(cx - mezzaLarghezzaVita, yBaseBusto)
+            quadTo(cx - mezzaLarghezzaSpalle * 0.94f, (ySpalle + yBaseBusto) / 2f, cx - mezzaLarghezzaSpalle, ySpalle)
             close()
         }
-        paint.color = coloreSicuro(p.coloreAbito ?: p.coloreTop, Color.parseColor("#8A8A90"))
+        val coloreBusto = coloreSicuro(p.coloreAbito ?: p.coloreTop, Color.parseColor("#8A8A90"))
+        paint.shader = LinearGradient(cx - mezzaLarghezzaSpalle, 0f, cx + mezzaLarghezzaSpalle, 0f, schiarisci(coloreBusto, 0.10f), scurisci(coloreBusto, 0.14f), Shader.TileMode.CLAMP)
         canvas.drawPath(busto, paint)
+        paint.shader = null
 
         if (p.coloreOuterwear != null) {
             val giacca = Path().apply {
                 moveTo(cx - mezzaLarghezzaSpalle * 1.12f, ySpalle - h * 0.01f)
                 lineTo(cx + mezzaLarghezzaSpalle * 1.12f, ySpalle - h * 0.01f)
-                lineTo(cx + mezzaLarghezzaVita * 1.12f, yVita * 0.95f)
+                quadTo(cx + mezzaLarghezzaVita * 1.15f, (ySpalle + yVita) / 2f, cx + mezzaLarghezzaVita * 1.12f, yVita * 0.95f)
                 lineTo(cx, yVita * 1.02f)
                 lineTo(cx - mezzaLarghezzaVita * 1.12f, yVita * 0.95f)
+                quadTo(cx - mezzaLarghezzaVita * 1.15f, (ySpalle + yVita) / 2f, cx - mezzaLarghezzaSpalle * 1.12f, ySpalle - h * 0.01f)
                 close()
             }
-            paint.color = coloreSicuro(p.coloreOuterwear, Color.DKGRAY)
+            val coloreOuter = coloreSicuro(p.coloreOuterwear, Color.DKGRAY)
+            paint.shader = LinearGradient(cx - mezzaLarghezzaSpalle, 0f, cx + mezzaLarghezzaSpalle, 0f, schiarisci(coloreOuter, 0.08f), scurisci(coloreOuter, 0.16f), Shader.TileMode.CLAMP)
             paint.alpha = 235
             canvas.drawPath(giacca, paint)
+            paint.shader = null
             paint.alpha = 255
         }
 
-        // Collo + testa.
-        paint.color = coloreSicuro(p.colorePelle, Color.parseColor("#D9A97A"))
+        // Collo + testa, con una leggera ombra sul lato per dare volume invece di un cerchio piatto.
+        paint.color = colorePelleSicuro
         canvas.drawRect(cx - raggioTesta * 0.4f, yTesta + raggioTesta * 1.1f, cx + raggioTesta * 0.4f, yCollo + h * 0.01f, paint)
-        canvas.drawCircle(cx, yTesta + raggioTesta, raggioTesta, paint)
+        val yCentroTesta = yTesta + raggioTesta
+        paint.shader = RadialGradient(cx - raggioTesta * 0.35f, yCentroTesta - raggioTesta * 0.35f, raggioTesta * 1.6f, schiarisci(colorePelleSicuro, 0.15f), scurisci(colorePelleSicuro, 0.12f), Shader.TileMode.CLAMP)
+        canvas.drawCircle(cx, yCentroTesta, raggioTesta, paint)
+        paint.shader = null
 
         disegnaBarba(canvas, cx, yTesta, raggioTesta, p)
         disegnaCapelli(canvas, cx, yTesta, raggioTesta, p)
@@ -259,5 +281,11 @@ object MannequinRenderer {
     private fun scurisci(colore: Int, fattore: Float): Int {
         val f = 1f - fattore.coerceIn(0f, 1f)
         return Color.rgb((Color.red(colore) * f).toInt(), (Color.green(colore) * f).toInt(), (Color.blue(colore) * f).toInt())
+    }
+
+    private fun schiarisci(colore: Int, fattore: Float): Int {
+        val f = fattore.coerceIn(0f, 1f)
+        fun verso(componente: Int) = (componente + (255 - componente) * f).toInt().coerceIn(0, 255)
+        return Color.rgb(verso(Color.red(colore)), verso(Color.green(colore)), verso(Color.blue(colore)))
     }
 }
