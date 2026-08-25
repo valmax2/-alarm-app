@@ -31,15 +31,32 @@ jobs:
       # 4. Rende eseguibile il wrapper Gradle
       - run: chmod +x gradlew
 
-      # 5. Compila l'APK in modalità debug
+      # 5. Legge versionName/versionCode da build.gradle.kts, per nominare l'APK di conseguenza
+      - name: Leggi la versione dell'app
+        id: version
+        run: |
+          NAME=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          CODE=$(grep -oP 'versionCode = \K[0-9]+' app/build.gradle.kts)
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "filename=FaceGuard-v${NAME}-${CODE}-debug" >> "$GITHUB_OUTPUT"
+
+      # 6. Compila l'APK in modalità debug
       - run: ./gradlew assembleDebug --stacktrace
 
-      # 6. Esegue i test unitari
+      # 7. Esegue i test unitari
       - run: ./gradlew testDebugUnitTest --stacktrace
 
-      # 7. Carica l'APK tra gli allegati scaricabili della build
+      # 8. Rinomina l'APK includendo la versione, cosi il file scaricato la porta già nel nome
+      - name: Rinomina l'APK con la versione
+        run: |
+          mkdir -p app/build/outputs/apk/debug/renamed
+          cp app/build/outputs/apk/debug/app-debug.apk \
+             "app/build/outputs/apk/debug/renamed/${{ steps.version.outputs.filename }}.apk"
+
+      # 9. Carica l'APK tra gli allegati scaricabili della build
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: faceguard-debug-apk
-          path: FaceGuard/app/build/outputs/apk/debug/app-debug.apk
+          name: ${{ steps.version.outputs.filename }}
+          path: FaceGuard/app/build/outputs/apk/debug/renamed/${{ steps.version.outputs.filename }}.apk
