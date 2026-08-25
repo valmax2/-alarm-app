@@ -2,7 +2,7 @@ name: Build Style Studio 3D APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, claude/android-3d-styling-app-z6d587 ]
     paths:
       - 'StyleStudio3D/**'
       - '.github/workflows/build_stylestudio3d_apk.yml'
