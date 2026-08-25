@@ -30,15 +30,32 @@ class StyleCatalogRepository(private val context: Context) {
     val stili: StateFlow<List<StyleCatalogEntry>> = _stili.asStateFlow()
 
     suspend fun inizializza() = withContext(Dispatchers.IO) {
-        val salvato = leggiDaFile() ?: return@withContext
-        val overrides = salvato.anteprimeImportate
-        val seedConOverride = StyleCatalogSeed.tutti().map { seed ->
-            overrides[seed.id]?.let { seed.copy(importedPreviewPath = it) } ?: seed
+        val salvato = leggiDaFile()
+        val overrides = salvato?.anteprimeImportate ?: emptyMap()
+        // Per ogni voce di serie senza un'anteprima importata manualmente dall'utente, cerca
+        // un'anteprima fotorealistica incorporata nell'app (assets/style_previews/<id>.jpg,
+        // generata esternamente es. con l'API OpenAI) e la usa come default.
+        val seedConAnteprime = StyleCatalogSeed.tutti().map { seed ->
+            val percorso = overrides[seed.id] ?: copiaAnteprimaIncorporataSeNecessario(seed.id)
+            if (percorso != null) seed.copy(importedPreviewPath = percorso) else seed
         }
-        val personalizzatiConOverride = salvato.personalizzati.map { custom ->
+        val personalizzatiConOverride = (salvato?.personalizzati ?: emptyList()).map { custom ->
             overrides[custom.id]?.let { custom.copy(importedPreviewPath = it) } ?: custom
         }
-        _stili.value = seedConOverride + personalizzatiConOverride
+        _stili.value = seedConAnteprime + personalizzatiConOverride
+    }
+
+    /** Copia (una sola volta) l'anteprima incorporata negli assets dell'app in filesDir, se esiste. */
+    private fun copiaAnteprimaIncorporataSeNecessario(id: String): String? {
+        val destinazione = File(File(context.filesDir, "style_previews"), "$id.jpg")
+        if (destinazione.exists()) return destinazione.absolutePath
+        return runCatching {
+            context.assets.open("style_previews/$id.jpg").use { input ->
+                destinazione.parentFile?.mkdirs()
+                destinazione.outputStream().use { output -> input.copyTo(output) }
+            }
+            destinazione.absolutePath
+        }.getOrNull()
     }
 
     fun perCategoria(categoria: StyleCategory): List<StyleCatalogEntry> = _stili.value.filter { it.category == categoria }
