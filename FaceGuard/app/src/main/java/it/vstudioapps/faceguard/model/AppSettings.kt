@@ -6,11 +6,16 @@ data class AppSettings(
     val coverMode: CoverMode = CoverMode.default,
     val absenceThresholdSeconds: Int = DEFAULT_THRESHOLD_SECONDS,
     val customImageUri: String? = null,
-    val monitoringEnabled: Boolean = false
+    val monitoringEnabled: Boolean = false,
+    /** Geometric signature of the device owner's face (see [FaceSignature]); null = not enrolled. */
+    val ownerFaceSignature: FaceSignature? = null
 ) {
     companion object {
         const val DEFAULT_THRESHOLD_SECONDS = 10
-        const val MIN_THRESHOLD_SECONDS = 3
+
+        // 0 is allowed on purpose: some users want the cover to engage the instant their face
+        // is gone, with no grace period at all.
+        const val MIN_THRESHOLD_SECONDS = 0
         const val MAX_THRESHOLD_SECONDS = 60
 
         /** Keeps a user-entered threshold within the range the Settings slider allows. */

@@ -108,7 +108,20 @@ dependencies {
     implementation("androidx.camera:camera-core:1.4.1")
     implementation("androidx.camera:camera-camera2:1.4.1")
     implementation("androidx.camera:camera-lifecycle:1.4.1")
+    // PreviewView, used only by the enrollment screen so the user can see themselves while
+    // FaceGuard captures their reference face signature.
+    implementation("androidx.camera:camera-view:1.4.1")
     implementation("com.google.mlkit:face-detection:16.1.7")
+
+    // Confirms it's really the phone's owner (via system fingerprint/Face Unlock) before
+    // letting them (re-)register the face profile used for continuous monitoring.
+    implementation("androidx.biometric:biometric:1.1.0")
+    // androidx.biometric:1.1.0 transitively pulls an old androidx.fragment release whose
+    // FragmentActivity.checkForValidRequestCode() rejects the large request codes the modern
+    // Activity Result API (rememberLauncherForActivityResult) generates, crashing with
+    // "Can only use lower 16 bits for requestCode" the moment any picker is launched. Forcing
+    // a current fragment version here wins Gradle's dependency resolution and fixes it.
+    implementation("androidx.fragment:fragment-ktx:1.8.5")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

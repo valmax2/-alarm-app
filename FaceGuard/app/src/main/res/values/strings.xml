@@ -6,11 +6,21 @@
         frontale per rilevare la tua presenza.
     </string>
     <string name="notification_title">FaceGuard è attivo</string>
-    <string name="notification_text_present">Presenza rilevata</string>
-    <string name="notification_text_absent">Volto non rilevato — copertura in corso</string>
+    <string name="notification_text_present">Riconosciuto: sei tu</string>
+    <string name="notification_text_stranger">Volto rilevato ma non riconosciuto</string>
+    <string name="notification_text_absent">Nessun volto rilevato</string>
     <string name="device_admin_explanation">
-        Consenti a FaceGuard di bloccare subito lo schermo quando il tuo volto non viene più
-        rilevato. Puoi revocare questo permesso in qualsiasi momento dalle Impostazioni di
+        Consenti a FaceGuard di bloccare subito lo schermo quando non riconosce più il tuo
+        volto. Puoi revocare questo permesso in qualsiasi momento dalle Impostazioni di
         FaceGuard.
     </string>
+    <string name="enroll_title">Registra il tuo volto</string>
+    <string name="enroll_instructions">
+        Inquadra il tuo viso al centro, con una buona illuminazione. Tieni fermo finché la
+        registrazione non è completa.
+    </string>
+    <string name="enroll_status_searching">Cerco il tuo volto…</string>
+    <string name="enroll_status_hold_still">Perfetto, tieni fermo…</string>
+    <string name="enroll_status_done">Registrazione completata</string>
+    <string name="enroll_action_cancel">Annulla</string>
 </resources>

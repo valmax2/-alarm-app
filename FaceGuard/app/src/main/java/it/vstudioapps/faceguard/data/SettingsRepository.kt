@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import it.vstudioapps.faceguard.model.AppSettings
 import it.vstudioapps.faceguard.model.CoverMode
+import it.vstudioapps.faceguard.model.FaceSignature
 import it.vstudioapps.faceguard.model.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -23,6 +24,7 @@ class SettingsRepository(private val context: Context) {
         val THRESHOLD_SECONDS = intPreferencesKey("absence_threshold_seconds")
         val CUSTOM_IMAGE_URI = stringPreferencesKey("custom_image_uri")
         val MONITORING_ENABLED = booleanPreferencesKey("monitoring_enabled")
+        val OWNER_FACE_SIGNATURE = stringPreferencesKey("owner_face_signature")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { prefs ->
@@ -33,7 +35,8 @@ class SettingsRepository(private val context: Context) {
                 ?: CoverMode.default,
             absenceThresholdSeconds = prefs[Keys.THRESHOLD_SECONDS] ?: AppSettings.DEFAULT_THRESHOLD_SECONDS,
             customImageUri = prefs[Keys.CUSTOM_IMAGE_URI],
-            monitoringEnabled = prefs[Keys.MONITORING_ENABLED] ?: false
+            monitoringEnabled = prefs[Keys.MONITORING_ENABLED] ?: false,
+            ownerFaceSignature = prefs[Keys.OWNER_FACE_SIGNATURE]?.let { FaceSignature.fromStorageString(it) }
         )
     }
 
@@ -57,5 +60,13 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setMonitoringEnabled(enabled: Boolean) {
         context.dataStore.edit { it[Keys.MONITORING_ENABLED] = enabled }
+    }
+
+    suspend fun setOwnerFaceSignature(signature: FaceSignature) {
+        context.dataStore.edit { it[Keys.OWNER_FACE_SIGNATURE] = signature.toStorageString() }
+    }
+
+    suspend fun clearOwnerFaceSignature() {
+        context.dataStore.edit { it.remove(Keys.OWNER_FACE_SIGNATURE) }
     }
 }

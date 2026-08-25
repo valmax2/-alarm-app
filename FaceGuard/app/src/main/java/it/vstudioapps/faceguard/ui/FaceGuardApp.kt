@@ -21,8 +21,10 @@ import it.vstudioapps.faceguard.BuildConfig
 import it.vstudioapps.faceguard.R
 import it.vstudioapps.faceguard.model.AppSettings
 import it.vstudioapps.faceguard.model.CoverMode
+import it.vstudioapps.faceguard.model.FaceSignature
 import it.vstudioapps.faceguard.model.ThemeMode
 import it.vstudioapps.faceguard.service.PresenceUiState
+import it.vstudioapps.faceguard.ui.screens.EnrollmentScreen
 import it.vstudioapps.faceguard.ui.screens.MonitorScreen
 import it.vstudioapps.faceguard.ui.screens.SettingsScreen
 import it.vstudioapps.faceguard.ui.theme.FaceGuardTheme
@@ -34,6 +36,7 @@ fun FaceGuardApp(
     settings: AppSettings,
     permissions: PermissionsState,
     presenceState: PresenceUiState,
+    showEnrollment: Boolean,
     onRequestCameraPermission: () -> Unit,
     onRequestNotificationsPermission: () -> Unit,
     onRequestOverlayPermission: () -> Unit,
@@ -43,10 +46,19 @@ fun FaceGuardApp(
     onThemeModeChange: (ThemeMode) -> Unit,
     onCoverModeChange: (CoverMode) -> Unit,
     onThresholdChange: (Int) -> Unit,
-    onToggleMonitoring: (Boolean) -> Unit
+    onToggleMonitoring: (Boolean) -> Unit,
+    onStartEnrollment: () -> Unit,
+    onEnrollmentComplete: (FaceSignature) -> Unit,
+    onCancelEnrollment: () -> Unit,
+    onClearEnrollment: () -> Unit
 ) {
     FaceGuardTheme(themeMode = settings.themeMode) {
         Surface(modifier = Modifier.fillMaxSize()) {
+            if (showEnrollment) {
+                EnrollmentScreen(onComplete = onEnrollmentComplete, onCancel = onCancelEnrollment)
+                return@Surface
+            }
+
             var selectedTab by remember { mutableIntStateOf(0) }
             val tabTitles = listOf("Monitor", "Impostazioni")
 
@@ -77,7 +89,9 @@ fun FaceGuardApp(
                             onRequestOverlayPermission = onRequestOverlayPermission,
                             onRequestDeviceAdmin = onRequestDeviceAdmin,
                             onRevokeDeviceAdmin = onRevokeDeviceAdmin,
-                            onToggleMonitoring = onToggleMonitoring
+                            onToggleMonitoring = onToggleMonitoring,
+                            onStartEnrollment = onStartEnrollment,
+                            onClearEnrollment = onClearEnrollment
                         )
                         else -> SettingsScreen(
                             settings = settings,

@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Face
+import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.PictureInPicture
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Button
@@ -43,11 +45,14 @@ fun MonitorScreen(
     onRequestOverlayPermission: () -> Unit,
     onRequestDeviceAdmin: () -> Unit,
     onRevokeDeviceAdmin: () -> Unit,
-    onToggleMonitoring: (Boolean) -> Unit
+    onToggleMonitoring: (Boolean) -> Unit,
+    onStartEnrollment: () -> Unit,
+    onClearEnrollment: () -> Unit
 ) {
     val needsOverlay = settings.coverMode != CoverMode.LOCK_SCREEN
     val needsDeviceAdmin = settings.coverMode == CoverMode.LOCK_SCREEN
-    val canStart = permissions.canStartMonitoring && (!needsOverlay || permissions.overlayGranted)
+    val ownerEnrolled = settings.ownerFaceSignature != null
+    val canStart = ownerEnrolled && permissions.canStartMonitoring && (!needsOverlay || permissions.overlayGranted)
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -63,6 +68,36 @@ fun MonitorScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(if (settings.monitoringEnabled) "Ferma monitoraggio" else "Avvia monitoraggio")
+            }
+        }
+
+        item {
+            Text(
+                text = "Chi riconoscere",
+                style = MaterialTheme.typography.titleMedium
+            )
+        }
+
+        item {
+            PermissionCard(
+                title = "Volto registrato",
+                description = if (ownerEnrolled) {
+                    "Solo il volto registrato tiene lo schermo sbloccato."
+                } else {
+                    "Registra il tuo volto: obbligatorio prima di avviare il monitoraggio."
+                },
+                granted = ownerEnrolled,
+                actionLabel = "Registra",
+                onAction = onStartEnrollment
+            )
+        }
+
+        if (ownerEnrolled) {
+            item {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onStartEnrollment) { Text("Registra di nuovo") }
+                    TextButton(onClick = onClearEnrollment) { Text("Cancella") }
+                }
             }
         }
 
@@ -168,11 +203,15 @@ private fun StatusCard(settings: AppSettings, presenceState: PresenceUiState) {
 
 private fun statusIcon(state: PresenceUiState) = when {
     state.coverActive -> Icons.Filled.Shield
-    state.runState == ServiceRunState.RUNNING -> Icons.Filled.CameraAlt
+    state.runState == ServiceRunState.RUNNING && state.ownerRecognized -> Icons.Filled.CameraAlt
+    state.runState == ServiceRunState.RUNNING && state.strangerDetected -> Icons.Filled.PersonOff
+    state.runState == ServiceRunState.RUNNING -> Icons.Filled.Face
     else -> Icons.Filled.PictureInPicture
 }
 
 private fun statusText(settings: AppSettings, state: PresenceUiState): Pair<String, String> = when {
+    state.runState == ServiceRunState.NOT_ENROLLED ->
+        "Nessun volto registrato" to "Registra il tuo volto qui sotto prima di avviare il monitoraggio."
     !settings.monitoringEnabled || state.runState == ServiceRunState.STOPPED ->
         "Monitoraggio spento" to "Avvia il monitoraggio per iniziare a proteggere lo schermo."
     state.runState == ServiceRunState.CAMERA_ERROR ->
@@ -182,10 +221,12 @@ private fun statusText(settings: AppSettings, state: PresenceUiState): Pair<Stri
     state.coverActive ->
         "Copertura attiva" to when (settings.coverMode) {
             CoverMode.LOCK_SCREEN -> "Il dispositivo è stato bloccato."
-            else -> "Il tuo volto non è più stato rilevato."
+            else -> "Non riconosco più il tuo volto."
         }
-    state.faceDetected ->
-        "Presenza rilevata" to "Tutto ok, sei davanti allo schermo."
+    state.ownerRecognized ->
+        "Riconosciuto" to "Tutto ok, sei davanti allo schermo."
+    state.strangerDetected ->
+        "Volto non riconosciuto" to "C'è qualcuno davanti alla telecamera, ma non sei tu."
     else ->
-        "Volto non rilevato" to "In attesa prima di attivare la copertura…"
+        "Nessun volto rilevato" to "In attesa prima di attivare la copertura…"
 }

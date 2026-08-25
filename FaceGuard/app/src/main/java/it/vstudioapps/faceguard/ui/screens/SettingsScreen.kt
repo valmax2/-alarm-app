@@ -4,11 +4,16 @@ import androidx.compose.foundation.Image as BitmapImage
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Image
@@ -17,6 +22,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.Slider
@@ -29,11 +35,15 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import it.vstudioapps.faceguard.model.AppSettings
 import it.vstudioapps.faceguard.model.CoverMode
@@ -162,19 +172,57 @@ private fun CustomImagePicker(imageUri: String?, onPickCustomImage: () -> Unit) 
 
 @Composable
 private fun ThresholdSlider(seconds: Int, onChange: (Int) -> Unit) {
-    var sliderValue by remember(seconds) { mutableIntStateOf(seconds) }
+    var currentValue by remember(seconds) { mutableIntStateOf(seconds) }
+    var textFieldValue by remember(seconds) { mutableStateOf(seconds.toString()) }
+
+    fun commit(newValue: Int) {
+        val clamped = newValue.coerceIn(AppSettings.MIN_THRESHOLD_SECONDS, AppSettings.MAX_THRESHOLD_SECONDS)
+        currentValue = clamped
+        onChange(clamped)
+    }
 
     Column {
         Text(
-            text = "Attiva la copertura dopo $sliderValue secondi di assenza",
+            text = "Attiva la copertura dopo $currentValue secondi di assenza",
             style = MaterialTheme.typography.bodyMedium
         )
-        Slider(
-            value = sliderValue.toFloat(),
-            onValueChange = { sliderValue = it.toInt() },
-            onValueChangeFinished = { onChange(sliderValue) },
-            valueRange = AppSettings.MIN_THRESHOLD_SECONDS.toFloat()..AppSettings.MAX_THRESHOLD_SECONDS.toFloat(),
-            steps = AppSettings.MAX_THRESHOLD_SECONDS - AppSettings.MIN_THRESHOLD_SECONDS - 1
+        Text(
+            text = "Trascina il cursore oppure scrivi il numero di secondi qui a fianco.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Slider(
+                value = currentValue.toFloat(),
+                onValueChange = { newFloat ->
+                    currentValue = newFloat.toInt()
+                    textFieldValue = currentValue.toString()
+                },
+                onValueChangeFinished = { onChange(currentValue) },
+                valueRange = AppSettings.MIN_THRESHOLD_SECONDS.toFloat()..AppSettings.MAX_THRESHOLD_SECONDS.toFloat(),
+                steps = AppSettings.MAX_THRESHOLD_SECONDS - AppSettings.MIN_THRESHOLD_SECONDS - 1,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            OutlinedTextField(
+                value = textFieldValue,
+                onValueChange = { typed ->
+                    // Only digits, capped at 3 characters — plenty for a 0-60 range.
+                    if (typed.length <= 3 && typed.all { it.isDigit() }) {
+                        textFieldValue = typed
+                        typed.toIntOrNull()?.let { commit(it) }
+                    }
+                },
+                modifier = Modifier.width(84.dp),
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.Center),
+                suffix = { Text("s") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { textFieldValue = currentValue.toString() })
+            )
+        }
     }
 }

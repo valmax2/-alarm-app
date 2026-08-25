@@ -9,6 +9,9 @@
         android:required="true" />
 
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Confirms it's really the device owner (fingerprint/Face Unlock/PIN) before letting
+         them (re-)register the face profile FaceGuard matches against during monitoring. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

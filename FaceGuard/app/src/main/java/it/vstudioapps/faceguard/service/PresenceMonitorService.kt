@@ -23,6 +23,7 @@ import it.vstudioapps.faceguard.camera.FaceDetectionAnalyzer
 import it.vstudioapps.faceguard.data.SettingsRepository
 import it.vstudioapps.faceguard.model.AppSettings
 import it.vstudioapps.faceguard.model.CoverMode
+import it.vstudioapps.faceguard.model.FaceSignature
 import it.vstudioapps.faceguard.overlay.CoverOverlayController
 import it.vstudioapps.faceguard.security.FaceGuardDeviceAdminReceiver
 import java.util.concurrent.ExecutorService
@@ -31,13 +32,17 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Foreground service that keeps the front camera running, feeds every frame to ML Kit face
- * detection, and — once the user's face has been missing for the configured threshold —
- * activates whichever cover mode is currently selected.
+ * Foreground service that keeps the front camera running, matches every visible face against
+ * the enrolled owner's [FaceSignature], and — once the owner has been missing for the
+ * configured threshold — activates whichever cover mode is currently selected.
  *
- * The cover is re-armed the moment a face is seen again: [CoverMode.BLACK_SCREEN] and
- * [CoverMode.CUSTOM_IMAGE] are removed immediately, while [CoverMode.LOCK_SCREEN] simply
- * waits for the next absence, since the device is already locked by the system at that point.
+ * A face that doesn't match the owner counts the same as no face at all: it does not reset the
+ * absence timer. This is a geometric-landmark signature, not a deep-learning face embedding —
+ * see [FaceSignature]'s doc for what that means for accuracy.
+ *
+ * The cover is re-armed the moment the owner is recognized again: [CoverMode.BLACK_SCREEN] and
+ * [CoverMode.CUSTOM_IMAGE] are removed immediately, while [CoverMode.LOCK_SCREEN] simply waits
+ * for the next absence, since the device is already locked by the system at that point.
  */
 class PresenceMonitorService : LifecycleService() {
 
@@ -51,8 +56,8 @@ class PresenceMonitorService : LifecycleService() {
     private var analyzer: FaceDetectionAnalyzer? = null
 
     @Volatile private var currentSettings = AppSettings()
-    @Volatile private var lastFaceSeenAtMillis = System.currentTimeMillis()
-    @Volatile private var faceCurrentlyDetected = true
+    @Volatile private var lastOwnerSeenAtMillis = System.currentTimeMillis()
+    @Volatile private var ownerCurrentlyRecognized = true
     @Volatile private var coverTriggered = false
 
     override fun onCreate() {
@@ -78,12 +83,18 @@ class PresenceMonitorService : LifecycleService() {
             return START_NOT_STICKY
         }
 
-        startForeground(NOTIFICATION_ID, buildNotification(faceDetected = true))
-        lastFaceSeenAtMillis = System.currentTimeMillis()
-        faceCurrentlyDetected = true
+        startForeground(NOTIFICATION_ID, buildNotification(ownerRecognized = true, strangerDetected = false))
+        lastOwnerSeenAtMillis = System.currentTimeMillis()
+        ownerCurrentlyRecognized = true
         coverTriggered = false
         PresenceStatusBus.update {
-            it.copy(runState = ServiceRunState.RUNNING, faceDetected = true, absentSinceMillis = null, coverActive = false)
+            it.copy(
+                runState = ServiceRunState.RUNNING,
+                ownerRecognized = true,
+                strangerDetected = false,
+                absentSinceMillis = null,
+                coverActive = false
+            )
         }
 
         observeSettings()
@@ -97,8 +108,12 @@ class PresenceMonitorService : LifecycleService() {
         lifecycleScope.launch {
             settingsRepository.settings.collect { settings ->
                 currentSettings = settings
-                if (!settings.monitoringEnabled) {
-                    stopSelf()
+                when {
+                    !settings.monitoringEnabled -> stopSelf()
+                    settings.ownerFaceSignature == null -> {
+                        PresenceStatusBus.update { it.copy(runState = ServiceRunState.NOT_ENROLLED) }
+                        stopSelf()
+                    }
                 }
             }
         }
@@ -134,35 +149,50 @@ class PresenceMonitorService : LifecycleService() {
         }, ContextCompat.getMainExecutor(this))
     }
 
-    private fun onFaceDetectionResult(faceDetected: Boolean) {
-        faceCurrentlyDetected = faceDetected
-        if (faceDetected) {
-            lastFaceSeenAtMillis = System.currentTimeMillis()
+    private fun onFaceDetectionResult(faceDetected: Boolean, signature: FaceSignature?) {
+        val owner = currentSettings.ownerFaceSignature
+        val ownerRecognized = faceDetected && signature != null && owner != null &&
+            (signature.distanceTo(owner) ?: Float.MAX_VALUE) <= FaceSignature.MATCH_THRESHOLD
+        ownerCurrentlyRecognized = ownerRecognized
+
+        if (ownerRecognized) {
+            lastOwnerSeenAtMillis = System.currentTimeMillis()
             if (coverTriggered) {
                 coverTriggered = false
                 if (overlayController.isShowing) overlayController.hide()
             }
             PresenceStatusBus.update {
-                it.copy(faceDetected = true, absentSinceMillis = null, coverActive = overlayController.isShowing)
+                it.copy(
+                    ownerRecognized = true,
+                    strangerDetected = false,
+                    absentSinceMillis = null,
+                    coverActive = overlayController.isShowing
+                )
             }
-            updateNotification(faceDetected = true)
+            updateNotification(ownerRecognized = true, strangerDetected = false)
         } else {
-            PresenceStatusBus.update { it.copy(faceDetected = false, absentSinceMillis = lastFaceSeenAtMillis) }
+            // A face that isn't the owner counts as absence too — it never resets the timer.
+            PresenceStatusBus.update {
+                it.copy(ownerRecognized = false, strangerDetected = faceDetected, absentSinceMillis = lastOwnerSeenAtMillis)
+            }
         }
     }
 
-    /** Polls once a second rather than reacting per-frame, since the threshold is seconds-scale. */
+    /**
+     * Polls frequently (rather than reacting per-frame) so a threshold of just a second or two
+     * — down to 0, for an instant reaction — still behaves predictably.
+     */
     private fun startAbsenceWatcher() {
         lifecycleScope.launch {
             while (true) {
-                delay(1_000)
-                if (!faceCurrentlyDetected && !coverTriggered) {
-                    val elapsedMs = System.currentTimeMillis() - lastFaceSeenAtMillis
+                delay(WATCHER_INTERVAL_MS)
+                if (!ownerCurrentlyRecognized && !coverTriggered) {
+                    val elapsedMs = System.currentTimeMillis() - lastOwnerSeenAtMillis
                     val thresholdMs = currentSettings.absenceThresholdSeconds * 1_000L
                     if (elapsedMs >= thresholdMs) {
                         triggerCover()
                     } else {
-                        updateNotification(faceDetected = false)
+                        updateNotification(ownerRecognized = false, strangerDetected = false)
                     }
                 }
             }
@@ -184,7 +214,7 @@ class PresenceMonitorService : LifecycleService() {
             }
         }
         PresenceStatusBus.update { it.copy(coverActive = overlayController.isShowing || currentSettings.coverMode == CoverMode.LOCK_SCREEN) }
-        updateNotification(faceDetected = false)
+        updateNotification(ownerRecognized = false, strangerDetected = false)
     }
 
     private fun createNotificationChannel() {
@@ -199,16 +229,22 @@ class PresenceMonitorService : LifecycleService() {
         manager.createNotificationChannel(channel)
     }
 
-    private fun updateNotification(faceDetected: Boolean) {
+    private fun updateNotification(ownerRecognized: Boolean, strangerDetected: Boolean) {
         val manager = getSystemService(NotificationManager::class.java)
-        manager.notify(NOTIFICATION_ID, buildNotification(faceDetected))
+        manager.notify(NOTIFICATION_ID, buildNotification(ownerRecognized, strangerDetected))
     }
 
-    private fun buildNotification(faceDetected: Boolean) = NotificationCompat.Builder(this, CHANNEL_ID)
+    private fun buildNotification(ownerRecognized: Boolean, strangerDetected: Boolean) = NotificationCompat.Builder(this, CHANNEL_ID)
         .setSmallIcon(R.drawable.ic_notification)
         .setContentTitle(getString(R.string.notification_title))
         .setContentText(
-            getString(if (faceDetected) R.string.notification_text_present else R.string.notification_text_absent)
+            getString(
+                when {
+                    ownerRecognized -> R.string.notification_text_present
+                    strangerDetected -> R.string.notification_text_stranger
+                    else -> R.string.notification_text_absent
+                }
+            )
         )
         .setOngoing(true)
         .setContentIntent(
@@ -233,6 +269,7 @@ class PresenceMonitorService : LifecycleService() {
     companion object {
         private const val CHANNEL_ID = "presence_monitor"
         private const val NOTIFICATION_ID = 1001
+        private const val WATCHER_INTERVAL_MS = 300L
 
         fun start(context: Context) {
             val intent = Intent(context, PresenceMonitorService::class.java)

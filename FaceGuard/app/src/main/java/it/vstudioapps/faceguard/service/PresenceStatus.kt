@@ -4,11 +4,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /** Whether the monitoring service is running, and what it last saw. */
-enum class ServiceRunState { STOPPED, STARTING, RUNNING, CAMERA_ERROR }
+enum class ServiceRunState { STOPPED, STARTING, RUNNING, CAMERA_ERROR, NOT_ENROLLED }
 
 data class PresenceUiState(
     val runState: ServiceRunState = ServiceRunState.STOPPED,
-    val faceDetected: Boolean = false,
+    /** True only when the camera sees a face that matches the enrolled owner's signature. */
+    val ownerRecognized: Boolean = false,
+    /** True when a face is visible but it doesn't match the owner — a different signal from "no one there". */
+    val strangerDetected: Boolean = false,
     val absentSinceMillis: Long? = null,
     val coverActive: Boolean = false
 )
