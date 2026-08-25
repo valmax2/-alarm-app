@@ -38,7 +38,9 @@ import kotlinx.coroutines.launch
  *
  * A face that doesn't match the owner counts the same as no face at all: it does not reset the
  * absence timer. This is a geometric-landmark signature, not a deep-learning face embedding —
- * see [FaceSignature]'s doc for what that means for accuracy.
+ * see [FaceSignature]'s doc for what that means for accuracy. A single missed frame never
+ * starts that timer on its own — see [MISS_CONFIRMATION_COUNT] — since one stray frame is
+ * expected noise, not evidence the owner actually left.
  *
  * The cover is re-armed the moment the owner is recognized again: [CoverMode.BLACK_SCREEN] and
  * [CoverMode.CUSTOM_IMAGE] are removed immediately, while [CoverMode.LOCK_SCREEN] simply waits
@@ -59,6 +61,7 @@ class PresenceMonitorService : LifecycleService() {
     @Volatile private var lastOwnerSeenAtMillis = System.currentTimeMillis()
     @Volatile private var ownerCurrentlyRecognized = true
     @Volatile private var coverTriggered = false
+    @Volatile private var consecutiveMisses = 0
 
     override fun onCreate() {
         super.onCreate()
@@ -87,6 +90,7 @@ class PresenceMonitorService : LifecycleService() {
         lastOwnerSeenAtMillis = System.currentTimeMillis()
         ownerCurrentlyRecognized = true
         coverTriggered = false
+        consecutiveMisses = 0
         PresenceStatusBus.update {
             it.copy(
                 runState = ServiceRunState.RUNNING,
@@ -153,10 +157,11 @@ class PresenceMonitorService : LifecycleService() {
         val owner = currentSettings.ownerFaceSignature
         val ownerRecognized = faceDetected && signature != null && owner != null &&
             (signature.distanceTo(owner) ?: Float.MAX_VALUE) <= FaceSignature.MATCH_THRESHOLD
-        ownerCurrentlyRecognized = ownerRecognized
 
         if (ownerRecognized) {
+            consecutiveMisses = 0
             lastOwnerSeenAtMillis = System.currentTimeMillis()
+            ownerCurrentlyRecognized = true
             if (coverTriggered) {
                 coverTriggered = false
                 if (overlayController.isShowing) overlayController.hide()
@@ -170,11 +175,20 @@ class PresenceMonitorService : LifecycleService() {
                 )
             }
             updateNotification(ownerRecognized = true, strangerDetected = false)
-        } else {
-            // A face that isn't the owner counts as absence too — it never resets the timer.
-            PresenceStatusBus.update {
-                it.copy(ownerRecognized = false, strangerDetected = faceDetected, absentSinceMillis = lastOwnerSeenAtMillis)
-            }
+            return
+        }
+
+        // A single missed frame is normal — motion blur, a brief odd angle, a hand passing by —
+        // and shouldn't by itself start the absence clock, especially with a very low threshold
+        // where even one stray frame would otherwise flash the cover on. Only a run of several
+        // consecutive misses in a row counts as the owner actually being gone.
+        consecutiveMisses++
+        if (consecutiveMisses < MISS_CONFIRMATION_COUNT) return
+
+        // A face that isn't the owner counts as absence too — it never resets the timer.
+        ownerCurrentlyRecognized = false
+        PresenceStatusBus.update {
+            it.copy(ownerRecognized = false, strangerDetected = faceDetected, absentSinceMillis = lastOwnerSeenAtMillis)
         }
     }
 
@@ -270,6 +284,12 @@ class PresenceMonitorService : LifecycleService() {
         private const val CHANNEL_ID = "presence_monitor"
         private const val NOTIFICATION_ID = 1001
         private const val WATCHER_INTERVAL_MS = 300L
+
+        // How many analyzed frames in a row must fail to match the owner before treating them
+        // as actually gone. Filters out single-frame noise (motion blur, a brief bad angle)
+        // without adding a fixed delay — it rides however fast the camera actually delivers
+        // frames, unlike a flat "wait N ms" would.
+        private const val MISS_CONFIRMATION_COUNT = 3
 
         fun start(context: Context) {
             val intent = Intent(context, PresenceMonitorService::class.java)
