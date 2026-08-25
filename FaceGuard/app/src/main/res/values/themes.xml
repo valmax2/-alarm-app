@@ -1,0 +1,11 @@
+<resources>
+    <!-- System/Activity chrome only. The in-app light/dark palette is driven entirely by
+         Compose (see ui/theme/Theme.kt) so the user's in-app choice is independent of the
+         device's system theme. -->
+    <style name="Theme.FaceGuard" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:statusBarColor">@color/launcher_background</item>
+        <item name="android:navigationBarColor">@color/launcher_background</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
+</resources>

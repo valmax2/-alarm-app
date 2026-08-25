@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">FaceGuard</string>
+    <string name="notification_channel_name">Monitoraggio presenza</string>
+    <string name="notification_channel_description">
+        Notifica persistente mostrata mentre FaceGuard controlla la fotocamera
+        frontale per rilevare la tua presenza.
+    </string>
+    <string name="notification_title">FaceGuard è attivo</string>
+    <string name="notification_text_present">Presenza rilevata</string>
+    <string name="notification_text_absent">Volto non rilevato — copertura in corso</string>
+    <string name="device_admin_explanation">
+        Consenti a FaceGuard di bloccare subito lo schermo quando il tuo volto non viene più
+        rilevato. Puoi revocare questo permesso in qualsiasi momento dalle Impostazioni di
+        FaceGuard.
+    </string>
+</resources>

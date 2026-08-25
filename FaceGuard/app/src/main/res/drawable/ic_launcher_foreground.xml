@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive-icon foreground layer. Kept inside the ~66dp safe zone centered at (54,54) so
+     nothing is clipped by circular, squircle, or rounded-square launcher masks. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Face outline -->
+    <path
+        android:pathData="M54,54m-20,0a20,20 0,1 1,40 0a20,20 0,1 1,-40 0"
+        android:strokeColor="#35D0D8"
+        android:strokeWidth="4.4"
+        android:fillColor="#00000000" />
+    <!-- Scan line through the middle -->
+    <path
+        android:pathData="M34,54L74,54"
+        android:strokeColor="#35D0D8"
+        android:strokeWidth="4.4" />
+    <!-- Viewfinder corner brackets -->
+    <path
+        android:pathData="M22,22 L22,34 M22,22 L34,22"
+        android:strokeColor="#35D0D8"
+        android:strokeWidth="4.4" />
+    <path
+        android:pathData="M86,22 L86,34 M86,22 L74,22"
+        android:strokeColor="#35D0D8"
+        android:strokeWidth="4.4" />
+    <path
+        android:pathData="M22,86 L22,74 M22,86 L34,86"
+        android:strokeColor="#35D0D8"
+        android:strokeWidth="4.4" />
+    <path
+        android:pathData="M86,86 L86,74 M86,86 L74,86"
+        android:strokeColor="#35D0D8"
+        android:strokeWidth="4.4" />
+</vector>
