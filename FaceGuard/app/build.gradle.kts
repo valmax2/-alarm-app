@@ -34,8 +34,13 @@ android {
         applicationId = "it.vstudioapps.faceguard"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0-prototype"
+
+        // Bump both on every change that ships: versionCode always +1 (Play Console requires
+        // a strictly increasing value on each upload, debug or release), versionName follows
+        // semver (MAJOR.MINOR.PATCH) — PATCH for fixes, MINOR for new functionality, MAJOR
+        // once the app is stable enough for a real 1.0.
+        versionCode = 2
+        versionName = "0.2.0"
 
         // Surfaced in Settings so testers can confirm exactly which build is installed,
         // since debug APKs carry no visible build number otherwise.

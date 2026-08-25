@@ -94,7 +94,7 @@ fun FaceGuardApp(
                             settings = settings,
                             permissions = permissions,
                             presenceState = presenceState,
-                            buildInfo = "Build ${BuildConfig.GIT_SHA}",
+                            buildInfo = "v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) — build ${BuildConfig.GIT_SHA}",
                             onRequestCameraPermission = onRequestCameraPermission,
                             onRequestNotificationsPermission = onRequestNotificationsPermission,
                             onRequestOverlayPermission = onRequestOverlayPermission,
