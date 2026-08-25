@@ -1,6 +1,6 @@
 package it.vstudioapps.faceguard.ui.screens
 
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.Image as BitmapImage
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,7 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Image as ImageIcon
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -63,7 +63,7 @@ fun SettingsScreen(
             SectionTitle("Copertura schermo")
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 CoverModeOption(
-                    icon = ImageIcon,
+                    icon = Icons.Filled.Image,
                     title = "Immagine personalizzata",
                     description = "Mostra un'immagine a tua scelta a schermo intero.",
                     selected = settings.coverMode == CoverMode.CUSTOM_IMAGE,
@@ -137,7 +137,7 @@ private fun CustomImagePicker(imageUri: String?, onPickCustomImage: () -> Unit) 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         val current = bitmap
         if (current != null) {
-            Image(
+            BitmapImage(
                 bitmap = current,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
@@ -154,7 +154,7 @@ private fun CustomImagePicker(imageUri: String?, onPickCustomImage: () -> Unit) 
             )
         }
         OutlinedButton(onClick = onPickCustomImage, modifier = Modifier.fillMaxWidth()) {
-            Icon(imageVector = ImageIcon, contentDescription = null)
+            Icon(imageVector = Icons.Filled.Image, contentDescription = null)
             Text(text = if (current != null) "  Cambia immagine" else "  Scegli immagine")
         }
     }
