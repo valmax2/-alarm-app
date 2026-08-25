@@ -10,6 +10,7 @@ import it.vstudioapps.faceguard.model.AppSettings
 import it.vstudioapps.faceguard.model.CoverMode
 import it.vstudioapps.faceguard.model.FaceSignature
 import it.vstudioapps.faceguard.model.ThemeMode
+import it.vstudioapps.faceguard.security.FaceSignatureCrypto
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -36,7 +37,9 @@ class SettingsRepository(private val context: Context) {
             absenceThresholdSeconds = prefs[Keys.THRESHOLD_SECONDS] ?: AppSettings.DEFAULT_THRESHOLD_SECONDS,
             customImageUri = prefs[Keys.CUSTOM_IMAGE_URI],
             monitoringEnabled = prefs[Keys.MONITORING_ENABLED] ?: false,
-            ownerFaceSignature = prefs[Keys.OWNER_FACE_SIGNATURE]?.let { FaceSignature.fromStorageString(it) }
+            ownerFaceSignature = prefs[Keys.OWNER_FACE_SIGNATURE]
+                ?.let { FaceSignatureCrypto.decrypt(it) }
+                ?.let { FaceSignature.fromStorageString(it) }
         )
     }
 
@@ -63,7 +66,8 @@ class SettingsRepository(private val context: Context) {
     }
 
     suspend fun setOwnerFaceSignature(signature: FaceSignature) {
-        context.dataStore.edit { it[Keys.OWNER_FACE_SIGNATURE] = signature.toStorageString() }
+        val encrypted = FaceSignatureCrypto.encrypt(signature.toStorageString())
+        context.dataStore.edit { it[Keys.OWNER_FACE_SIGNATURE] = encrypted }
     }
 
     suspend fun clearOwnerFaceSignature() {

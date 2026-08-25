@@ -24,6 +24,7 @@ import it.vstudioapps.faceguard.model.CoverMode
 import it.vstudioapps.faceguard.model.FaceSignature
 import it.vstudioapps.faceguard.model.ThemeMode
 import it.vstudioapps.faceguard.service.PresenceUiState
+import it.vstudioapps.faceguard.ui.components.CrashReportDialog
 import it.vstudioapps.faceguard.ui.screens.EnrollmentScreen
 import it.vstudioapps.faceguard.ui.screens.MonitorScreen
 import it.vstudioapps.faceguard.ui.screens.SettingsScreen
@@ -37,11 +38,14 @@ fun FaceGuardApp(
     permissions: PermissionsState,
     presenceState: PresenceUiState,
     showEnrollment: Boolean,
+    lastCrashReport: String?,
+    onCrashReportDismissed: () -> Unit,
     onRequestCameraPermission: () -> Unit,
     onRequestNotificationsPermission: () -> Unit,
     onRequestOverlayPermission: () -> Unit,
     onRequestDeviceAdmin: () -> Unit,
     onRevokeDeviceAdmin: () -> Unit,
+    onRequestBatteryOptimizationExemption: () -> Unit,
     onPickCustomImage: () -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
     onCoverModeChange: (CoverMode) -> Unit,
@@ -53,6 +57,10 @@ fun FaceGuardApp(
     onClearEnrollment: () -> Unit
 ) {
     FaceGuardTheme(themeMode = settings.themeMode) {
+        if (lastCrashReport != null) {
+            CrashReportDialog(report = lastCrashReport, onDismiss = onCrashReportDismissed)
+        }
+
         Surface(modifier = Modifier.fillMaxSize()) {
             if (showEnrollment) {
                 EnrollmentScreen(onComplete = onEnrollmentComplete, onCancel = onCancelEnrollment)
@@ -89,6 +97,7 @@ fun FaceGuardApp(
                             onRequestOverlayPermission = onRequestOverlayPermission,
                             onRequestDeviceAdmin = onRequestDeviceAdmin,
                             onRevokeDeviceAdmin = onRevokeDeviceAdmin,
+                            onRequestBatteryOptimizationExemption = onRequestBatteryOptimizationExemption,
                             onToggleMonitoring = onToggleMonitoring,
                             onStartEnrollment = onStartEnrollment,
                             onClearEnrollment = onClearEnrollment

@@ -45,6 +45,7 @@ fun MonitorScreen(
     onRequestOverlayPermission: () -> Unit,
     onRequestDeviceAdmin: () -> Unit,
     onRevokeDeviceAdmin: () -> Unit,
+    onRequestBatteryOptimizationExemption: () -> Unit,
     onToggleMonitoring: (Boolean) -> Unit,
     onStartEnrollment: () -> Unit,
     onClearEnrollment: () -> Unit
@@ -125,6 +126,16 @@ fun MonitorScreen(
                 granted = permissions.notificationsGranted,
                 actionLabel = "Concedi",
                 onAction = onRequestNotificationsPermission
+            )
+        }
+
+        item {
+            PermissionCard(
+                title = "Ottimizzazione batteria",
+                description = "Consigliata: evita che il telefono chiuda il monitoraggio in background per risparmiare energia.",
+                granted = permissions.batteryOptimizationIgnored,
+                actionLabel = "Escludi",
+                onAction = onRequestBatteryOptimizationExemption
             )
         }
 

@@ -34,6 +34,7 @@ import kotlinx.coroutines.launch
 class MainActivity : FragmentActivity() {
 
     private lateinit var settingsRepository: SettingsRepository
+    private lateinit var crashPrefs: android.content.SharedPreferences
     private val showEnrollment = mutableStateOf(false)
 
     private val requestCameraPermission =
@@ -44,6 +45,8 @@ class MainActivity : FragmentActivity() {
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
     private val requestDeviceAdmin =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
+    private val requestBatteryOptimizationExemption =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
     private val pickImage =
         registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
             if (uri != null) persistCustomImage(uri)
@@ -52,6 +55,9 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         settingsRepository = SettingsRepository(this)
+        crashPrefs = getSharedPreferences("crash_log_v1", MODE_PRIVATE)
+        installCrashHandler()
+        val lastCrash = crashPrefs.getString(KEY_LAST_CRASH, null)
 
         setContent {
             val settings by settingsRepository.settings.collectAsState(initial = AppSettings())
@@ -64,6 +70,8 @@ class MainActivity : FragmentActivity() {
                 permissions = permissions,
                 presenceState = presenceState,
                 showEnrollment = enrolling,
+                lastCrashReport = lastCrash,
+                onCrashReportDismissed = { crashPrefs.edit().remove(KEY_LAST_CRASH).apply() },
                 onRequestCameraPermission = {
                     requestCameraPermission.launch(android.Manifest.permission.CAMERA)
                 },
@@ -95,6 +103,13 @@ class MainActivity : FragmentActivity() {
                         getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
                     val adminComponent = ComponentName(this, FaceGuardDeviceAdminReceiver::class.java)
                     devicePolicyManager.removeActiveAdmin(adminComponent)
+                },
+                onRequestBatteryOptimizationExemption = {
+                    val intent = Intent(
+                        Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                        Uri.parse("package:$packageName")
+                    )
+                    requestBatteryOptimizationExemption.launch(intent)
                 },
                 onPickCustomImage = {
                     pickImage.launch(
@@ -153,6 +168,24 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    /**
+     * Records the last uncaught crash to SharedPreferences (not to any external service — see
+     * the "robustezza" discussion: real Crashlytics needs the user's own Firebase project) so
+     * it can be shown once, next launch, instead of silently vanishing from a debug APK with
+     * no attached debugger.
+     */
+    private fun installCrashHandler() {
+        val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            runCatching {
+                crashPrefs.edit()
+                    .putString(KEY_LAST_CRASH, throwable.stackTraceToString().take(6000))
+                    .commit()
+            }
+            previousHandler?.uncaughtException(thread, throwable)
+        }
+    }
+
     private fun persistCustomImage(uri: Uri) {
         runCatching {
             contentResolver.takePersistableUriPermission(
@@ -197,5 +230,9 @@ class MainActivity : FragmentActivity() {
                 .setAllowedAuthenticators(authenticators)
                 .build()
         )
+    }
+
+    companion object {
+        private const val KEY_LAST_CRASH = "last_crash"
     }
 }

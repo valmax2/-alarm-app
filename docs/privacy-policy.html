@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Informativa sulla privacy — FaceGuard</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+    line-height: 1.6;
+    color: #1a1f26;
+    background: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { color: #e7eef2; background: #0b1220; }
+    a { color: #6fd8de; }
+    hr { border-color: #24324a; }
+  }
+  h1 { font-size: 1.6rem; margin-bottom: 4px; }
+  .updated { color: #6b7280; font-size: 0.9rem; margin-bottom: 32px; }
+  h2 { font-size: 1.15rem; margin-top: 2.2em; }
+  ul { padding-left: 1.3em; }
+  li { margin-bottom: 0.4em; }
+  hr { margin: 3em 0; opacity: 0.4; }
+  code { font-size: 0.9em; }
+</style>
+</head>
+<body>
+
+<h1>Informativa sulla privacy di FaceGuard</h1>
+<p class="updated">Ultimo aggiornamento: 25 agosto 2026</p>
+
+<p>
+  FaceGuard è un'app Android che monitora la presenza dell'utente tramite la fotocamera
+  frontale e copre lo schermo quando il volto registrato non viene più riconosciuto. Questa
+  pagina spiega quali dati l'app tratta, come li tratta e perché.
+</p>
+
+<h2>Il principio di base: tutto resta sul telefono</h2>
+<p>
+  FaceGuard non ha un server, non ha un account utente e non invia alcun dato a internet.
+  Tutta l'elaborazione — rilevamento del volto, confronto con il profilo registrato,
+  attivazione della copertura — avviene esclusivamente sul dispositivo, anche offline.
+</p>
+
+<h2>Dati trattati</h2>
+<ul>
+  <li>
+    <strong>Immagini della fotocamera frontale.</strong> Ogni fotogramma viene analizzato
+    sul dispositivo per rilevare un volto e i suoi punti di riferimento (occhi, naso, bocca).
+    Nessun fotogramma o immagine viene salvato, archiviato o trasmesso: l'analisi avviene in
+    memoria e il risultato viene scartato subito dopo.
+  </li>
+  <li>
+    <strong>Profilo del volto registrato.</strong> Durante la registrazione, l'app calcola
+    un'"impronta" geometrica del volto (un insieme di numeri che descrivono le proporzioni tra
+    i punti del viso) — non un'immagine. Questa impronta viene salvata sul dispositivo,
+    <strong>cifrata con AES-256</strong> tramite una chiave che risiede nell'Android Keystore
+    del telefono e non è mai accessibile all'app stessa in chiaro, né esportabile.
+  </li>
+  <li>
+    <strong>Immagine personalizzata di copertura</strong> (facoltativa). Se scegli la modalità
+    "Immagine personalizzata", l'app accede all'immagine che selezioni dalla tua galleria solo
+    per mostrarla come copertura; l'immagine resta dove l'hai salvata tu, l'app non ne fa una
+    copia propria.
+  </li>
+  <li>
+    <strong>Preferenze dell'app</strong> (tema, modalità di copertura, soglia di tempo, stato
+    del monitoraggio) salvate localmente sul dispositivo.
+  </li>
+</ul>
+
+<h2>Cosa NON facciamo</h2>
+<ul>
+  <li>Non raccogliamo, non trasmettiamo e non vendiamo alcun dato a terzi.</li>
+  <li>Non usiamo pubblicità né tracciamento pubblicitario.</li>
+  <li>Non carichiamo immagini, volti o impronte su alcun server: l'app non ha connessione
+    a un backend proprio.</li>
+  <li>Non condividiamo i dati con altre app installate sul dispositivo.</li>
+</ul>
+
+<h2>Permessi richiesti e a cosa servono</h2>
+<ul>
+  <li><strong>Fotocamera</strong> — per rilevare la presenza del volto.</li>
+  <li><strong>Notifiche</strong> — per mostrare lo stato del monitoraggio nella notifica
+    persistente del servizio in background, come richiesto da Android per i servizi in
+    foreground.</li>
+  <li><strong>Disegna sopra le altre app</strong> — per mostrare la copertura (schermo nero
+    o immagine) sopra qualunque app aperta.</li>
+  <li><strong>Amministratore dispositivo</strong> (facoltativo, solo se scegli la modalità
+    "Blocco schermo") — per bloccare immediatamente lo schermo tramite le API di sistema
+    Android, richiedendo poi lo sblocco di sicurezza già configurato sul telefono
+    (PIN/impronta/Face Unlock di sistema).</li>
+  <li><strong>Impronta/riconoscimento biometrico di sistema</strong> — usato solo per
+    confermare che sei il proprietario del dispositivo prima di registrare o sostituire il
+    profilo del volto.</li>
+</ul>
+
+<h2>Conservazione ed eliminazione dei dati</h2>
+<p>
+  Il profilo del volto e le preferenze restano sul dispositivo finché non li elimini tu, dalla
+  schermata dell'app ("Cancella registrazione") o disinstallando l'app — la disinstallazione
+  rimuove automaticamente tutti i dati salvati da FaceGuard, poiché non esistono copie altrove.
+</p>
+
+<h2>Minori</h2>
+<p>
+  FaceGuard non è rivolta a bambini e non raccoglie consapevolmente dati di minori di 13 anni.
+</p>
+
+<h2>Modifiche a questa informativa</h2>
+<p>
+  Eventuali modifiche future verranno pubblicate su questa stessa pagina, con la data di
+  aggiornamento in alto.
+</p>
+
+<h2>Contatti</h2>
+<p>
+  Per domande su questa informativa o sul trattamento dei dati puoi scrivere a:
+  <a href="mailto:valmax2@gmail.com">valmax2@gmail.com</a>
+</p>
+
+<hr>
+<p style="color:#6b7280; font-size: 0.85rem;">
+  FaceGuard è un'app indipendente pubblicata dallo sviluppatore individuale che gestisce questo
+  repository. Questa pagina è disponibile pubblicamente come richiesto da Google Play per le
+  app che utilizzano permessi sensibili come fotocamera e dati biometrici.
+</p>
+
+</body>
+</html>

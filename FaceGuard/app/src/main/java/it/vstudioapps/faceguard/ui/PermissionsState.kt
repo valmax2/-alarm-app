@@ -6,6 +6,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -25,7 +26,8 @@ data class PermissionsState(
     val cameraGranted: Boolean,
     val notificationsGranted: Boolean,
     val overlayGranted: Boolean,
-    val deviceAdminActive: Boolean
+    val deviceAdminActive: Boolean,
+    val batteryOptimizationIgnored: Boolean
 ) {
     /** Camera + notifications are all that's needed to start monitoring at all. */
     val canStartMonitoring: Boolean get() = cameraGranted && notificationsGranted
@@ -44,8 +46,16 @@ private fun snapshot(context: Context): PermissionsState {
     val devicePolicyManager = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
     val adminComponent = ComponentName(context, FaceGuardDeviceAdminReceiver::class.java)
     val deviceAdminActive = devicePolicyManager.isAdminActive(adminComponent)
+    val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+    val batteryOptimizationIgnored = powerManager.isIgnoringBatteryOptimizations(context.packageName)
 
-    return PermissionsState(cameraGranted, notificationsGranted, overlayGranted, deviceAdminActive)
+    return PermissionsState(
+        cameraGranted,
+        notificationsGranted,
+        overlayGranted,
+        deviceAdminActive,
+        batteryOptimizationIgnored
+    )
 }
 
 /**
