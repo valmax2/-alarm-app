@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup disableIfNoEncryptionCapabilities="true">
+        <!-- La chiave dell'abbonamento AI e i token Drive vivono in queste sharedpref cifrate
+             con Android Keystore: la chiave non e' esportabile, quindi un ripristino su un
+             altro dispositivo non potrebbe comunque decifrarle. Le escludiamo dal backup
+             invece di lasciare che il ripristino fallisca in silenzio. -->
+        <exclude domain="sharedpref" path="secure_credentials.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="secure_credentials.xml" />
+    </device-transfer>
+</data-extraction-rules>

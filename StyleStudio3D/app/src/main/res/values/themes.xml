@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.StyleStudio3D" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">#241B2F</item>
+        <item name="android:navigationBarColor">#241B2F</item>
+    </style>
+</resources>

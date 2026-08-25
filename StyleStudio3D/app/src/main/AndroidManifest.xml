@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Sincronizzazione Google Drive e adapter AI (BYO abbonamento) hanno bisogno di rete. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Nessun permesso di storage/fotocamera richiesto: il caricamento foto usa il Photo
+         Picker di sistema (androidx PickVisualMedia), che su Android 11+ funziona senza
+         alcun permesso runtime; su versioni precedenti ricade sul selettore documenti. -->
+
+    <queries>
+        <!-- Visibilita' dei motori TTS installati, richiesta da Android 11+ per poter
+             scegliere una voce naturale diversa da quella di sistema. -->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+        <!-- Visibilita' delle app Meta per l'esportazione mirata dello scatto finale
+             (altrimenti si ricade sulla Sharesheet generica di Android). -->
+        <package android:name="com.instagram.android" />
+        <package android:name="com.facebook.katana" />
+        <package android:name="com.whatsapp" />
+    </queries>
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.StyleStudio3D">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Espone lo scatto finale generato in Studio Fotografico alla Sharesheet
+             (esportazione verso l'IA video di Meta o altre app) senza concedere accesso
+             diretto al file system privato dell'app. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.share"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+</manifest>

@@ -1,0 +1,11 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Motivo astratto "gemma sfaccettata": richiama la resa 3D e lo studio fotografico
+         senza legarsi a un genere o a un capo d'abbigliamento specifico. -->
+    <path android:fillColor="#C9A063" android:pathData="M54,20 L82,44 L54,88 L26,44 Z" />
+    <path android:fillColor="#E8D2A0" android:pathData="M54,20 L82,44 L54,52 Z" />
+    <path android:fillColor="#B8905A" android:pathData="M54,20 L26,44 L54,52 Z" />
+    <path android:fillColor="#8E6A3F" android:pathData="M26,44 L54,88 L54,52 Z" />
+    <path android:fillColor="#D9B679" android:pathData="M82,44 L54,88 L54,52 Z" />
+</vector>
