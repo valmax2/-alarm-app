@@ -18,6 +18,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -54,6 +58,9 @@ import it.vstudioapps.faceguard.util.loadImageBitmap
 @Composable
 fun SettingsScreen(
     settings: AppSettings,
+    isPro: Boolean,
+    proPriceLabel: String?,
+    onPurchasePro: () -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
     onCoverModeChange: (CoverMode) -> Unit,
     onThresholdChange: (Int) -> Unit,
@@ -77,7 +84,8 @@ fun SettingsScreen(
                     title = "Immagine personalizzata",
                     description = "Mostra un'immagine a tua scelta a schermo intero.",
                     selected = settings.coverMode == CoverMode.CUSTOM_IMAGE,
-                    onSelect = { onCoverModeChange(CoverMode.CUSTOM_IMAGE) }
+                    locked = !isPro,
+                    onSelect = { if (isPro) onCoverModeChange(CoverMode.CUSTOM_IMAGE) else onPurchasePro() }
                 )
                 CoverModeOption(
                     icon = Icons.Filled.DarkMode,
@@ -91,12 +99,17 @@ fun SettingsScreen(
                     title = "Blocco schermo",
                     description = "Blocca subito il dispositivo: serve lo sblocco di sicurezza per riprenderlo.",
                     selected = settings.coverMode == CoverMode.LOCK_SCREEN,
-                    onSelect = { onCoverModeChange(CoverMode.LOCK_SCREEN) }
+                    locked = !isPro,
+                    onSelect = { if (isPro) onCoverModeChange(CoverMode.LOCK_SCREEN) else onPurchasePro() }
                 )
             }
         }
 
-        if (settings.coverMode == CoverMode.CUSTOM_IMAGE) {
+        if (!isPro) {
+            item { ProUpsellCard(priceLabel = proPriceLabel, onPurchase = onPurchasePro) }
+        }
+
+        if (isPro && settings.coverMode == CoverMode.CUSTOM_IMAGE) {
             item {
                 CustomImagePicker(imageUri = settings.customImageUri, onPickCustomImage = onPickCustomImage)
             }
@@ -105,6 +118,33 @@ fun SettingsScreen(
         item {
             SectionTitle("Tempo di assenza")
             ThresholdSlider(seconds = settings.absenceThresholdSeconds, onChange = onThresholdChange)
+        }
+    }
+}
+
+@Composable
+private fun ProUpsellCard(priceLabel: String?, onPurchase: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(imageVector = Icons.Filled.WorkspacePremium, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(text = "FaceGuard Pro", style = MaterialTheme.typography.titleMedium)
+            }
+            Text(
+                text = "Sblocca la copertura con immagine personalizzata e il blocco schermo " +
+                    "immediato, con un acquisto unico — nessun abbonamento.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            Button(onClick = onPurchase, modifier = Modifier.fillMaxWidth()) {
+                Text(if (priceLabel != null) "Sblocca — $priceLabel" else "Sblocca FaceGuard Pro")
+            }
         }
     }
 }

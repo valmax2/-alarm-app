@@ -123,6 +123,13 @@ dependencies {
     // a current fragment version here wins Gradle's dependency resolution and fixes it.
     implementation("androidx.fragment:fragment-ktx:1.8.5")
 
+    // One-time "FaceGuard Pro" unlock (custom-image + lock-screen cover modes). See
+    // billing/BillingRepository.kt — needs a matching in-app product created in Play Console
+    // before it can be tested end to end. Google periodically requires newer major Billing
+    // Library versions for new Play Console submissions — check Play Console's current
+    // requirement before release and bump this if needed.
+    implementation("com.android.billingclient:billing-ktx:5.2.1")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 

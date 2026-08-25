@@ -26,6 +26,7 @@ class SettingsRepository(private val context: Context) {
         val CUSTOM_IMAGE_URI = stringPreferencesKey("custom_image_uri")
         val MONITORING_ENABLED = booleanPreferencesKey("monitoring_enabled")
         val OWNER_FACE_SIGNATURE = stringPreferencesKey("owner_face_signature")
+        val IS_PRO = booleanPreferencesKey("is_pro")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { prefs ->
@@ -39,7 +40,8 @@ class SettingsRepository(private val context: Context) {
             monitoringEnabled = prefs[Keys.MONITORING_ENABLED] ?: false,
             ownerFaceSignature = prefs[Keys.OWNER_FACE_SIGNATURE]
                 ?.let { FaceSignatureCrypto.decrypt(it) }
-                ?.let { FaceSignature.fromStorageString(it) }
+                ?.let { FaceSignature.fromStorageString(it) },
+            isPro = prefs[Keys.IS_PRO] ?: false
         )
     }
 
@@ -72,5 +74,11 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun clearOwnerFaceSignature() {
         context.dataStore.edit { it.remove(Keys.OWNER_FACE_SIGNATURE) }
+    }
+
+    /** Mirrors BillingRepository's entitlement check locally, so the background service —
+     *  which has no access to BillingClient itself — can enforce the Pro gate too. */
+    suspend fun setProEntitlement(entitled: Boolean) {
+        context.dataStore.edit { it[Keys.IS_PRO] = entitled }
     }
 }

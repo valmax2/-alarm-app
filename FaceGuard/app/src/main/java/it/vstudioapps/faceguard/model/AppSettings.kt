@@ -8,7 +8,15 @@ data class AppSettings(
     val customImageUri: String? = null,
     val monitoringEnabled: Boolean = false,
     /** Geometric signature of the device owner's face (see [FaceSignature]); null = not enrolled. */
-    val ownerFaceSignature: FaceSignature? = null
+    val ownerFaceSignature: FaceSignature? = null,
+    /**
+     * Cached mirror of BillingRepository's entitlement check, refreshed whenever the Activity
+     * observes it change. Read by [it.vstudioapps.faceguard.service.PresenceMonitorService] to
+     * enforce the Pro gate at the moment a cover mode actually engages — not just at selection
+     * time in Settings — so a lapsed entitlement (e.g. a refund) can't leave a Pro-only cover
+     * mode still active.
+     */
+    val isPro: Boolean = false
 ) {
     companion object {
         const val DEFAULT_THRESHOLD_SECONDS = 10

@@ -215,7 +215,19 @@ class PresenceMonitorService : LifecycleService() {
 
     private fun triggerCover() {
         coverTriggered = true
-        when (currentSettings.coverMode) {
+
+        // Custom image and lock screen are Pro-only. Settings UI already keeps a non-Pro user
+        // from selecting them, but entitlement can lapse after selection (e.g. a refund) — so
+        // it's re-checked here too, at the moment the mode actually engages, not just at
+        // selection time. A lapsed entitlement falls back to the free black-screen cover rather
+        // than silently keeping the screen uncovered.
+        val effectiveMode = if (!currentSettings.isPro && currentSettings.coverMode != CoverMode.BLACK_SCREEN) {
+            CoverMode.BLACK_SCREEN
+        } else {
+            currentSettings.coverMode
+        }
+
+        when (effectiveMode) {
             CoverMode.LOCK_SCREEN -> {
                 if (devicePolicyManager.isAdminActive(adminComponent)) {
                     runCatching { devicePolicyManager.lockNow() }
@@ -223,11 +235,11 @@ class PresenceMonitorService : LifecycleService() {
             }
             CoverMode.BLACK_SCREEN, CoverMode.CUSTOM_IMAGE -> {
                 if (Settings.canDrawOverlays(this)) {
-                    overlayController.show(currentSettings.coverMode, currentSettings.customImageUri)
+                    overlayController.show(effectiveMode, currentSettings.customImageUri)
                 }
             }
         }
-        PresenceStatusBus.update { it.copy(coverActive = overlayController.isShowing || currentSettings.coverMode == CoverMode.LOCK_SCREEN) }
+        PresenceStatusBus.update { it.copy(coverActive = overlayController.isShowing || effectiveMode == CoverMode.LOCK_SCREEN) }
         updateNotification(ownerRecognized = false, strangerDetected = false)
     }
 

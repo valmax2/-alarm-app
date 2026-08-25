@@ -12,6 +12,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -19,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
+import it.vstudioapps.faceguard.billing.BillingRepository
 import it.vstudioapps.faceguard.data.SettingsRepository
 import it.vstudioapps.faceguard.model.AppSettings
 import it.vstudioapps.faceguard.model.FaceSignature
@@ -34,6 +36,7 @@ import kotlinx.coroutines.launch
 class MainActivity : FragmentActivity() {
 
     private lateinit var settingsRepository: SettingsRepository
+    private lateinit var billingRepository: BillingRepository
     private lateinit var crashPrefs: android.content.SharedPreferences
     private val showEnrollment = mutableStateOf(false)
 
@@ -55,6 +58,8 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         settingsRepository = SettingsRepository(this)
+        billingRepository = BillingRepository(this)
+        billingRepository.connect()
         crashPrefs = getSharedPreferences("crash_log_v1", MODE_PRIVATE)
         installCrashHandler()
         val lastCrash = crashPrefs.getString(KEY_LAST_CRASH, null)
@@ -62,14 +67,25 @@ class MainActivity : FragmentActivity() {
         setContent {
             val settings by settingsRepository.settings.collectAsState(initial = AppSettings())
             val presenceState by PresenceStatusBus.state.collectAsState()
+            val isPro by billingRepository.isPro.collectAsState()
+            val proPriceLabel by billingRepository.proPriceLabel.collectAsState()
             val permissions = rememberPermissionsState()
             val enrolling by showEnrollment
+
+            // Mirrors Billing's entitlement into DataStore: PresenceMonitorService has no
+            // access to BillingClient itself, so this is how it finds out the Pro state at all.
+            LaunchedEffect(isPro) {
+                settingsRepository.setProEntitlement(isPro)
+            }
 
             FaceGuardApp(
                 settings = settings,
                 permissions = permissions,
                 presenceState = presenceState,
                 showEnrollment = enrolling,
+                isPro = isPro,
+                onPurchasePro = { billingRepository.launchPurchase(this) },
+                proPriceLabel = proPriceLabel,
                 lastCrashReport = lastCrash,
                 onCrashReportDismissed = { crashPrefs.edit().remove(KEY_LAST_CRASH).apply() },
                 onRequestCameraPermission = {
@@ -150,6 +166,11 @@ class MainActivity : FragmentActivity() {
                 }
             )
         }
+    }
+
+    override fun onDestroy() {
+        billingRepository.disconnect()
+        super.onDestroy()
     }
 
     /**

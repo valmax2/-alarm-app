@@ -38,6 +38,9 @@ fun FaceGuardApp(
     permissions: PermissionsState,
     presenceState: PresenceUiState,
     showEnrollment: Boolean,
+    isPro: Boolean,
+    proPriceLabel: String?,
+    onPurchasePro: () -> Unit,
     lastCrashReport: String?,
     onCrashReportDismissed: () -> Unit,
     onRequestCameraPermission: () -> Unit,
@@ -104,6 +107,9 @@ fun FaceGuardApp(
                         )
                         else -> SettingsScreen(
                             settings = settings,
+                            isPro = isPro,
+                            proPriceLabel = proPriceLabel,
+                            onPurchasePro = onPurchasePro,
                             onThemeModeChange = onThemeModeChange,
                             onCoverModeChange = onCoverModeChange,
                             onThresholdChange = onThresholdChange,
