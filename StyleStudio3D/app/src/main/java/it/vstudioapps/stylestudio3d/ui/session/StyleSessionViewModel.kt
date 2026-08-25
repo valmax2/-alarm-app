@@ -2,10 +2,12 @@ package it.vstudioapps.stylestudio3d.ui.session
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import it.vstudioapps.stylestudio3d.R
 import it.vstudioapps.stylestudio3d.data.GenerationHistoryRepository
 import it.vstudioapps.stylestudio3d.data.StyleCatalogRepository
 import it.vstudioapps.stylestudio3d.data.WardrobeRepository
@@ -191,8 +193,9 @@ class StyleSessionViewModel(
                     StudioCompositor.componi(fotoModificata, statoAttuale.studioSpec) to
                         (statoAttuale.fonteFotoUtente ?: GenerationSource.ANTEPRIMA_LOCALE)
                 } else {
-                    val bitmap = android.graphics.Bitmap.createBitmap(1080, 1440, android.graphics.Bitmap.Config.ARGB_8888)
-                    MannequinRenderer.disegna(android.graphics.Canvas(bitmap), 1080, 1440, parametriManichino(statoAttuale))
+                    val immagineCorpo = BitmapFactory.decodeResource(appContext.resources, R.drawable.mannequin_front)
+                    val bitmap = Bitmap.createBitmap(1080, 1440, Bitmap.Config.ARGB_8888)
+                    MannequinRenderer.disegna(android.graphics.Canvas(bitmap), 1080, 1440, parametriManichino(statoAttuale), immagineCorpo)
                     bitmap to GenerationSource.ANTEPRIMA_LOCALE
                 }
             }

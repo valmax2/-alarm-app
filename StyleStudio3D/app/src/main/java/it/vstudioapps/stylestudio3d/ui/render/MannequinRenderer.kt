@@ -1,10 +1,13 @@
 package it.vstudioapps.stylestudio3d.ui.render
 
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
 import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
@@ -14,6 +17,7 @@ import it.vstudioapps.stylestudio3d.domain.model.StyleLength
 import it.vstudioapps.stylestudio3d.domain.model.StyleVolume
 import kotlin.math.cos
 import kotlin.math.max
+import kotlin.math.min
 
 /**
  * Disegna il manichino "stile turntable": una silhouette procedurale a figura intera, non un
@@ -27,7 +31,13 @@ import kotlin.math.max
  */
 object MannequinRenderer {
 
-    fun disegna(canvas: Canvas, larghezzaPx: Int, altezzaPx: Int, parametri: MannequinParams) {
+    /**
+     * [immagineCorpoFrontale] e' un asset reale (illustrazione del corpo base, vedi
+     * res/drawable-nodpi/mannequin_front.png) usato al posto della silhouette procedurale quando
+     * la rotazione e' vicina al frontale — finche' non arrivano anche le viste a tre-quarti e di
+     * profilo, oltre quell'angolo si ricade sul disegno procedurale.
+     */
+    fun disegna(canvas: Canvas, larghezzaPx: Int, altezzaPx: Int, parametri: MannequinParams, immagineCorpoFrontale: Bitmap? = null) {
         val w = larghezzaPx.toFloat()
         val h = altezzaPx.toFloat()
 
@@ -41,12 +51,18 @@ object MannequinRenderer {
         canvas.save()
         canvas.scale(scalaRotazione, 1f, centroX, h)
 
-        disegnaCorpo(canvas, w, h, centroX, parametri)
+        if (immagineCorpoFrontale != null && kotlin.math.abs(parametri.rotazioneGradi) <= SOGLIA_GRADI_IMMAGINE_FRONTALE) {
+            disegnaCorpoConImmagine(canvas, w, h, immagineCorpoFrontale, parametri)
+        } else {
+            disegnaCorpo(canvas, w, h, centroX, parametri)
+        }
         canvas.restore()
         canvas.restore()
 
         applicaIlluminazione(canvas, w, h, parametri.illuminazione)
     }
+
+    private const val SOGLIA_GRADI_IMMAGINE_FRONTALE = 25f
 
     /**
      * Tinta di luce + vignettatura: pubblica cosi' [it.vstudioapps.stylestudio3d.ui.studio.StudioCompositor]
@@ -192,6 +208,75 @@ object MannequinRenderer {
         disegnaBarba(canvas, cx, yTesta, raggioTesta, p)
         disegnaCapelli(canvas, cx, yTesta, raggioTesta, p)
         disegnaTrucco(canvas, cx, yTesta, raggioTesta, p)
+    }
+
+    /**
+     * Corpo disegnato a partire dall'illustrazione reale invece delle forme geometriche. Le zone
+     * di colore (capelli/barba/trucco/outfit) sono rettangoli approssimativi calibrati sulle
+     * proporzioni misurate dell'immagine (vedi commit): non serve che coincidano pixel-per-pixel
+     * col contorno del corpo perche' sono disegnati in blend "moltiplica" — dove il corpo e'
+     * trasparente il colore non si vede, dove c'e' il corpo la sua ombreggiatura naturale resta
+     * visibile sotto la tinta, invece di un blocco di colore piatto.
+     */
+    private fun disegnaCorpoConImmagine(canvas: Canvas, w: Float, h: Float, immagine: Bitmap, p: MannequinParams) {
+        val bw = immagine.width.toFloat()
+        val bh = immagine.height.toFloat()
+        val scala = min(w / bw, h / bh)
+        val disegnoW = bw * scala
+        val disegnoH = bh * scala
+        val offsetX = (w - disegnoW) / 2f
+        val offsetY = (h - disegnoH) / 2f
+        fun px(fx: Float) = offsetX + fx * disegnoW
+        fun py(fy: Float) = offsetY + fy * disegnoH
+        fun zona(fx0: Float, fy0: Float, fx1: Float, fy1: Float) = RectF(px(fx0), py(fy0), px(fx1), py(fy1))
+
+        val paintOmbra = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(90, 0, 0, 0) }
+        canvas.drawOval(zona(0.30f, 0.975f, 0.70f, 1.01f), paintOmbra)
+
+        canvas.drawBitmap(immagine, null, RectF(offsetX, offsetY, offsetX + disegnoW, offsetY + disegnoH), Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
+
+        val tinta = Paint(Paint.ANTI_ALIAS_FLAG).apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.MULTIPLY) }
+        fun coloraZona(rect: RectF, colore: Int) {
+            tinta.color = colore
+            canvas.drawRect(rect, tinta)
+        }
+
+        // Outfit: rettangoli larghi sulle zone del corpo, il blend "moltiplica" li ritaglia da solo alla silhouette.
+        p.colorePantaloni?.let { coloraZona(zona(0.34f, 0.555f, 0.66f, 0.905f), coloreSicuro(it, Color.DKGRAY)) }
+        (p.coloreAbito ?: p.coloreTop)?.let {
+            val yFine = if (p.coloreAbito != null) 0.56f else 0.40f
+            coloraZona(zona(0.30f, 0.17f, 0.70f, yFine), coloreSicuro(it, Color.GRAY))
+        }
+        p.coloreOuterwear?.let { coloraZona(zona(0.26f, 0.155f, 0.74f, 0.42f), coloreSicuro(it, Color.DKGRAY)) }
+        p.coloreScarpe?.let { coloraZona(zona(0.36f, 0.905f, 0.64f, 0.985f), coloreSicuro(it, Color.BLACK)) }
+
+        p.capelli?.let { attributi ->
+            val estensione = when (attributi.length) {
+                StyleLength.RASATO, StyleLength.CORTISSIMO -> 0.13f
+                StyleLength.CORTO -> 0.20f
+                StyleLength.MEDIO -> 0.32f
+                StyleLength.LUNGO -> 0.48f
+                StyleLength.EXTRA_LUNGO -> 0.60f
+            }
+            val largo = when (attributi.volume) {
+                StyleVolume.PIATTO -> 0.30f
+                StyleVolume.NATURALE -> 0.34f
+                StyleVolume.VOLUMINOSO -> 0.40f
+                StyleVolume.SCOLPITO -> 0.36f
+            }
+            coloraZona(zona(0.5f - largo / 2f, 0f, 0.5f + largo / 2f, estensione), coloreSicuro(attributi.colorHex, Color.BLACK))
+        }
+        p.barba?.let { attributi ->
+            if (attributi.length != StyleLength.RASATO) {
+                coloraZona(zona(0.38f, 0.11f, 0.62f, 0.165f), coloreSicuro(attributi.colorHex, Color.DKGRAY))
+            }
+        }
+        p.trucco?.let { attributi ->
+            val colore = coloreSicuro(attributi.colorHex, Color.MAGENTA)
+            coloraZona(zona(0.41f, 0.072f, 0.47f, 0.09f), colore)
+            coloraZona(zona(0.53f, 0.072f, 0.59f, 0.09f), colore)
+            coloraZona(zona(0.46f, 0.113f, 0.54f, 0.128f), colore)
+        }
     }
 
     private fun disegnaCapelli(canvas: Canvas, cx: Float, yTesta: Float, raggioTesta: Float, p: MannequinParams) {
