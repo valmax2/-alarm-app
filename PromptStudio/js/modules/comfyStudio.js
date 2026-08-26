@@ -43,6 +43,7 @@ export async function render(container, params, { navigate, setHeader }) {
 function renderHub(container, navigate) {
   const bridge = getBridgeConfig();
   const wf = getActiveWorkflow();
+  const proj = getProject();
 
   container.innerHTML = `
     <div class="card">
@@ -51,6 +52,7 @@ function renderHub(container, navigate) {
         ? `🟢 Connesso — ${bridge.baseUrl}`
         : "🔴 Non connesso. Avvia AVVIA_BRIDGE.bat sul PC e configura la connessione."}</p>
     </div>
+    ${nextStepBannerHtml(wf, proj)}
     <div class="big-choices">
       <div class="big-choice" id="cConfig"><div class="ico">⚙️</div><div class="title">CONFIGURAZIONE</div><div class="desc">Bridge, cartella ComfyUI, cartella personale</div></div>
       <div class="big-choice" id="cInventory"><div class="ico">📦</div><div class="title">INVENTARIO</div><div class="desc">Nodi, checkpoint, LoRA, VAE, ControlNet...</div></div>
@@ -64,6 +66,31 @@ function renderHub(container, navigate) {
   container.querySelector("#cWorkflows").addEventListener("click", () => navigate("/comfy/workflows"));
   container.querySelector("#cEditor").addEventListener("click", () => navigate("/comfy/editor"));
   container.querySelector("#cGenerate").addEventListener("click", () => navigate("/comfy/generate"));
+
+  const nextBtn = container.querySelector("#nextStepBtn");
+  if (nextBtn) nextBtn.addEventListener("click", () => navigate(nextBtn.dataset.goto));
+}
+
+/**
+ * Always tells the user the ONE next action, so arriving here after
+ * building a character never leaves them wondering where to go: pick a
+ * workflow -> put the prompt into it -> generate.
+ */
+function nextStepBannerHtml(wf, proj) {
+  let step;
+  if (!wf) {
+    step = { label: "① Scegli un workflow", desc: "Nessun workflow selezionato: vai nella libreria e scegline (o importane) uno.", goto: "/comfy/workflows", cta: "Vai alla Libreria Workflow" };
+  } else if (wf.filledForProjectId !== proj.id) {
+    step = { label: "② Inserisci il tuo prompt nel workflow", desc: `Hai scelto "${wf.name}", ma non contiene ancora il prompt del personaggio che hai creato.`, goto: "/comfy/editor", cta: "Apri l'Editor e inserisci il prompt" };
+  } else {
+    step = { label: "③ Genera l'immagine", desc: `"${wf.name}" ha già il tuo prompt: sei pronto per generare.`, goto: "/comfy/generate", cta: "🚀 Vai a Genera" };
+  }
+  return `
+    <div class="card" style="border-color:var(--gold);">
+      <h3>${step.label}</h3>
+      <p class="muted">${step.desc}</p>
+      <button class="btn btn-primary" id="nextStepBtn" data-goto="${step.goto}">${step.cta}</button>
+    </div>`;
 }
 
 // ---------------- CONFIGURAZIONE ----------------
@@ -369,18 +396,29 @@ async function renderEditor(container, navigate) {
 
   if (params.textPrompts.length) {
     const box = sectionCard("Prompt");
+    const proj = getProject();
+    const alreadyFilled = wf.filledForProjectId === proj.id;
+    const fillHint = document.createElement("p");
+    fillHint.className = "faint";
+    fillHint.style.marginTop = "-4px";
+    fillHint.textContent = alreadyFilled
+      ? "✅ Il prompt del tuo progetto è già stato inserito qui sotto."
+      : "Questo workflow ha ancora il suo testo originale. Premi il pulsante per sostituirlo con il prompt che hai creato nel percorso guidato.";
+    box.appendChild(fillHint);
     params.textPrompts.forEach((p) => {
       box.appendChild(textAreaRow(`${p.title} ${p.role !== "unknown" ? `(${p.role === "positive" ? "positivo" : "negativo"})` : ""}`, p.text || "", (v) => { setNodeInput(wf.json, p.nodeId, "text", v); persist(wf); }));
     });
     const fillBtn = document.createElement("button");
-    fillBtn.className = "btn btn-sm";
+    fillBtn.className = alreadyFilled ? "btn btn-sm" : "btn btn-primary";
     fillBtn.textContent = "⬇️ Riempi da Prompt Studio (Module 1)";
     fillBtn.addEventListener("click", async () => {
       params.textPrompts.forEach((p) => {
         const text = p.role === "negative" ? getNegativePrompt() : getPositivePrompt();
         setNodeInput(wf.json, p.nodeId, "text", text);
       });
+      wf.filledForProjectId = proj.id;
       persist(wf);
+      toast("Prompt inserito nel workflow.");
       await renderEditor(container, navigate);
     });
     box.appendChild(fillBtn);
