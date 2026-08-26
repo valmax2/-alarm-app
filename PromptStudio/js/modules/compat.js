@@ -7,7 +7,13 @@
 
 const FAMILY_PATTERNS = [
   { family: "FLUX", patterns: [/flux/i, /\bfl1\b/i] },
-  { family: "SDXL", patterns: [/sdxl/i, /xl[-_. ]?base/i, /xl[-_. ]?turbo/i, /pony/i] },
+  {
+    family: "SDXL",
+    // "XL" alone (JuggernautXL, epicrealismXL...) is the community's most
+    // common way to name an SDXL checkpoint — catch it as a suffix/word
+    // chunk, not just the explicit "sdxl"/"xl base"/"xl turbo" spellings.
+    patterns: [/sdxl/i, /xl[-_. ]?base/i, /xl[-_. ]?turbo/i, /pony/i, /xl(?=[-_. ]|$)/i],
+  },
   { family: "SD 1.5", patterns: [/\bsd1[-_. ]?5\b/i, /\bsd15\b/i, /v1-5/i] },
   { family: "WAN", patterns: [/\bwan\b/i, /wan2[-_.]?[12]/i] },
   { family: "Qwen", patterns: [/qwen/i] },

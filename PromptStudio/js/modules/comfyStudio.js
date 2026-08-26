@@ -316,10 +316,17 @@ async function renderEditor(container, navigate) {
 
   if (params.checkpoints.length) {
     const box = sectionCard("Checkpoint");
+    if (checkpointNames && checkpointNames.length) {
+      const hint = document.createElement("p");
+      hint.className = "faint";
+      hint.style.marginTop = "-4px";
+      hint.textContent = "Elenco raggruppato per famiglia rilevata dal nome del file — è un'euristica sul nome, non una verifica reale: i checkpoint la cui famiglia non è riconoscibile restano in \"❓ Famiglia non determinabile\", mai marcati a caso.";
+      box.appendChild(hint);
+    }
     params.checkpoints.forEach((c) => {
       const fam = detectFamily({ name: c.value || "" });
       const onChange = (v) => { setNodeInput(wf.json, c.nodeId, "ckpt_name", v); persist(wf); };
-      const row = checkpointNames ? selectRow(c.title, c.value, checkpointNames, onChange) : fieldRow(c.title, c.value, onChange);
+      const row = checkpointNames ? selectRowByFamily(c.title, c.value, checkpointNames, fam.family, onChange) : fieldRow(c.title, c.value, onChange);
       row.appendChild(compatBadge(fam));
       box.appendChild(row);
     });
@@ -590,6 +597,72 @@ function selectRowGrouped(label, value, options, ckptFam, onChange) {
     const og = document.createElement("optgroup");
     og.label = groupLabel;
     groups[level].forEach((name) => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      if (name === value) opt.selected = true;
+      og.appendChild(opt);
+    });
+    select.appendChild(og);
+  });
+  if (!names.length) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "(nessun modello trovato — vai in Inventario)";
+    select.appendChild(opt);
+  }
+
+  select.addEventListener("change", () => onChange(select.value));
+  row.appendChild(span);
+  row.appendChild(select);
+  return row;
+}
+
+/**
+ * Groups checkpoint options by their OWN detected family via <optgroup> —
+ * there's no single "reference" to compare a checkpoint against (it IS
+ * the family), so this clusters look-alikes together instead of dumping
+ * every model in one flat alphabetical list. The family matching the
+ * currently-set checkpoint (if any) is pinned first.
+ */
+function selectRowByFamily(label, value, options, currentFamily, onChange) {
+  const row = document.createElement("div");
+  row.className = "row";
+  row.style.justifyContent = "space-between";
+  row.style.marginBottom = "8px";
+  row.style.flexWrap = "wrap";
+  const span = document.createElement("span");
+  span.textContent = label;
+  span.style.flex = "1 1 auto";
+  const select = document.createElement("select");
+  select.style.maxWidth = "240px";
+  select.style.background = "var(--bg-elev-2)";
+  select.style.border = "1px solid rgba(201,160,99,.3)";
+  select.style.color = "var(--text)";
+  select.style.borderRadius = "8px";
+  select.style.padding = "6px 8px";
+
+  const names = [...new Set(options)];
+  if (value && !names.includes(value)) names.unshift(value);
+
+  const byFamily = new Map();
+  names.forEach((name) => {
+    const fam = detectFamily({ name }).family;
+    if (!byFamily.has(fam)) byFamily.set(fam, []);
+    byFamily.get(fam).push(name);
+  });
+
+  const order = [...byFamily.keys()].filter((f) => f !== "unknown").sort((a, b) => {
+    if (a === currentFamily) return -1;
+    if (b === currentFamily) return 1;
+    return a.localeCompare(b);
+  });
+  if (byFamily.has("unknown")) order.push("unknown");
+
+  order.forEach((fam) => {
+    const og = document.createElement("optgroup");
+    og.label = fam === "unknown" ? "❓ Famiglia non determinabile" : fam === currentFamily ? `✅ ${fam} (stessa famiglia)` : fam;
+    byFamily.get(fam).forEach((name) => {
       const opt = document.createElement("option");
       opt.value = name;
       opt.textContent = name;
