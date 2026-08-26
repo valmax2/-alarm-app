@@ -7,7 +7,8 @@
 
 import {
   getProject, setPersona, toggleSelection, isSelected, getCategoriesFor,
-  setFaceMode, setReferenceImage, setIdentityLock, setHairMode, setCustomField,
+  setFaceMode, setReferenceImage, setReferenceImageHidden, setIdentityLock,
+  setHairMode, setCustomField,
   setDestination, setNegativeText, getNegativePrompt, getPositivePrompt,
   setPositiveManualText, clearPositiveManualOverride, toggleNegativeFragment,
   isNegativeFragmentActive,
@@ -198,18 +199,37 @@ function renderReferenceUpload(container, onChanged) {
 
   async function drawPreview() {
     preview.innerHTML = "";
-    if (p.referenceImageId) {
+    if (!p.referenceImageId) {
+      preview.innerHTML = `<span class="faint">Nessuna foto caricata.</span>`;
+      return;
+    }
+    const thumb = document.createElement("div");
+    thumb.className = "thumb";
+    thumb.style.width = "160px";
+
+    if (p.referenceImageHidden) {
+      thumb.innerHTML = `<div class="hidden-overlay">🔒</div>`;
+    } else {
       const url = await getImageUrl(p.referenceImageId);
       const img = document.createElement("img");
       img.src = url;
-      img.style.maxWidth = "160px";
-      img.style.borderRadius = "12px";
       img.style.cursor = "zoom-in";
       img.addEventListener("click", () => openImageViewer(url, { title: "Foto di riferimento" }));
-      preview.appendChild(img);
-    } else {
-      preview.innerHTML = `<span class="faint">Nessuna foto caricata.</span>`;
+      thumb.appendChild(img);
     }
+
+    const eye = document.createElement("div");
+    eye.className = "eye-toggle";
+    eye.title = p.referenceImageHidden ? "Mostra foto" : "Nascondi foto";
+    eye.textContent = p.referenceImageHidden ? "🙈" : "👁️";
+    eye.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setReferenceImageHidden(!p.referenceImageHidden);
+      drawPreview();
+    });
+    thumb.appendChild(eye);
+
+    preview.appendChild(thumb);
   }
 
   const btnRow = document.createElement("div");

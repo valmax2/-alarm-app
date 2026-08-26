@@ -70,6 +70,11 @@ export async function bridgeBrowse(root, path = "") {
   return res.json();
 }
 
+/** Direct URL to a file served by the Bridge — for <img src>, not a fetch(). */
+export function getBridgeFileUrl(root, path) {
+  return `${baseUrl()}/file?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`;
+}
+
 /** Fetches a file from the Bridge and returns it as a browser File object. */
 export async function bridgeFetchFile(root, path) {
   const res = await req(`/file?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`);

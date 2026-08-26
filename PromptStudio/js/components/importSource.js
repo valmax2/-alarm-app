@@ -16,8 +16,10 @@
 // configured (see comfyBridge.js); otherwise only the native picker shows.
 // ==========================================================================
 
-import { getBridgeConfig, bridgeBrowse, bridgeFetchFile } from "../modules/comfyBridge.js";
+import { getBridgeConfig, bridgeBrowse, bridgeFetchFile, getBridgeFileUrl } from "../modules/comfyBridge.js";
 import { toast } from "./toast.js";
+
+const IMAGE_EXT = /\.(jpe?g|png|webp|gif|bmp)$/i;
 
 /**
  * Opens the universal import chooser.
@@ -103,10 +105,14 @@ export function pickImportSource({ accept = "*/*", title = "Importa" } = {}) {
   });
 }
 
-/** Small folder-browser dialog backed by the Bridge's /browse endpoint. */
+/**
+ * Small folder-browser dialog backed by the Bridge's /browse endpoint.
+ * Image files get a small inline thumbnail plus a larger preview that
+ * appears beside the dialog on hover — otherwise a filename alone doesn't
+ * tell you what you're about to pick.
+ */
 async function browseBridgeFolder(root) {
-  let currentPath = "";
-  return new Promise(async (resolve) => {
+  return new Promise((resolve) => {
     const overlay = document.createElement("div");
     overlay.className = "image-viewer-overlay";
     overlay.style.alignItems = "center";
@@ -125,16 +131,62 @@ async function browseBridgeFolder(root) {
       </div>`;
     overlay.appendChild(card);
     document.body.appendChild(overlay);
+
+    // Hover-preview panel, docked beside the dialog when there's room on screen.
+    const canShowSidePreview = window.innerWidth >= 900;
+    let previewPanel = null;
+    let positionPreview = null;
+    if (canShowSidePreview) {
+      previewPanel = document.createElement("div");
+      previewPanel.className = "card browse-preview-panel";
+      previewPanel.style.cssText = "position:fixed;top:50%;transform:translateY(-50%);width:min(320px,32vw);padding:10px;display:none;z-index:310;";
+      previewPanel.innerHTML = `<img style="width:100%;border-radius:10px;display:block;"/><div class="faint" style="margin-top:6px;word-break:break-all;"></div>`;
+      document.body.appendChild(previewPanel);
+
+      positionPreview = function () {
+        const cardRect = card.getBoundingClientRect();
+        const spaceRight = window.innerWidth - cardRect.right;
+        const spaceLeft = cardRect.left;
+        if (spaceRight >= 300) {
+          previewPanel.style.left = (cardRect.right + 12) + "px";
+          previewPanel.style.right = "";
+        } else if (spaceLeft >= 300) {
+          previewPanel.style.right = (window.innerWidth - cardRect.left + 12) + "px";
+          previewPanel.style.left = "";
+        } else {
+          previewPanel.style.display = "none";
+        }
+      }
+      // The dialog is centered and doesn't move once open, so position once.
+      positionPreview();
+      window.addEventListener("resize", positionPreview);
+    }
+
+    function showPreview(url, name) {
+      if (!previewPanel) return;
+      previewPanel.querySelector("img").src = url;
+      previewPanel.querySelector(".faint").textContent = name;
+      previewPanel.style.display = "block";
+    }
+    function hidePreview() {
+      if (previewPanel) previewPanel.style.display = "none";
+    }
+
     overlay.addEventListener("click", (e) => { if (e.target === overlay) close(null); });
     card.querySelector("#browseCancel").addEventListener("click", () => close(null));
 
-    function close(result) { overlay.remove(); resolve(result); }
+    function close(result) {
+      overlay.remove();
+      if (previewPanel) previewPanel.remove();
+      if (positionPreview) window.removeEventListener("resize", positionPreview);
+      resolve(result);
+    }
 
     async function render(path) {
-      currentPath = path;
       card.querySelector("#browsePath").textContent = "/" + path;
       const listEl = card.querySelector("#browseList");
       listEl.innerHTML = "Caricamento…";
+      hidePreview();
       try {
         const entries = await bridgeBrowse(root, path);
         listEl.innerHTML = "";
@@ -146,12 +198,23 @@ async function browseBridgeFolder(root) {
           listEl.appendChild(up);
         }
         entries.forEach((entry) => {
+          const fullPath = (path ? path + "/" : "") + entry.name;
+          const isImage = entry.type === "file" && IMAGE_EXT.test(entry.name);
           const btn = document.createElement("button");
           btn.className = "import-source-btn";
-          btn.innerHTML = `<span class="ico">${entry.type === "dir" ? "📁" : "📄"}</span> ${entry.name}`;
+
+          if (isImage) {
+            const fileUrl = getBridgeFileUrl(root, fullPath);
+            btn.innerHTML = `<img src="${fileUrl}" loading="lazy" style="width:36px;height:36px;object-fit:cover;border-radius:6px;flex:0 0 auto;"/><span>${entry.name}</span>`;
+            btn.addEventListener("mouseenter", () => showPreview(fileUrl, entry.name));
+            btn.addEventListener("mouseleave", hidePreview);
+          } else {
+            btn.innerHTML = `<span class="ico">${entry.type === "dir" ? "📁" : "📄"}</span> ${entry.name}`;
+          }
+
           btn.addEventListener("click", () => {
-            if (entry.type === "dir") render((path ? path + "/" : "") + entry.name);
-            else close({ path: (path ? path + "/" : "") + entry.name, name: entry.name });
+            if (entry.type === "dir") render(fullPath);
+            else close({ path: fullPath, name: entry.name });
           });
           listEl.appendChild(btn);
         });

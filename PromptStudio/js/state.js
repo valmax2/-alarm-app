@@ -43,6 +43,7 @@ function blankProject() {
 
     faceMode: null, // 'create' | 'reference'
     referenceImageId: null, // IndexedDB image id (Step 3 reference photo)
+    referenceImageHidden: false, // privacy eye toggle for that preview
     identityLock: true,
 
     hairMode: null, // 'keep' | 'change' (only asked when a reference exists)
@@ -118,6 +119,12 @@ export function setFaceMode(mode) {
 
 export function setReferenceImage(imageId) {
   project.referenceImageId = imageId;
+  project.referenceImageHidden = false; // a freshly uploaded photo starts visible
+  persist();
+}
+
+export function setReferenceImageHidden(hidden) {
+  project.referenceImageHidden = hidden;
   persist();
 }
 
