@@ -283,6 +283,22 @@ def describe_comfy_http_error(err):
     return " | ".join(parts)[:800]
 
 
+def describe_execution_error(info):
+    """Turns ComfyUI's execution_error payload (node id/type, exception
+    type/message, a full Python traceback...) into one readable line
+    instead of dumping the whole traceback at the user."""
+    if not isinstance(info, dict):
+        return str(info)
+    node_type = info.get("node_type", "?")
+    node_id = info.get("node_id", "?")
+    exc_type = info.get("exception_type", "")
+    exc_msg = info.get("exception_message", "").strip()
+    summary = f"Nodo {node_id} ({node_type})"
+    if exc_type or exc_msg:
+        summary += f": {exc_type}: {exc_msg}" if exc_type else f": {exc_msg}"
+    return summary[:600]
+
+
 def comfy_status(prompt_id):
     try:
         history = comfy_request(f"/history/{prompt_id}")
@@ -295,7 +311,7 @@ def comfy_status(prompt_id):
     if status_info.get("status_str") == "error" or status_info.get("completed") is False and status_info.get("messages"):
         for msg in status_info.get("messages", []):
             if isinstance(msg, list) and msg and msg[0] == "execution_error":
-                return {"status": "error", "error": json.dumps(msg[1]) if len(msg) > 1 else "execution_error"}
+                return {"status": "error", "error": describe_execution_error(msg[1] if len(msg) > 1 else {})}
     outputs = entry.get("outputs", {})
     images = []
     for _node_id, out in outputs.items():

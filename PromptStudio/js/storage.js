@@ -62,6 +62,31 @@ export async function getImageRecord(id) {
   });
 }
 
+/**
+ * Privacy (eye) toggle, stored on the image itself — not on whatever
+ * character/project/screen happens to reference it — so hiding an image
+ * in one place hides it everywhere it's shown, and it stays hidden across
+ * reloads and between screens.
+ */
+export async function setImageHidden(id, hidden) {
+  const rec = await getImageRecord(id);
+  if (!rec) return;
+  rec.meta = { ...rec.meta, hidden };
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_IMAGES, "readwrite");
+    tx.objectStore(STORE_IMAGES).put(rec);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function isImageHidden(id) {
+  if (!id) return false;
+  const rec = await getImageRecord(id);
+  return !!(rec && rec.meta && rec.meta.hidden);
+}
+
 /** Returns an object URL for the image (caller may revoke it later). */
 export async function getImageUrl(id) {
   const rec = await getImageRecord(id);

@@ -10,7 +10,7 @@
 
 import { getProject, getPositivePrompt, getNegativePrompt } from "../state.js";
 import { getImageUrl } from "../storage.js";
-import { openImageViewer } from "../components/imageViewer.js";
+import { renderPrivacyThumb } from "../components/privacyThumb.js";
 import { toast } from "../components/toast.js";
 
 const PLATFORMS = [
@@ -78,15 +78,13 @@ export async function render(container, params, { navigate }) {
   if (p.referenceImageId) {
     refCard.className = "card";
     refCard.innerHTML = `<h3>📷 Foto di riferimento</h3><p class="faint">Allega questa stessa foto sulla piattaforma per mantenere la stessa identità.</p>`;
-    const url = await getImageUrl(p.referenceImageId);
-    const img = document.createElement("img");
-    img.src = url;
-    img.style.maxWidth = "160px";
-    img.style.borderRadius = "12px";
-    img.style.cursor = "zoom-in";
-    img.addEventListener("click", () => openImageViewer(url, { title: "Foto di riferimento" }));
-    refCard.appendChild(img);
 
+    const thumbHolder = document.createElement("div");
+    thumbHolder.style.display = "inline-block";
+    refCard.appendChild(thumbHolder);
+    await renderPrivacyThumb(thumbHolder, p.referenceImageId, { title: "Foto di riferimento", size: "160px" });
+
+    const url = await getImageUrl(p.referenceImageId);
     const dl = document.createElement("a");
     dl.href = url;
     dl.download = "reference.jpg";

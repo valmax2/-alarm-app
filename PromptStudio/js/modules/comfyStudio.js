@@ -33,7 +33,7 @@ export async function render(container, params, { navigate, setHeader }) {
     case "config": setHeader("ComfyUI Studio", "Configurazione"); renderConfig(container, navigate); break;
     case "inventory": setHeader("ComfyUI Studio", "Inventario"); await renderInventory(container, navigate); break;
     case "workflows": setHeader("ComfyUI Studio", "Libreria workflow"); await renderWorkflows(container, navigate); break;
-    case "editor": setHeader("ComfyUI Studio", "Editor workflow"); renderEditor(container, navigate); break;
+    case "editor": setHeader("ComfyUI Studio", "Editor workflow"); await renderEditor(container, navigate); break;
     case "generate": setHeader("ComfyUI Studio", "Genera"); renderGenerate(container, navigate); break;
     default: setHeader("ComfyUI Studio", "Panoramica"); renderHub(container, navigate); break;
   }
@@ -280,7 +280,7 @@ async function renderWorkflows(container, navigate) {
 }
 
 // ---------------- EDITOR WORKFLOW ----------------
-function renderEditor(container, navigate) {
+async function renderEditor(container, navigate) {
   const wf = getActiveWorkflow();
   if (!wf) {
     container.innerHTML = `<div class="card"><h3>Nessun workflow selezionato</h3><p class="muted">Vai nella libreria e scegli un workflow.</p><button class="btn btn-primary" id="goLib">Apri libreria workflow</button></div>`;
@@ -298,11 +298,27 @@ function renderEditor(container, navigate) {
 
   const params = extractParams(wf.json);
 
+  // Real models installed on the PC, so checkpoint/LoRA are pick-from-a-list,
+  // never free-typed filenames — falls back to a text field if the Bridge
+  // can't be reached right now.
+  let inventory = null;
+  try { inventory = await fetchInventory(); } catch (e) { inventory = null; }
+  const nameOf = (it) => (typeof it === "string" ? it : it.name);
+  const checkpointNames = inventory ? (inventory.checkpoints || []).map(nameOf) : null;
+  const loraNames = inventory ? (inventory.loras || []).map(nameOf) : null;
+  if (!inventory && (params.checkpoints.length || params.loras.length)) {
+    const hint = document.createElement("p");
+    hint.className = "faint";
+    hint.textContent = "Bridge non raggiungibile: inserisci i nomi dei modelli a mano qui sotto invece di sceglierli da un elenco.";
+    container.appendChild(hint);
+  }
+
   if (params.checkpoints.length) {
     const box = sectionCard("Checkpoint");
     params.checkpoints.forEach((c) => {
       const fam = detectFamily({ name: c.value || "" });
-      const row = fieldRow(c.title, c.value, (v) => { setNodeInput(wf.json, c.nodeId, "ckpt_name", v); persist(wf); });
+      const onChange = (v) => { setNodeInput(wf.json, c.nodeId, "ckpt_name", v); persist(wf); };
+      const row = checkpointNames ? selectRow(c.title, c.value, checkpointNames, onChange) : fieldRow(c.title, c.value, onChange);
       row.appendChild(compatBadge(fam));
       box.appendChild(row);
     });
@@ -312,7 +328,8 @@ function renderEditor(container, navigate) {
   if (params.loras.length) {
     const box = sectionCard("LoRA");
     params.loras.forEach((l) => {
-      const row = fieldRow(l.title, l.value, (v) => { setNodeInput(wf.json, l.nodeId, "lora_name", v); persist(wf); });
+      const onChange = (v) => { setNodeInput(wf.json, l.nodeId, "lora_name", v); persist(wf); };
+      const row = loraNames ? selectRow(l.title, l.value, loraNames, onChange) : fieldRow(l.title, l.value, onChange);
       const famLora = detectFamily({ name: l.value || "" });
       const ckptFam = params.checkpoints[0] ? detectFamily({ name: params.checkpoints[0].value || "" }) : null;
       const cmp = ckptFam ? compareCompatibility(ckptFam, famLora) : { level: "yellow" };
@@ -341,13 +358,13 @@ function renderEditor(container, navigate) {
     const fillBtn = document.createElement("button");
     fillBtn.className = "btn btn-sm";
     fillBtn.textContent = "⬇️ Riempi da Prompt Studio (Module 1)";
-    fillBtn.addEventListener("click", () => {
+    fillBtn.addEventListener("click", async () => {
       params.textPrompts.forEach((p) => {
         const text = p.role === "negative" ? getNegativePrompt() : getPositivePrompt();
         setNodeInput(wf.json, p.nodeId, "text", text);
       });
       persist(wf);
-      renderEditor(container, navigate);
+      await renderEditor(container, navigate);
     });
     box.appendChild(fillBtn);
     container.appendChild(box);
@@ -445,6 +462,44 @@ function fieldRow(label, value, onChange, type = "text") {
   row.appendChild(input);
   return row;
 }
+
+/** Same as fieldRow, but a dropdown of the models actually found on disk
+ * (per spec: never make the user guess/type a filename). The current
+ * value is always kept selectable even if the last scan didn't see it,
+ * so switching workflows never silently discards it. */
+function selectRow(label, value, options, onChange) {
+  const row = document.createElement("div");
+  row.className = "row";
+  row.style.justifyContent = "space-between";
+  row.style.marginBottom = "8px";
+  row.style.flexWrap = "wrap";
+  const span = document.createElement("span");
+  span.textContent = label;
+  span.style.flex = "1 1 auto";
+  const select = document.createElement("select");
+  select.style.maxWidth = "220px";
+  select.style.background = "var(--bg-elev-2)";
+  select.style.border = "1px solid rgba(201,160,99,.3)";
+  select.style.color = "var(--text)";
+  select.style.borderRadius = "8px";
+  select.style.padding = "6px 8px";
+
+  const names = [...new Set(options)];
+  if (value && !names.includes(value)) names.unshift(value);
+  if (!names.length) names.push("");
+
+  names.forEach((name) => {
+    const opt = document.createElement("option");
+    opt.value = name;
+    opt.textContent = name || "(nessun modello trovato — vai in Inventario)";
+    if (name === value) opt.selected = true;
+    select.appendChild(opt);
+  });
+  select.addEventListener("change", () => onChange(select.value));
+  row.appendChild(span);
+  row.appendChild(select);
+  return row;
+}
 function sliderRow(label, value, min, max, step, onChange) {
   const row = document.createElement("div");
   row.style.marginBottom = "10px";
@@ -531,13 +586,13 @@ function renderJsonEditor(container, wf, navigate) {
     try { return JSON.parse(ta.value); } catch (e) { status.textContent = `❌ JSON non valido: ${e.message}`; return null; }
   }
   validateBtn.addEventListener("click", () => { const j = parseOrNull(); if (j) status.textContent = "✅ JSON valido."; });
-  applyBtn.addEventListener("click", () => {
+  applyBtn.addEventListener("click", async () => {
     const j = parseOrNull();
     if (!j) return;
     wf.json = j;
     setActiveWorkflow(wf);
     toast("Modifiche applicate al workflow attivo.");
-    renderEditor(container, navigate);
+    await renderEditor(container, navigate);
   });
   saveBtn.addEventListener("click", async () => {
     const j = parseOrNull();
@@ -557,16 +612,41 @@ function renderGenerate(container, navigate) {
     container.querySelector("#goLib").addEventListener("click", () => navigate("/comfy/workflows"));
     return;
   }
+  const missingImages = isApiFormat(wf.json)
+    ? findImageNodes(wf.json).filter((n) => !n.value || !String(n.value).trim())
+    : [];
+
   container.innerHTML = `
     <div class="card">
       <h3>Riepilogo</h3>
       <p>Workflow attivo: <strong>${wf.name}</strong></p>
       <p class="faint">Formato: ${isApiFormat(wf.json) ? "API (compatibile con l'invio diretto)" : "UI — non inviabile direttamente, ri-esporta in formato API da ComfyUI"}</p>
     </div>
-    <div class="row"><button class="btn btn-primary" id="genBtn" ${isApiFormat(wf.json) ? "" : "disabled"}>🚀 GENERA CON COMFYUI</button></div>
+    ${missingImages.length ? `
+    <div class="card" style="border-color:rgba(217,83,79,.5);">
+      <h3 style="color:var(--red);">⚠️ Immagini mancanti</h3>
+      <p class="muted">Questi nodi "Load Image" non hanno un file assegnato. Se generi comunque, ComfyUI molto probabilmente darà errore (non trova nessuna immagine da caricare):</p>
+      <ul style="margin:8px 0;padding-left:20px;">
+        ${missingImages.map((n) => `<li>${n.title}</li>`).join("")}
+      </ul>
+      <button class="btn btn-primary" id="goFixImages">🖼️ Vai all'editor per assegnarle</button>
+    </div>` : ""}
+    <div class="row">
+      <button class="btn btn-primary" id="genBtn" ${isApiFormat(wf.json) ? "" : "disabled"}>🚀 GENERA CON COMFYUI</button>
+      ${missingImages.length ? `<button class="btn btn-sm" id="genAnyway">Genera comunque, ignora l'avviso</button>` : ""}
+    </div>
     <div id="genStatus" class="card hidden"><h3>Stato</h3><div id="genStatusBody" class="muted"></div></div>
     <div id="genResult" class="stack" style="margin-top:12px;"></div>
   `;
+
+  if (missingImages.length) {
+    container.querySelector("#goFixImages").addEventListener("click", () => navigate("/comfy/editor"));
+    container.querySelector("#genBtn").disabled = true;
+    container.querySelector("#genAnyway").addEventListener("click", () => {
+      container.querySelector("#genBtn").disabled = false;
+      container.querySelector("#genAnyway").remove();
+    });
+  }
 
   container.querySelector("#genBtn").addEventListener("click", async () => {
     const statusCard = container.querySelector("#genStatus");

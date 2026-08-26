@@ -7,17 +7,17 @@
 
 import {
   getProject, setPersona, toggleSelection, isSelected, getCategoriesFor,
-  setFaceMode, setReferenceImage, setReferenceImageHidden, setIdentityLock,
+  setFaceMode, setReferenceImage, setIdentityLock,
   setHairMode, setCustomField,
   setDestination, setNegativeText, getNegativePrompt, getPositivePrompt,
   setPositiveManualText, clearPositiveManualOverride, toggleNegativeFragment,
   isNegativeFragmentActive,
 } from "../state.js";
-import { saveImageBlob, getImageUrl } from "../storage.js";
+import { saveImageBlob } from "../storage.js";
 import { renderStepProgress, renderCategoryAccordions, renderCustomTextField } from "../components/stepper.js";
 import { mountPromptBar } from "../components/promptBar.js";
 import { pickImportSource, resolveImportedFile } from "../components/importSource.js";
-import { openImageViewer } from "../components/imageViewer.js";
+import { renderPrivacyThumb } from "../components/privacyThumb.js";
 import { toast } from "../components/toast.js";
 import { saveCharacterFromProject, saveProjectSnapshot } from "./gallery.js";
 
@@ -198,38 +198,11 @@ function renderReferenceUpload(container, onChanged) {
   card.appendChild(preview);
 
   async function drawPreview() {
-    preview.innerHTML = "";
     if (!p.referenceImageId) {
       preview.innerHTML = `<span class="faint">Nessuna foto caricata.</span>`;
       return;
     }
-    const thumb = document.createElement("div");
-    thumb.className = "thumb";
-    thumb.style.width = "160px";
-
-    if (p.referenceImageHidden) {
-      thumb.innerHTML = `<div class="hidden-overlay">🔒</div>`;
-    } else {
-      const url = await getImageUrl(p.referenceImageId);
-      const img = document.createElement("img");
-      img.src = url;
-      img.style.cursor = "zoom-in";
-      img.addEventListener("click", () => openImageViewer(url, { title: "Foto di riferimento" }));
-      thumb.appendChild(img);
-    }
-
-    const eye = document.createElement("div");
-    eye.className = "eye-toggle";
-    eye.title = p.referenceImageHidden ? "Mostra foto" : "Nascondi foto";
-    eye.textContent = p.referenceImageHidden ? "🙈" : "👁️";
-    eye.addEventListener("click", (e) => {
-      e.stopPropagation();
-      setReferenceImageHidden(!p.referenceImageHidden);
-      drawPreview();
-    });
-    thumb.appendChild(eye);
-
-    preview.appendChild(thumb);
+    await renderPrivacyThumb(preview, p.referenceImageId, { title: "Foto di riferimento", size: "160px" });
   }
 
   const btnRow = document.createElement("div");

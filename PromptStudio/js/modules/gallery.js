@@ -4,11 +4,11 @@
 // saveProjectSnapshot(), used by the Module 1 wizard.
 // ==========================================================================
 
-import { lsGet, lsSet, uid, getImageUrl, listImages, saveImageBlob, deleteImage } from "../storage.js";
+import { lsGet, lsSet, uid, listImages, saveImageBlob, deleteImage } from "../storage.js";
 import { getProject, loadProjectObject } from "../state.js";
 import { buildIdentityLockFragments } from "../data/face.js";
-import { openImageViewer } from "../components/imageViewer.js";
 import { pickImportSource, resolveImportedFile } from "../components/importSource.js";
+import { renderPrivacyThumb } from "../components/privacyThumb.js";
 import { askText, askConfirm } from "../components/promptDialog.js";
 import { toast } from "../components/toast.js";
 
@@ -40,9 +40,8 @@ export async function saveCharacterFromProject() {
     updatedAt: Date.now(),
     persona: p.persona,
     mainImageId: p.referenceImageId || null,
-    mainImageHidden: false,
     identityFragments: p.referenceImageId ? buildIdentityLockFragments() : [],
-    referencePack: REFERENCE_PACK_SLOTS.map((label) => ({ id: uid("slot"), label, imageId: null, hidden: false })),
+    referencePack: REFERENCE_PACK_SLOTS.map((label) => ({ id: uid("slot"), label, imageId: null })),
     sourceProjectId: p.id,
   };
   characters.push(record);
@@ -98,27 +97,19 @@ async function renderCharactersList(container, navigate) {
   if (!chars.length) { grid.innerHTML = `<span class="faint">Nessun personaggio salvato ancora. Salvane uno dallo Step 8 del percorso guidato.</span>`; return; }
 
   for (const c of chars) {
-    const thumb = document.createElement("div");
-    thumb.className = "thumb";
-    if (c.mainImageHidden) {
-      thumb.innerHTML = `<div class="hidden-overlay">🔒</div>`;
-    } else if (c.mainImageId) {
-      const url = await getImageUrl(c.mainImageId);
-      thumb.innerHTML = `<img src="${url}"/>`;
+    const cell = document.createElement("div");
+    cell.style.cursor = "pointer";
+    cell.addEventListener("click", () => navigate(`/gallery/character/${c.id}`));
+    grid.appendChild(cell);
+
+    if (c.mainImageId) {
+      await renderPrivacyThumb(cell, c.mainImageId, { title: c.name, overlay: nameLabel(c.name), zoomable: false });
     } else {
+      const thumb = document.createElement("div");
+      thumb.className = "thumb";
       thumb.textContent = c.name;
+      cell.appendChild(thumb);
     }
-    const label = document.createElement("div");
-    label.style.position = "absolute";
-    label.style.bottom = "0"; label.style.left = "0"; label.style.right = "0";
-    label.style.background = "rgba(0,0,0,.55)";
-    label.style.fontSize = ".72rem";
-    label.style.padding = "3px 4px";
-    label.style.color = "#fff";
-    label.textContent = c.name;
-    thumb.appendChild(label);
-    thumb.addEventListener("click", () => navigate(`/gallery/character/${c.id}`));
-    grid.appendChild(thumb);
   }
 }
 
@@ -142,26 +133,17 @@ async function renderCharacterDetail(container, id, navigate) {
 
   async function drawMain() {
     mainWrap.innerHTML = "";
-    const thumb = document.createElement("div");
-    thumb.className = "thumb";
-    thumb.style.width = "140px";
+    const thumbHolder = document.createElement("div");
     if (c.mainImageId) {
-      if (c.mainImageHidden) {
-        thumb.innerHTML = `<div class="hidden-overlay">🔒</div>`;
-      } else {
-        const url = await getImageUrl(c.mainImageId);
-        thumb.innerHTML = `<img src="${url}"/>`;
-        thumb.addEventListener("click", () => openImageViewer(url, { title: c.name }));
-      }
-      const eye = document.createElement("div");
-      eye.className = "eye-toggle";
-      eye.textContent = c.mainImageHidden ? "🙈" : "👁️";
-      eye.addEventListener("click", (e) => { e.stopPropagation(); c.mainImageHidden = !c.mainImageHidden; persist(); drawMain(); });
-      thumb.appendChild(eye);
+      await renderPrivacyThumb(thumbHolder, c.mainImageId, { title: c.name, size: "140px" });
     } else {
+      const thumb = document.createElement("div");
+      thumb.className = "thumb";
+      thumb.style.width = "140px";
       thumb.innerHTML = `<span class="faint">Nessuna foto</span>`;
+      thumbHolder.appendChild(thumb);
     }
-    mainWrap.appendChild(thumb);
+    mainWrap.appendChild(thumbHolder);
 
     const btns = document.createElement("div");
     btns.className = "stack";
@@ -197,47 +179,33 @@ async function renderCharacterDetail(container, id, navigate) {
   container.appendChild(packCard);
 
   for (const slot of c.referencePack) {
-    const thumb = document.createElement("div");
-    thumb.className = "thumb";
+    const holder = document.createElement("div");
+    packGrid.appendChild(holder);
+
     async function drawSlot() {
-      thumb.innerHTML = "";
-      if (slot.imageId && !slot.hidden) {
-        const url = await getImageUrl(slot.imageId);
-        const img = document.createElement("img");
-        img.src = url;
-        img.addEventListener("click", () => openImageViewer(url, { title: slot.label }));
-        thumb.appendChild(img);
-      } else if (slot.imageId && slot.hidden) {
-        thumb.innerHTML = `<div class="hidden-overlay">🔒</div>`;
-      } else {
-        const addLbl = document.createElement("span");
-        addLbl.textContent = "➕ " + slot.label;
-        addLbl.style.cursor = "pointer";
-        addLbl.addEventListener("click", async () => {
-          const picked = await pickImportSource({ accept: "image/*", title: `Carica: ${slot.label}` });
-          if (!picked) return;
-          const file = await resolveImportedFile(picked);
-          slot.imageId = await saveImageBlob(file, { kind: "reference-pack", characterId: c.id, label: slot.label });
-          persist();
-          drawSlot();
-        });
-        thumb.appendChild(addLbl);
-      }
       if (slot.imageId) {
-        const eye = document.createElement("div");
-        eye.className = "eye-toggle";
-        eye.textContent = slot.hidden ? "🙈" : "👁️";
-        eye.addEventListener("click", (e) => { e.stopPropagation(); slot.hidden = !slot.hidden; persist(); drawSlot(); });
-        thumb.appendChild(eye);
+        await renderPrivacyThumb(holder, slot.imageId, { title: slot.label, overlay: smallLabel(slot.label) });
+        return;
       }
-      const lbl = document.createElement("div");
-      lbl.style.position = "absolute"; lbl.style.bottom = "0"; lbl.style.left = "0"; lbl.style.right = "0";
-      lbl.style.background = "rgba(0,0,0,.55)"; lbl.style.fontSize = ".68rem"; lbl.style.padding = "2px 3px"; lbl.style.color = "#fff";
-      lbl.textContent = slot.label;
-      thumb.appendChild(lbl);
+      holder.innerHTML = "";
+      const thumb = document.createElement("div");
+      thumb.className = "thumb";
+      const addLbl = document.createElement("span");
+      addLbl.textContent = "➕ " + slot.label;
+      addLbl.style.cursor = "pointer";
+      addLbl.addEventListener("click", async () => {
+        const picked = await pickImportSource({ accept: "image/*", title: `Carica: ${slot.label}` });
+        if (!picked) return;
+        const file = await resolveImportedFile(picked);
+        slot.imageId = await saveImageBlob(file, { kind: "reference-pack", characterId: c.id, label: slot.label });
+        persist();
+        drawSlot();
+      });
+      thumb.appendChild(addLbl);
+      thumb.appendChild(smallLabel(slot.label));
+      holder.appendChild(thumb);
     }
     drawSlot();
-    packGrid.appendChild(thumb);
   }
 
   const dangerRow = document.createElement("div");
@@ -286,11 +254,9 @@ async function renderImages(container) {
   const images = (await listImages()).sort((a, b) => b.meta.createdAt - a.meta.createdAt);
   if (!images.length) { grid.innerHTML = `<span class="faint">Nessuna immagine ancora.</span>`; return; }
   for (const rec of images) {
-    const thumb = document.createElement("div");
-    thumb.className = "thumb";
-    const url = URL.createObjectURL(rec.blob);
-    thumb.innerHTML = `<img src="${url}"/>`;
-    thumb.addEventListener("click", () => openImageViewer(url, { title: rec.meta.kind || "" }));
+    const holder = document.createElement("div");
+    grid.appendChild(holder);
+
     const del = document.createElement("div");
     del.className = "eye-toggle";
     del.style.left = "4px"; del.style.right = "auto";
@@ -299,11 +265,25 @@ async function renderImages(container) {
       e.stopPropagation();
       if (!(await askConfirm("Eliminare questa immagine?"))) return;
       await deleteImage(rec.id);
-      thumb.remove();
+      holder.remove();
     });
-    thumb.appendChild(del);
-    grid.appendChild(thumb);
+
+    await renderPrivacyThumb(holder, rec.id, { title: rec.meta.kind || "", overlay: del });
   }
+}
+
+function nameLabel(text) {
+  const label = document.createElement("div");
+  label.style.cssText = "position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.55);font-size:.72rem;padding:3px 4px;color:#fff;";
+  label.textContent = text;
+  return label;
+}
+
+function smallLabel(text) {
+  const label = document.createElement("div");
+  label.style.cssText = "position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.55);font-size:.68rem;padding:2px 3px;color:#fff;";
+  label.textContent = text;
+  return label;
 }
 
 function mkBtn(label, onClick, cls = "btn") {
