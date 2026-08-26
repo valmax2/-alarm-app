@@ -113,12 +113,29 @@ function renderCorpo(container) {
   q.textContent = "Componi il corpo del personaggio, categoria per categoria.";
   container.appendChild(q);
 
-  const cats = getCategoriesFor("body");
-  renderCategoryAccordions(container, cats, {
+  const allCats = getCategoriesFor("body");
+  const buildCats = allCats.filter((c) => !c.id.startsWith("anatomia_"));
+  const anatomyCats = allCats.filter((c) => c.id.startsWith("anatomia_"));
+
+  const toggleOpts = {
     onToggle: (catId, optId) => toggleSelection("body", catId, optId),
     isSelected: (catId, optId) => isSelected("body", catId, optId),
     stepKey: "body",
-  });
+  };
+
+  renderCategoryAccordions(container, buildCats, toggleOpts);
+
+  const anatomyTitle = document.createElement("h3");
+  anatomyTitle.textContent = "Anatomia — glossario completo";
+  anatomyTitle.style.color = "var(--gold-soft)";
+  anatomyTitle.style.marginTop = "10px";
+  container.appendChild(anatomyTitle);
+  const anatomyHint = document.createElement("p");
+  anatomyHint.className = "faint";
+  anatomyHint.style.marginTop = "-4px";
+  anatomyHint.textContent = "Termini precisi per ogni zona del corpo, divisi per area — utile per dettagli e inquadrature ravvicinate.";
+  container.appendChild(anatomyHint);
+  renderCategoryAccordions(container, anatomyCats, toggleOpts);
 }
 
 // ---------------- STEP 3 — VOLTO ----------------

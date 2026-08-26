@@ -9,6 +9,7 @@
 
 import { lsGet, lsSet, uid } from "./storage.js";
 import { getBodyCategories } from "./data/body.js";
+import { anatomyCategories } from "./data/anatomy.js";
 import { faceCategories, buildIdentityLockFragments } from "./data/face.js";
 import { hairCategories, buildKeepReferenceHairFragment } from "./data/hair.js";
 import { actionCategories, poseCategories } from "./data/actionsPoses.js";
@@ -176,7 +177,7 @@ export function isNegativeFragmentActive(frag) {
 
 function baseCategoriesFor(stepKey) {
   switch (stepKey) {
-    case "body": return getBodyCategories(project.persona || "donna");
+    case "body": return [...getBodyCategories(project.persona || "donna"), ...anatomyCategories];
     case "face": return faceCategories;
     case "hair": return hairCategories;
     case "action": return actionCategories;
