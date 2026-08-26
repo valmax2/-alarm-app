@@ -13,10 +13,12 @@ import {
   setPositiveManualText, clearPositiveManualOverride, toggleNegativeFragment,
   isNegativeFragmentActive, isPositivePromptStale,
   setCameraOrbitAngle, getCameraOrbitAngle, CAMERA_YAW_IDS,
+  setCameraElevation, getCameraElevation, CAMERA_ELEVATION_IDS,
+  setCameraZoom, getCameraZoom, CAMERA_ZOOM_IDS,
 } from "../state.js";
 import { saveImageBlob } from "../storage.js";
 import { renderStepProgress, renderCategoryAccordions, renderCustomTextField } from "../components/stepper.js";
-import { renderCameraOrbit } from "../components/cameraOrbit.js";
+import { renderCameraRig } from "../components/cameraOrbit.js";
 import { mountPromptBar } from "../components/promptBar.js";
 import { pickImportSource, resolveImportedFile } from "../components/importSource.js";
 import { renderPrivacyThumb } from "../components/privacyThumb.js";
@@ -369,7 +371,8 @@ function renderScena(container) {
 function renderCameraLuce(container) {
   const camCats = getCategoriesFor("camera");
   const pvCat = camCats.find((c) => c.id === "punto_vista");
-  const otherCamCats = camCats.filter((c) => c.id !== "punto_vista");
+  const obCat = camCats.find((c) => c.id === "obiettivo");
+  const otherCamCats = camCats.filter((c) => c.id !== "punto_vista" && c.id !== "obiettivo");
   const inquadraturaCats = otherCamCats.filter((c) => c.id === "inquadratura");
   const restCamCats = otherCamCats.filter((c) => c.id !== "inquadratura");
 
@@ -387,24 +390,37 @@ function renderCameraLuce(container) {
   if (pvCat) {
     const pvTitle = document.createElement("p");
     pvTitle.className = "step-question";
-    pvTitle.textContent = "Punto di vista — telecamera interattiva";
+    pvTitle.textContent = "Telecamera interattiva — orbita, altezza e zoom";
     container.appendChild(pvTitle);
-    renderCameraOrbit(container, {
-      getSelected: getCameraOrbitAngle,
-      onSelect: (id) => setCameraOrbitAngle(id),
+    renderCameraRig(container, {
+      getYaw: getCameraOrbitAngle,
+      setYaw: (id) => setCameraOrbitAngle(id),
+      getElevation: getCameraElevation,
+      setElevation: (id) => setCameraElevation(id),
+      getZoom: getCameraZoom,
+      setZoom: (id) => setCameraZoom(id),
     });
 
-    const elevTitle = document.createElement("p");
-    elevTitle.className = "step-question";
-    elevTitle.style.marginTop = "10px";
-    elevTitle.textContent = "Angolo verticale (extra)";
-    container.appendChild(elevTitle);
+    const pvExtraTitle = document.createElement("p");
+    pvExtraTitle.className = "step-question";
+    pvExtraTitle.style.marginTop = "10px";
+    pvExtraTitle.textContent = "Altro (extra)";
+    container.appendChild(pvExtraTitle);
     renderCategoryAccordions(container, [pvCat], {
       onToggle: (catId, optId) => toggleSelection("camera", catId, optId),
       isSelected: (catId, optId) => isSelected("camera", catId, optId),
       stepKey: "camera",
       openByDefault: new Set(["punto_vista"]),
-      filterOptions: (opt) => !CAMERA_YAW_IDS.includes(opt.id),
+      filterOptions: (opt) => !CAMERA_YAW_IDS.includes(opt.id) && !CAMERA_ELEVATION_IDS.includes(opt.id),
+    });
+  }
+
+  if (obCat) {
+    renderCategoryAccordions(container, [obCat], {
+      onToggle: (catId, optId) => toggleSelection("camera", catId, optId),
+      isSelected: (catId, optId) => isSelected("camera", catId, optId),
+      stepKey: "camera",
+      filterOptions: (opt) => !CAMERA_ZOOM_IDS.includes(opt.id),
     });
   }
 

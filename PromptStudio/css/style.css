@@ -443,7 +443,9 @@ button { font-family: inherit; }
 }
 .camera-orbit-svg { width: 100%; max-width: 300px; height: auto; }
 .orbit-guide { fill: none; stroke: rgba(201,160,99,.3); stroke-width: 1.5; stroke-dasharray: 4 4; }
+.orbit-ground-line { stroke: rgba(201,160,99,.25); stroke-width: 1.5; stroke-dasharray: 2 3; }
 .orbit-subject { fill: rgba(201,160,99,.25); stroke: var(--gold-soft); stroke-width: 2; }
+.orbit-subject-body { stroke: rgba(224,192,136,.5); stroke-width: 6; stroke-linecap: round; }
 .orbit-cone { fill: rgba(201,160,99,.22); stroke: rgba(201,160,99,.5); stroke-width: 1; pointer-events: none; }
 .orbit-face-arrow { stroke: #3ecf6e; stroke-width: 2.5; }
 .orbit-camera { cursor: grab; }
@@ -451,7 +453,46 @@ button { font-family: inherit; }
 .orbit-camera-dot { fill: var(--gold); stroke: #1a140a; stroke-width: 1.5; }
 .orbit-camera-icon { font-size: 15px; pointer-events: none; }
 .orbit-label { font-weight: 600; color: var(--gold-soft); font-size: .9rem; }
-.orbit-hint { font-size: .78rem; opacity: .7; text-align: center; max-width: 260px; }
+.orbit-hint { font-size: .78rem; opacity: .7; text-align: center; max-width: 100%; }
+
+.camera-rig-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 14px;
+  padding: 10px;
+  background: rgba(0,0,0,.2);
+  border: 1px solid rgba(201,160,99,.2);
+  border-radius: var(--radius-md);
+}
+.camera-rig-views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  width: 100%;
+}
+.camera-view-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 1 1 200px;
+  min-width: 180px;
+  max-width: 260px;
+}
+.camera-view-caption { font-size: .72rem; opacity: .75; text-align: center; margin-bottom: 2px; }
+.camera-zoom-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 380px;
+  margin-top: 4px;
+}
+.camera-zoom-slider { flex: 1 1 auto; accent-color: var(--gold); }
+.camera-zoom-label { font-size: .78rem; color: var(--gold-soft); min-width: 56px; text-align: right; }
 
 /* ---------------- Image filter picker ---------------- */
 .filter-picker-card { max-width: 560px; width: 94vw; max-height: 86vh; overflow-y: auto; }

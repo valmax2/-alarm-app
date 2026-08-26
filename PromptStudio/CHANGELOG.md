@@ -3,6 +3,32 @@
 Versione mostrata in alto a destra nell'app, accanto all'icona Archivio.
 Da qui in poi, ogni round di modifiche aggiorna il numero e questa pagina.
 
+## v0.3.0
+
+- **Telecamera "da professionista", riscritta**: ora ha due viste
+  sincronizzate — dall'alto (orbita per frontale/3-4/profilo/posteriore,
+  come prima) e **laterale** (nuova: trascina su/giù per regolare
+  l'altezza della camera, dal terreno fino a sopra la testa; il cono
+  punta sempre verso il volto del soggetto, quindi a terra si inclina
+  automaticamente verso l'alto). Aggiunta anche una **rotella di zoom**
+  condivisa che, mentre la trascini, avvicina/allontana in tempo reale
+  la fotocamera (e stringe/allarga il cono) in ENTRAMBE le viste
+  contemporaneamente.
+- **Corretto un bug serio**: ComfyUI continuava a generare sempre la
+  stessa immagine anche cambiando scena/oggetti/luoghi nel percorso
+  guidato. Causa: la scritta "✅ prompt già inserito" nell'editor del
+  workflow controllava solo il progetto, non il testo — quindi restava
+  "verde" anche quando il testo nel workflow era ormai vecchio, e la
+  schermata Genera non lo segnalava né mostrava cosa stava per essere
+  inviato. Ora: editor e schermata Genera mostrano un avviso chiaro
+  quando il prompt è "vecchio" (e bloccano la generazione finché non lo
+  aggiorni), e la schermata Genera mostra sempre il testo esatto che
+  sta per essere inviato a ComfyUI.
+- **Aggiunta randomizzazione del seed** (attiva di default, disattivabile)
+  ad ogni generazione: con lo stesso prompt e lo stesso seed, ComfyUI
+  riusa la sua cache interna e restituisce di nuovo l'identica immagine
+  — questo evitava variazione anche a prompt corretto.
+
 ## v0.2.0
 
 - **Pallini step numerati e cliccabili**: in cima al percorso guidato ora

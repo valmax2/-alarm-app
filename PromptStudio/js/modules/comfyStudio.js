@@ -74,6 +74,22 @@ function renderHub(container, navigate) {
 }
 
 /**
+ * A fill only "counts" if the text it wrote still matches what the wizard
+ * (Module 1) currently produces. Going back and changing a step (e.g.
+ * adding objects/places to the scene) after filling leaves the workflow's
+ * node text stale — this is what silently kept generating the same image
+ * even after editing the prompt, so every screen below checks this instead
+ * of trusting the project id alone.
+ */
+function isPromptFilled(wf, proj) {
+  return !!wf && wf.filledForProjectId === proj.id;
+}
+function isPromptFillStale(wf, proj) {
+  if (!isPromptFilled(wf, proj)) return false;
+  return wf.filledPositiveText !== getPositivePrompt() || wf.filledNegativeText !== getNegativePrompt();
+}
+
+/**
  * Always tells the user the ONE next action, so arriving here after
  * building a character never leaves them wondering where to go: pick a
  * workflow -> put the prompt into it -> generate.
@@ -82,10 +98,12 @@ function nextStepBannerHtml(wf, proj) {
   let step;
   if (!wf) {
     step = { label: "① Scegli un workflow", desc: "Nessun workflow selezionato: vai nella libreria e scegline (o importane) uno.", goto: "/comfy/workflows", cta: "Vai alla Libreria Workflow" };
-  } else if (wf.filledForProjectId !== proj.id) {
+  } else if (!isPromptFilled(wf, proj)) {
     step = { label: "② Inserisci il tuo prompt nel workflow", desc: `Hai scelto "${wf.name}", ma non contiene ancora il prompt del personaggio che hai creato.`, goto: "/comfy/editor", cta: "Apri l'Editor e inserisci il prompt" };
+  } else if (isPromptFillStale(wf, proj)) {
+    step = { label: "⚠️ Il prompt è cambiato dall'ultimo inserimento", desc: `Hai modificato il percorso guidato dopo aver riempito "${wf.name}": il workflow ha ancora il testo vecchio. Aggiornalo prima di generare, altrimenti otterrai di nuovo la stessa immagine.`, goto: "/comfy/editor", cta: "Aggiorna il prompt nell'Editor" };
   } else {
-    step = { label: "③ Genera l'immagine", desc: `"${wf.name}" ha già il tuo prompt: sei pronto per generare.`, goto: "/comfy/generate", cta: "🚀 Vai a Genera" };
+    step = { label: "③ Genera l'immagine", desc: `"${wf.name}" ha già il tuo prompt aggiornato: sei pronto per generare.`, goto: "/comfy/generate", cta: "🚀 Vai a Genera" };
   }
   return `
     <div class="card" style="border-color:var(--gold);">
@@ -399,26 +417,33 @@ async function renderEditor(container, navigate) {
   if (params.textPrompts.length) {
     const box = sectionCard("Prompt");
     const proj = getProject();
-    const alreadyFilled = wf.filledForProjectId === proj.id;
+    const filled = isPromptFilled(wf, proj);
+    const stale = isPromptFillStale(wf, proj);
     const fillHint = document.createElement("p");
-    fillHint.className = "faint";
-    fillHint.style.marginTop = "-4px";
-    fillHint.textContent = alreadyFilled
-      ? "✅ Il prompt del tuo progetto è già stato inserito qui sotto."
+    fillHint.className = stale ? "manual-warning" : "faint";
+    if (!stale) fillHint.style.marginTop = "-4px";
+    fillHint.textContent = stale
+      ? "⚠️ Hai modificato il percorso guidato dopo l'ultimo inserimento (es. aggiunto oggetti/luoghi alla scena): il testo qui sotto è ancora quello vecchio. Premi di nuovo il pulsante per aggiornarlo, altrimenti genererai di nuovo la stessa immagine."
+      : filled
+      ? "✅ Il prompt del tuo progetto è già stato inserito qui sotto, ed è aggiornato."
       : "Questo workflow ha ancora il suo testo originale. Premi il pulsante per sostituirlo con il prompt che hai creato nel percorso guidato.";
     box.appendChild(fillHint);
     params.textPrompts.forEach((p) => {
       box.appendChild(textAreaRow(`${p.title} ${p.role !== "unknown" ? `(${p.role === "positive" ? "positivo" : "negativo"})` : ""}`, p.text || "", (v) => { setNodeInput(wf.json, p.nodeId, "text", v); persist(wf); }));
     });
     const fillBtn = document.createElement("button");
-    fillBtn.className = alreadyFilled ? "btn btn-sm" : "btn btn-primary";
-    fillBtn.textContent = "⬇️ Riempi da Prompt Studio (Module 1)";
+    fillBtn.className = filled && !stale ? "btn btn-sm" : "btn btn-primary";
+    fillBtn.textContent = stale ? "⬇️ Aggiorna dal percorso guidato" : "⬇️ Riempi da Prompt Studio (Module 1)";
     fillBtn.addEventListener("click", async () => {
+      const posText = getPositivePrompt();
+      const negText = getNegativePrompt();
       params.textPrompts.forEach((p) => {
-        const text = p.role === "negative" ? getNegativePrompt() : getPositivePrompt();
+        const text = p.role === "negative" ? negText : posText;
         setNodeInput(wf.json, p.nodeId, "text", text);
       });
       wf.filledForProjectId = proj.id;
+      wf.filledPositiveText = posText;
+      wf.filledNegativeText = negText;
       persist(wf);
       toast("Prompt inserito nel workflow.");
       await renderEditor(container, navigate);
@@ -856,7 +881,17 @@ async function renderGenerate(container, navigate) {
     }
   }
 
-  const blockers = missingImages.length || missingNodeTypes.length;
+  // Surfaces the exact text about to be sent, and whether it's gone stale
+  // relative to the wizard — this is the last checkpoint before submission,
+  // and the most common reason generations looked "stuck" on one image.
+  const proj = getProject();
+  const stale = apiFormat && isPromptFillStale(wf, proj);
+  const params = apiFormat ? extractParams(wf.json) : { textPrompts: [], samplers: [] };
+
+  const RANDOMIZE_KEY = "comfy_randomize_seed";
+  const randomizeDefault = lsGet(RANDOMIZE_KEY, true);
+
+  const blockers = missingImages.length || missingNodeTypes.length || stale;
 
   container.innerHTML = `
     <div class="card">
@@ -865,6 +900,20 @@ async function renderGenerate(container, navigate) {
       <p class="faint">Formato: ${apiFormat ? "API (compatibile con l'invio diretto)" : "UI — non inviabile direttamente, ri-esporta in formato API da ComfyUI"}</p>
       ${nodeCheckUnavailable ? `<p class="faint">Bridge/ComfyUI non raggiungibile: non posso controllare in anticipo se mancano custom node installati.</p>` : ""}
     </div>
+    ${stale ? `
+    <div class="card" style="border-color:rgba(217,83,79,.5);">
+      <h3 style="color:var(--red);">⚠️ Il prompt qui sotto è vecchio</h3>
+      <p class="muted">Hai modificato il percorso guidato dopo l'ultimo inserimento (es. aggiunto oggetti/luoghi alla scena): se generi ora otterrai di nuovo un'immagine con il prompt vecchio, quindi molto probabilmente identica o quasi a quella di prima.</p>
+      <button class="btn btn-primary" id="goFixStale">⬇️ Aggiorna il prompt nell'Editor</button>
+    </div>` : ""}
+    ${params.textPrompts.length ? `
+    <div class="card">
+      <h3>Prompt che verrà inviato</h3>
+      ${params.textPrompts.map((p) => `
+        <p class="faint" style="margin-bottom:2px;">${p.title}${p.role !== "unknown" ? ` (${p.role === "positive" ? "positivo" : "negativo"})` : ""}</p>
+        <div class="prompt-box" style="min-height:auto;margin-bottom:8px;font-size:.78rem;">${escapeHtmlGen(p.text || "(vuoto)")}</div>
+      `).join("")}
+    </div>` : ""}
     ${missingNodeTypes.length ? `
     <div class="card" style="border-color:rgba(217,83,79,.5);">
       <h3 style="color:var(--red);">⚠️ Nodi non installati</h3>
@@ -882,6 +931,14 @@ async function renderGenerate(container, navigate) {
       </ul>
       <button class="btn btn-primary" id="goFixImages">🖼️ Vai all'editor per assegnarle</button>
     </div>` : ""}
+    ${params.samplers.length ? `
+    <div class="card">
+      <label class="row" style="align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="randomizeSeed" ${randomizeDefault ? "checked" : ""} />
+        <span>🎲 Randomizza il seed ad ogni generazione</span>
+      </label>
+      <p class="faint" style="margin:4px 0 0;">Consigliato: con lo stesso seed e lo stesso prompt, ComfyUI riusa la cache e ti dà di nuovo la stessa identica immagine. Disattivalo solo se vuoi rigenerare esattamente lo stesso risultato.</p>
+    </div>` : ""}
     <div class="row">
       <button class="btn btn-primary" id="genBtn" ${apiFormat ? "" : "disabled"}>🚀 GENERA CON COMFYUI</button>
       ${blockers ? `<button class="btn btn-sm" id="genAnyway">Genera comunque, ignora l'avviso</button>` : ""}
@@ -892,6 +949,9 @@ async function renderGenerate(container, navigate) {
 
   if (missingImages.length) {
     container.querySelector("#goFixImages").addEventListener("click", () => navigate("/comfy/editor"));
+  }
+  if (stale) {
+    container.querySelector("#goFixStale").addEventListener("click", () => navigate("/comfy/editor"));
   }
   if (blockers) {
     container.querySelector("#genBtn").disabled = true;
@@ -905,6 +965,18 @@ async function renderGenerate(container, navigate) {
     const statusCard = container.querySelector("#genStatus");
     const statusBody = container.querySelector("#genStatusBody");
     statusCard.classList.remove("hidden");
+
+    const randomizeEl = container.querySelector("#randomizeSeed");
+    const randomize = randomizeEl ? randomizeEl.checked : randomizeDefault;
+    if (randomizeEl) lsSet(RANDOMIZE_KEY, randomize);
+    if (randomize && params.samplers.length) {
+      params.samplers.forEach((s) => {
+        const newSeed = Math.floor(Math.random() * 4294967295);
+        setNodeInput(wf.json, s.nodeId, "seed", newSeed);
+      });
+      persist(wf);
+    }
+
     statusBody.textContent = "Invio del workflow a ComfyUI...";
     try {
       const { prompt_id } = await generateWorkflow(wf.json);
@@ -914,6 +986,10 @@ async function renderGenerate(container, navigate) {
       statusBody.textContent = `❌ Errore: ${e.message}`;
     }
   });
+}
+
+function escapeHtmlGen(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
 async function pollStatus(promptId, statusBody, resultEl, workflowName) {

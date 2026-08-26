@@ -136,6 +136,49 @@ export function getCameraOrbitAngle() {
   return current.find((id) => CAMERA_YAW_IDS.includes(id)) || null;
 }
 
+// The 4 vertical-height presets driven by the Step 7 lateral (side) view
+// widget. "Eye level" is represented by none of these being selected.
+export const CAMERA_ELEVATION_IDS = ["dal_basso", "low_angle", "high_angle", "top_down"];
+
+/** Set the active height/elevation preset (or null for eye level), without
+ * disturbing yaw, dutch_angle or any custom option in "punto_vista". */
+export function setCameraElevation(optionId) {
+  const bucket = project.selections.camera || (project.selections.camera = {});
+  const current = bucket.punto_vista || [];
+  const kept = current.filter((id) => !CAMERA_ELEVATION_IDS.includes(id));
+  bucket.punto_vista = optionId ? [...kept, optionId] : kept;
+  persist();
+}
+
+/** Currently active height/elevation preset id, or null (eye level). */
+export function getCameraElevation() {
+  const bucket = project.selections.camera || {};
+  const current = bucket.punto_vista || [];
+  return current.find((id) => CAMERA_ELEVATION_IDS.includes(id)) || null;
+}
+
+// The 2 zoom presets driven by the Step 7 zoom dial (mutually exclusive —
+// a lens can't be zoomed in and out at once). "Neutral" = neither selected.
+export const CAMERA_ZOOM_IDS = ["zoom_in", "zoom_out"];
+
+/** Set the active zoom preset (or null for neutral), without disturbing
+ * distanza_ravvicinata/media/ampia, orbit, tilt, sguardo_* or any custom
+ * option in "obiettivo". */
+export function setCameraZoom(optionId) {
+  const bucket = project.selections.camera || (project.selections.camera = {});
+  const current = bucket.obiettivo || [];
+  const kept = current.filter((id) => !CAMERA_ZOOM_IDS.includes(id));
+  bucket.obiettivo = optionId ? [...kept, optionId] : kept;
+  persist();
+}
+
+/** Currently active zoom preset id, or null (neutral). */
+export function getCameraZoom() {
+  const bucket = project.selections.camera || {};
+  const current = bucket.obiettivo || [];
+  return current.find((id) => CAMERA_ZOOM_IDS.includes(id)) || null;
+}
+
 export function setFaceMode(mode) {
   project.faceMode = mode;
   persist();
