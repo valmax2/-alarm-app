@@ -112,6 +112,12 @@ const genitali = opts([
   ["vagina", "Vagina", "vagina"],
   ["monte_venere", "Monte di Venere", "mons pubis"],
   ["peli_pubici_femminili", "Peli pubici (femminili)", "female pubic hair"],
+  // stili (validi per qualunque genere)
+  ["pube_rasato", "Rasato / glabro", "shaved bare pubic area"],
+  ["pube_triangolo", "A triangolo", "trimmed triangle pubic hair"],
+  ["pube_striscia", "A striscia", "trimmed landing strip pubic hair"],
+  ["pube_corto", "Corto rifinito", "short trimmed pubic hair"],
+  ["pube_folto", "Folto naturale", "thick natural bushy pubic hair"],
 ]);
 
 const gambePiedi = opts([

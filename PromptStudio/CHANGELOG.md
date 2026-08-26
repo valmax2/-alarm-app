@@ -3,6 +3,38 @@
 Versione mostrata in alto a destra nell'app, accanto all'icona Archivio.
 Da qui in poi, ogni round di modifiche aggiorna il numero e questa pagina.
 
+## v0.2.0
+
+- **Pallini step numerati e cliccabili**: in cima al percorso guidato ora
+  ogni pallino mostra il numero dello step ed è un pulsante — un tap e
+  salti subito a quello step, avanti o indietro.
+- **Telecamera interattiva a 360°** nello Step 7 (Camera e luce): trascina
+  l'icona della fotocamera intorno al soggetto per scegliere il punto di
+  vista (frontale, 3/4, profilo, posteriore); un cono indica sempre
+  l'inquadratura verso il soggetto, una freccina verde fissa mostra dove
+  guarda il soggetto. Gli angoli verticali (low angle, dal basso, top
+  down, ecc.) restano pulsanti extra separati, senza essere cancellati
+  dal trascinamento.
+- **Corpo molto più dettagliato**: seno (18 varianti: dimensione, sodezza,
+  forma, posizione — a coppa di champagne, cadente, naturale, ecc.),
+  sopracciglia (12 varianti: folte, piccole, ad ala di gabbiano, ecc.),
+  stili di peli pubici (rasato, a triangolo, a striscia, corto, folto).
+- **Nuova sezione "Abbigliamento / Nudità"** nello Step 2 (Corpo), sempre a
+  pulsanti: livello di nudità (nuda/o, topless, solo intimo, vestita/o...),
+  intimo/lingerie (reggiseno di pizzo, perizoma, reggicalze...), coperture
+  (lenzuolo, accappatoio aperto, asciugamano...).
+- **Pose molto più ricche**: da 13 a oltre 40 pose, divise in 5 gruppi
+  (orientamento, in piedi, seduta/sdraiata, dinamica, espressiva/artistica).
+- **Filtri per le immagini generate** (🎨 Filtri, in ComfyUI Studio e in
+  Archivio → Immagini): pellicola calda/fredda, vintage, bianco e nero,
+  cinematografico, morbido/soft glow, grana pellicola, desaturato,
+  vignettatura — per un risultato meno "artificiale". Il filtro viene
+  salvato come nuova immagine, l'originale resta intatto.
+- **Corretto**: il prompt finale (Step 8) poteva "congelarsi" dopo una
+  modifica manuale, ignorando in silenzio le modifiche fatte dopo tornando
+  indietro agli step precedenti (es. aggiungendo dettagli alla scena). Ora
+  compare un avviso chiaro con un pulsante per rigenerarlo dagli step.
+
 ## v0.1.1
 
 - **Le immagini generate con ComfyUI ora vengono salvate davvero

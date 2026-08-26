@@ -11,12 +11,24 @@ import { askConfirm } from "./promptDialog.js";
 import { toast } from "./toast.js";
 import { getCategoriesFor } from "../state.js";
 
-export function renderStepProgress(container, currentIndex, total) {
+/**
+ * @param {(stepIndex:number)=>void} [onGoto] — when given, each dot is a
+ * button showing its step number that jumps straight to that step.
+ */
+export function renderStepProgress(container, currentIndex, total, onGoto) {
   const wrap = document.createElement("div");
   wrap.className = "step-progress";
   for (let i = 0; i < total; i++) {
-    const dot = document.createElement("div");
+    const dot = document.createElement("button");
+    dot.type = "button";
     dot.className = "step-dot" + (i < currentIndex ? " done" : i === currentIndex ? " active" : "");
+    dot.textContent = String(i + 1);
+    if (onGoto) {
+      dot.title = `Vai allo step ${i + 1}`;
+      dot.addEventListener("click", () => onGoto(i));
+    } else {
+      dot.disabled = true;
+    }
     wrap.appendChild(dot);
   }
   container.appendChild(wrap);
@@ -37,8 +49,13 @@ export function renderStepProgress(container, currentIndex, total) {
  * @param {(categoryId:string, optionId:string)=>boolean} isSelected
  * @param {Set<string>} [openByDefault] category ids to render expanded initially
  * @param {string} [stepKey] enables "add your own" / delete-custom when set
+ * @param {(opt:object)=>boolean} [filterOptions] when given, only options
+ * passing this predicate are shown (e.g. to carve out a subset of a category
+ * that's handled by a different widget elsewhere on the same step)
  */
-export function renderCategoryAccordions(container, categories, { onToggle, isSelected, openByDefault, stepKey } = {}) {
+export function renderCategoryAccordions(container, categories, { onToggle, isSelected, openByDefault, stepKey, filterOptions } = {}) {
+  const applyFilter = (cat2) => (filterOptions ? { ...cat2, options: cat2.options.filter(filterOptions) } : cat2);
+
   categories.forEach((cat, idx) => {
     const box = document.createElement("div");
     box.className = "category" + (openByDefault && openByDefault.has(cat.id) ? " open" : idx === 0 ? " open" : "");
@@ -63,7 +80,7 @@ export function renderCategoryAccordions(container, categories, { onToggle, isSe
 
     async function refresh() {
       const freshCat = stepKey ? getFreshCategory(stepKey, cat.id, cat) : cat;
-      drawGrid(freshCat);
+      drawGrid(applyFilter(freshCat));
     }
 
     function drawGrid(cat2) {
@@ -115,7 +132,7 @@ export function renderCategoryAccordions(container, categories, { onToggle, isSe
       }
     }
 
-    drawGrid(cat);
+    drawGrid(applyFilter(cat));
   });
 }
 

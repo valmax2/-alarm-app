@@ -85,12 +85,28 @@ const pelle = opts([
 ]);
 
 const seno = opts([
+  // dimensione
   ["piccolo", "Piccolo", "small breasts"],
   ["medio", "Medio", "medium breasts"],
   ["grande", "Grande", "large breasts"],
   ["molto_grande", "Molto grande", "very large breasts"],
+  ["abbondante", "Abbondante", "full breasts"],
+  ["piatto", "Piatto", "flat chest"],
+  // sodezza / assetto
   ["sodo", "Sodo", "firm breasts"],
   ["naturale", "Naturale", "natural breasts"],
+  ["cadente", "Cadente", "saggy droopy breasts"],
+  ["rivolto_alto", "Rivolto verso l'alto", "upward-pointing perky breasts"],
+  // forma
+  ["a_coppa_champagne", "A coppa di champagne", "champagne coupe shaped breasts"],
+  ["a_goccia", "A goccia", "teardrop shaped breasts"],
+  ["rotondo", "Rotondo", "round breasts"],
+  ["a_campana", "A campana", "bell-shaped breasts"],
+  ["atletico", "Atletico", "athletic breasts"],
+  ["asimmetrico", "Asimmetrico", "asymmetrical breasts"],
+  // posizione
+  ["distanziato", "Distanziato", "wide-set breasts"],
+  ["ravvicinato", "Ravvicinato", "close-set breasts"],
 ]);
 
 const sedere = opts([

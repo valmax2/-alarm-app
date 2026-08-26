@@ -9,6 +9,7 @@ import { getProject, loadProjectObject } from "../state.js";
 import { buildIdentityLockFragments } from "../data/face.js";
 import { pickImportSource, resolveImportedFile } from "../components/importSource.js";
 import { renderPrivacyThumb } from "../components/privacyThumb.js";
+import { openImageFilterPicker } from "../components/imageFilters.js";
 import { askText, askConfirm } from "../components/promptDialog.js";
 import { toast } from "../components/toast.js";
 
@@ -254,8 +255,11 @@ async function renderImages(container) {
   const images = (await listImages()).sort((a, b) => b.meta.createdAt - a.meta.createdAt);
   if (!images.length) { grid.innerHTML = `<span class="faint">Nessuna immagine ancora.</span>`; return; }
   for (const rec of images) {
+    const outer = document.createElement("div");
+    grid.appendChild(outer);
+
     const holder = document.createElement("div");
-    grid.appendChild(holder);
+    outer.appendChild(holder);
 
     const del = document.createElement("div");
     del.className = "eye-toggle";
@@ -265,10 +269,22 @@ async function renderImages(container) {
       e.stopPropagation();
       if (!(await askConfirm("Eliminare questa immagine?"))) return;
       await deleteImage(rec.id);
-      holder.remove();
+      outer.remove();
     });
 
     await renderPrivacyThumb(holder, rec.id, { title: rec.meta.kind || "", overlay: del });
+
+    if (rec.meta.kind === "generated") {
+      const filterBtn = document.createElement("button");
+      filterBtn.type = "button";
+      filterBtn.className = "btn filter-btn";
+      filterBtn.style.cssText = "margin-top:4px;width:100%;";
+      filterBtn.textContent = "🎨 Filtri";
+      filterBtn.addEventListener("click", () => {
+        openImageFilterPicker(rec.id, { onSaved: () => renderImages(container) });
+      });
+      outer.appendChild(filterBtn);
+    }
   }
 }
 

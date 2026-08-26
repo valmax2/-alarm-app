@@ -13,6 +13,7 @@ import { anatomyCategories } from "./data/anatomy.js";
 import { faceCategories, buildIdentityLockFragments } from "./data/face.js";
 import { hairCategories, buildKeepReferenceHairFragment } from "./data/hair.js";
 import { actionCategories, poseCategories } from "./data/actionsPoses.js";
+import { clothingCategories } from "./data/clothing.js";
 import { sceneCategories } from "./data/scenes.js";
 import { cameraCategories, lightCategories } from "./data/cameraLight.js";
 import { negativeCategories, defaultNegativePrompt } from "./data/negative.js";
@@ -32,6 +33,7 @@ function blankProject() {
     // selections[stepKey][categoryId] = [optionId, ...]
     selections: {
       body: {},
+      clothing: {},
       face: {},
       hair: {},
       action: {},
@@ -53,6 +55,7 @@ function blankProject() {
 
     negativeText: defaultNegativePrompt(),
     positiveManualText: null, // set once the user hand-edits the box directly
+    positiveManualBaseline: null, // auto-prompt snapshot at the moment manual mode started
 
     destination: null, // 'comfyui' | 'chatgpt' | 'gemini' | 'metaai'
 
@@ -111,6 +114,28 @@ export function isSelected(stepKey, categoryId, optionId) {
   return (bucket[categoryId] || []).includes(optionId);
 }
 
+// The 5 horizontal "punto_vista" ids that the Step 7 orbit widget drives.
+// Elevation options in the same category (low_angle, dal_basso, ...) and any
+// custom ones the user adds are left untouched when the widget commits.
+export const CAMERA_YAW_IDS = ["frontale", "tre_quarti_sx", "tre_quarti_dx", "profilo", "posteriore"];
+
+/** Set which of the 5 orbit-widget presets is active, without disturbing
+ * any elevation option also selected in "punto_vista". */
+export function setCameraOrbitAngle(optionId) {
+  const bucket = project.selections.camera || (project.selections.camera = {});
+  const current = bucket.punto_vista || [];
+  const kept = current.filter((id) => !CAMERA_YAW_IDS.includes(id));
+  bucket.punto_vista = [...kept, optionId];
+  persist();
+}
+
+/** Currently active orbit-widget preset id, if any. */
+export function getCameraOrbitAngle() {
+  const bucket = project.selections.camera || {};
+  const current = bucket.punto_vista || [];
+  return current.find((id) => CAMERA_YAW_IDS.includes(id)) || null;
+}
+
 export function setFaceMode(mode) {
   project.faceMode = mode;
   persist();
@@ -147,13 +172,35 @@ export function setNegativeText(text) {
 }
 
 export function setPositiveManualText(text) {
+  if (project.positiveManualText == null) {
+    // just entering manual mode: remember what the auto-generated prompt
+    // looked like at this moment, so we can later tell whether the wizard
+    // has moved on (new selections) since the user started hand-editing.
+    project.positiveManualBaseline = buildAutoPositivePrompt();
+  }
   project.positiveManualText = text;
   persist();
 }
 
 export function clearPositiveManualOverride() {
   project.positiveManualText = null;
+  project.positiveManualBaseline = null;
   persist();
+}
+
+/**
+ * True when the user is hand-editing the positive prompt AND the wizard
+ * selections have changed since they started (e.g. they went back to an
+ * earlier step and added something) — so the box on screen no longer
+ * reflects those newer choices. Used to surface a visible warning instead
+ * of silently dropping the user's later edits elsewhere in the wizard.
+ */
+export function isPositivePromptStale() {
+  return (
+    project.positiveManualText != null &&
+    project.positiveManualBaseline != null &&
+    buildAutoPositivePrompt() !== project.positiveManualBaseline
+  );
 }
 
 export function toggleNegativeFragment(frag) {
@@ -178,6 +225,7 @@ export function isNegativeFragmentActive(frag) {
 function baseCategoriesFor(stepKey) {
   switch (stepKey) {
     case "body": return [...getBodyCategories(project.persona || "donna"), ...anatomyCategories];
+    case "clothing": return clothingCategories;
     case "face": return faceCategories;
     case "hair": return hairCategories;
     case "action": return actionCategories;
@@ -224,6 +272,7 @@ export function buildAutoPositivePrompt() {
   if (project.persona) parts.push(PERSONA_SUBJECT[project.persona]);
 
   parts.push(...fragmentsFor("body"));
+  parts.push(...fragmentsFor("clothing"));
 
   if (project.faceMode === "reference" && project.referenceImageId) {
     parts.push(...buildIdentityLockFragments());
@@ -266,7 +315,7 @@ export function getNegativePrompt() {
 
 /** Human-readable list of chosen fragments, grouped, for the compact prompt bar. */
 export function getPromptBarSummary() {
-  const order = ["body", "face", "hair", "action", "pose", "scene", "camera", "light"];
+  const order = ["body", "clothing", "face", "hair", "action", "pose", "scene", "camera", "light"];
   const tags = [];
   order.forEach((stepKey) => tags.push(...fragmentsFor(stepKey)));
   return tags;

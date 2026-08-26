@@ -18,6 +18,7 @@ import { detectFamily, compareCompatibility, badgeLabel } from "./compat.js";
 import { pickImportSource, resolveImportedFile } from "../components/importSource.js";
 import { pickCharacterReferenceImage } from "../components/characterImagePicker.js";
 import { renderPrivacyThumb } from "../components/privacyThumb.js";
+import { openImageFilterPicker } from "../components/imageFilters.js";
 import { openImageViewer } from "../components/imageViewer.js";
 import { toast } from "../components/toast.js";
 import { getProject, getPositivePrompt, getNegativePrompt } from "../state.js";
@@ -935,7 +936,26 @@ async function pollStatus(promptId, statusBody, resultEl, workflowName) {
             const url = getGeneratedImageUrl(img);
             const blob = await (await fetch(url)).blob();
             const imageId = await saveImageBlob(blob, { kind: "generated", workflowName: workflowName || "", filename: img.filename });
-            await renderPrivacyThumb(holder, imageId, { title: "Immagine generata", size: "220px" });
+            const thumbSlot = document.createElement("div");
+            holder.appendChild(thumbSlot);
+            await renderPrivacyThumb(thumbSlot, imageId, { title: "Immagine generata", size: "220px" });
+            const filterBtn = document.createElement("button");
+            filterBtn.type = "button";
+            filterBtn.className = "btn filter-btn";
+            filterBtn.style.marginTop = "6px";
+            filterBtn.textContent = "🎨 Filtri";
+            filterBtn.addEventListener("click", () => {
+              openImageFilterPicker(imageId, {
+                onSaved: async (newImageId) => {
+                  const newHolder = document.createElement("div");
+                  newHolder.style.display = "inline-block";
+                  newHolder.style.marginLeft = "8px";
+                  resultEl.appendChild(newHolder);
+                  await renderPrivacyThumb(newHolder, newImageId, { title: "Immagine filtrata", size: "220px" });
+                },
+              });
+            });
+            holder.appendChild(filterBtn);
           } catch (e) {
             // Couldn't save into the app's own gallery (e.g. Bridge hiccup
             // mid-fetch) — still show it live from ComfyUI so the user

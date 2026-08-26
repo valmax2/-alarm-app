@@ -11,10 +11,12 @@ import {
   setHairMode, setCustomField,
   setDestination, setNegativeText, getNegativePrompt, getPositivePrompt,
   setPositiveManualText, clearPositiveManualOverride, toggleNegativeFragment,
-  isNegativeFragmentActive,
+  isNegativeFragmentActive, isPositivePromptStale,
+  setCameraOrbitAngle, getCameraOrbitAngle, CAMERA_YAW_IDS,
 } from "../state.js";
 import { saveImageBlob } from "../storage.js";
 import { renderStepProgress, renderCategoryAccordions, renderCustomTextField } from "../components/stepper.js";
+import { renderCameraOrbit } from "../components/cameraOrbit.js";
 import { mountPromptBar } from "../components/promptBar.js";
 import { pickImportSource, resolveImportedFile } from "../components/importSource.js";
 import { renderPrivacyThumb } from "../components/privacyThumb.js";
@@ -44,7 +46,7 @@ export async function render(container, params, { navigate, setHeader }) {
   const header = document.createElement("div");
   header.innerHTML = `<div class="step-header"><h2 class="step-title">${step.title}</h2></div>`;
   container.appendChild(header);
-  renderStepProgress(container, stepIndex, STEPS.length);
+  renderStepProgress(container, stepIndex, STEPS.length, (i) => navigate(`/builder/${i + 1}`));
 
   const content = document.createElement("div");
   content.className = "stack";
@@ -125,6 +127,22 @@ function renderCorpo(container) {
   };
 
   renderCategoryAccordions(container, buildCats, toggleOpts);
+
+  const clothingTitle = document.createElement("h3");
+  clothingTitle.textContent = "Abbigliamento / Nudità";
+  clothingTitle.style.color = "var(--gold-soft)";
+  clothingTitle.style.marginTop = "10px";
+  container.appendChild(clothingTitle);
+  const clothingHint = document.createElement("p");
+  clothingHint.className = "faint";
+  clothingHint.style.marginTop = "-4px";
+  clothingHint.textContent = "Specifica se è nuda/o, in intimo o vestita/o — sempre a pulsanti, come tutto il resto.";
+  container.appendChild(clothingHint);
+  renderCategoryAccordions(container, getCategoriesFor("clothing"), {
+    onToggle: (catId, optId) => toggleSelection("clothing", catId, optId),
+    isSelected: (catId, optId) => isSelected("clothing", catId, optId),
+    stepKey: "clothing",
+  });
 
   const anatomyTitle = document.createElement("h3");
   anatomyTitle.textContent = "Anatomia — glossario completo";
@@ -349,11 +367,48 @@ function renderScena(container) {
 
 // ---------------- STEP 7 — CAMERA E LUCE ----------------
 function renderCameraLuce(container) {
+  const camCats = getCategoriesFor("camera");
+  const pvCat = camCats.find((c) => c.id === "punto_vista");
+  const otherCamCats = camCats.filter((c) => c.id !== "punto_vista");
+  const inquadraturaCats = otherCamCats.filter((c) => c.id === "inquadratura");
+  const restCamCats = otherCamCats.filter((c) => c.id !== "inquadratura");
+
   const camTitle = document.createElement("h3");
   camTitle.textContent = "Camera";
   camTitle.style.color = "var(--gold-soft)";
   container.appendChild(camTitle);
-  renderCategoryAccordions(container, getCategoriesFor("camera"), {
+
+  renderCategoryAccordions(container, inquadraturaCats, {
+    onToggle: (catId, optId) => toggleSelection("camera", catId, optId),
+    isSelected: (catId, optId) => isSelected("camera", catId, optId),
+    stepKey: "camera",
+  });
+
+  if (pvCat) {
+    const pvTitle = document.createElement("p");
+    pvTitle.className = "step-question";
+    pvTitle.textContent = "Punto di vista — telecamera interattiva";
+    container.appendChild(pvTitle);
+    renderCameraOrbit(container, {
+      getSelected: getCameraOrbitAngle,
+      onSelect: (id) => setCameraOrbitAngle(id),
+    });
+
+    const elevTitle = document.createElement("p");
+    elevTitle.className = "step-question";
+    elevTitle.style.marginTop = "10px";
+    elevTitle.textContent = "Angolo verticale (extra)";
+    container.appendChild(elevTitle);
+    renderCategoryAccordions(container, [pvCat], {
+      onToggle: (catId, optId) => toggleSelection("camera", catId, optId),
+      isSelected: (catId, optId) => isSelected("camera", catId, optId),
+      stepKey: "camera",
+      openByDefault: new Set(["punto_vista"]),
+      filterOptions: (opt) => !CAMERA_YAW_IDS.includes(opt.id),
+    });
+  }
+
+  renderCategoryAccordions(container, restCamCats, {
     onToggle: (catId, optId) => toggleSelection("camera", catId, optId),
     isSelected: (catId, optId) => isSelected("camera", catId, optId),
     stepKey: "camera",
@@ -376,18 +431,39 @@ function renderFinale(container, { navigate }) {
   const posCard = document.createElement("div");
   posCard.className = "card";
   posCard.innerHTML = `<h3>PROMPT POSITIVO</h3>`;
+
+  const staleNote = document.createElement("div");
+  staleNote.className = "manual-warning";
+  staleNote.style.display = "none";
+  posCard.appendChild(staleNote);
+
   const posBox = document.createElement("div");
   posBox.className = "prompt-box";
   posBox.contentEditable = "true";
   posBox.textContent = getPositivePrompt();
-  posBox.addEventListener("input", () => setPositiveManualText(posBox.textContent));
+  posBox.addEventListener("input", () => {
+    // ignore no-op events (focus/blur quirks on some browsers fire "input"
+    // without any real change) — only freeze into manual mode on an actual edit
+    if (posBox.textContent !== getPositivePrompt()) setPositiveManualText(posBox.textContent);
+    refreshStaleNote();
+  });
   posCard.appendChild(posBox);
+
+  function refreshStaleNote() {
+    if (isPositivePromptStale()) {
+      staleNote.style.display = "";
+      staleNote.innerHTML = `⚠️ Hai modificato questo prompt a mano: le modifiche fatte dopo negli step precedenti (es. Scena) <b>non</b> vengono aggiunte qui automaticamente. Premi "↻ Rigenera dagli step" per aggiornarlo (perderai le modifiche scritte a mano qui).`;
+    } else {
+      staleNote.style.display = "none";
+    }
+  }
+  refreshStaleNote();
 
   const posBtnRow = document.createElement("div");
   posBtnRow.className = "row";
   posBtnRow.style.marginTop = "10px";
   const copyPos = mkBtn("📋 Copia positivo", () => copyText(getPositivePrompt()));
-  const regen = mkBtn("↻ Rigenera dagli step", () => { clearPositiveManualOverride(); posBox.textContent = getPositivePrompt(); });
+  const regen = mkBtn("↻ Rigenera dagli step", () => { clearPositiveManualOverride(); posBox.textContent = getPositivePrompt(); refreshStaleNote(); });
   posBtnRow.append(copyPos, regen);
   posCard.appendChild(posBtnRow);
   container.appendChild(posCard);

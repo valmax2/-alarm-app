@@ -56,8 +56,16 @@ export const faceCategories = [
     options: opts([
       ["sottili", "Sottili", "thin eyebrows"],
       ["folte", "Folte", "thick eyebrows"],
+      ["piccole", "Piccole", "small short eyebrows"],
+      ["lunghe", "Lunghe", "long eyebrows"],
       ["arcuate", "Arcuate", "arched eyebrows"],
       ["dritte", "Dritte", "straight eyebrows"],
+      ["a_ala_di_gabbiano", "Ad ala di gabbiano", "gull-wing eyebrows"],
+      ["scolpite", "Scolpite / definite", "sculpted defined eyebrows"],
+      ["sfoltite", "Sfoltite", "groomed thinned eyebrows"],
+      ["rade", "Rade", "sparse eyebrows"],
+      ["naturali", "Naturali / non modellate", "natural unshaped eyebrows"],
+      ["unite", "Unite (monociglio)", "unibrow"],
     ]),
   },
   {
