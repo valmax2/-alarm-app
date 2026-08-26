@@ -6,7 +6,7 @@
 // sending a generation job to the local ComfyUI server.
 // ==========================================================================
 
-import { lsGet, lsSet, getImageRecord } from "../storage.js";
+import { lsGet, lsSet, getImageRecord, saveImageBlob } from "../storage.js";
 import {
   getBridgeConfig, setBridgeConfig, checkHealth, pushConfigToBridge,
   fetchInventory, rescanInventory, listWorkflows, getWorkflow,
@@ -17,6 +17,7 @@ import { extractParams, setNodeInput, findImageNodes, isApiFormat } from "./work
 import { detectFamily, compareCompatibility, badgeLabel } from "./compat.js";
 import { pickImportSource, resolveImportedFile } from "../components/importSource.js";
 import { pickCharacterReferenceImage } from "../components/characterImagePicker.js";
+import { renderPrivacyThumb } from "../components/privacyThumb.js";
 import { openImageViewer } from "../components/imageViewer.js";
 import { toast } from "../components/toast.js";
 import { getProject, getPositivePrompt, getNegativePrompt } from "../state.js";
@@ -907,14 +908,14 @@ async function renderGenerate(container, navigate) {
     try {
       const { prompt_id } = await generateWorkflow(wf.json);
       statusBody.textContent = `In coda (prompt_id: ${prompt_id}). Attendo il completamento...`;
-      await pollStatus(prompt_id, statusBody, container.querySelector("#genResult"));
+      await pollStatus(prompt_id, statusBody, container.querySelector("#genResult"), wf.name);
     } catch (e) {
       statusBody.textContent = `❌ Errore: ${e.message}`;
     }
   });
 }
 
-async function pollStatus(promptId, statusBody, resultEl) {
+async function pollStatus(promptId, statusBody, resultEl, workflowName) {
   let consecutiveFailures = 0;
   for (let i = 0; i < 120; i++) {
     await new Promise((r) => setTimeout(r, 2000));
@@ -922,17 +923,35 @@ async function pollStatus(promptId, statusBody, resultEl) {
       const status = await getGenerationStatus(promptId);
       consecutiveFailures = 0;
       if (status.status === "completed") {
-        statusBody.textContent = "✅ Generazione completata.";
-        (status.images || []).forEach((img) => {
-          const url = getGeneratedImageUrl(img);
-          const el = document.createElement("img");
-          el.src = url;
-          el.style.maxWidth = "220px";
-          el.style.borderRadius = "12px";
-          el.style.cursor = "zoom-in";
-          el.addEventListener("click", () => openImageViewer(url, { title: "Immagine generata" }));
-          resultEl.appendChild(el);
-        });
+        const images = status.images || [];
+        statusBody.textContent = images.length
+          ? "✅ Generazione completata. Salvo le immagini in Archivio..."
+          : "✅ Generazione completata.";
+        for (const img of images) {
+          const holder = document.createElement("div");
+          holder.style.display = "inline-block";
+          resultEl.appendChild(holder);
+          try {
+            const url = getGeneratedImageUrl(img);
+            const blob = await (await fetch(url)).blob();
+            const imageId = await saveImageBlob(blob, { kind: "generated", workflowName: workflowName || "", filename: img.filename });
+            await renderPrivacyThumb(holder, imageId, { title: "Immagine generata", size: "220px" });
+          } catch (e) {
+            // Couldn't save into the app's own gallery (e.g. Bridge hiccup
+            // mid-fetch) — still show it live from ComfyUI so the user
+            // isn't left with nothing, just without the privacy eye.
+            const url = getGeneratedImageUrl(img);
+            const el = document.createElement("img");
+            el.src = url;
+            el.style.maxWidth = "220px";
+            el.style.borderRadius = "12px";
+            el.style.cursor = "zoom-in";
+            el.addEventListener("click", () => openImageViewer(url, { title: "Immagine generata" }));
+            holder.appendChild(el);
+            toast(`Immagine mostrata ma non salvata in Archivio: ${e.message}`, { error: true });
+          }
+        }
+        statusBody.textContent = images.length ? "✅ Generazione completata e salvata in Archivio → Immagini." : "✅ Generazione completata.";
         return;
       } else if (status.status === "error") {
         statusBody.textContent = `❌ Errore ComfyUI: ${status.error || "sconosciuto"}`;

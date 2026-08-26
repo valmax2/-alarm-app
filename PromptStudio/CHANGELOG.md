@@ -3,6 +3,14 @@
 Versione mostrata in alto a destra nell'app, accanto all'icona Archivio.
 Da qui in poi, ogni round di modifiche aggiorna il numero e questa pagina.
 
+## v0.1.1
+
+- **Le immagini generate con ComfyUI ora vengono salvate davvero
+  nell'Archivio dell'app** (prima venivano solo mostrate a video, prese
+  al volo da ComfyUI, e sparivano se non le scaricavi a mano). Ora
+  compaiono anche in Archivio → Immagini, con l'occhio di privacy come
+  tutte le altre foto.
+
 ## v0.1.0
 
 Prima versione tracciata. Comprende tutto il lavoro fatto finora:
