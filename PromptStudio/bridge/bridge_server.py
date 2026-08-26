@@ -253,6 +253,36 @@ def comfy_generate(workflow_json):
     return result.get("prompt_id")
 
 
+def describe_comfy_http_error(err):
+    """ComfyUI answers a bad /prompt submission with 400 and a JSON body
+    naming exactly which node/input failed validation (e.g. a checkpoint
+    or LoRA filename that doesn't exist on this machine). Surface that
+    instead of a generic 'unreachable' message."""
+    try:
+        raw = err.read()
+        data = json.loads(raw.decode("utf-8", errors="ignore"))
+    except Exception:
+        return str(err)
+
+    parts = []
+    top_error = data.get("error")
+    if isinstance(top_error, dict) and top_error.get("message"):
+        parts.append(top_error["message"])
+
+    node_errors = data.get("node_errors")
+    if isinstance(node_errors, dict):
+        for node_id, info in node_errors.items():
+            class_type = info.get("class_type", "?")
+            for er in info.get("errors", []) or []:
+                msg = er.get("message", "")
+                details = er.get("details", "")
+                parts.append(f"nodo {node_id} ({class_type}): {msg} {details}".strip())
+
+    if not parts:
+        return json.dumps(data, ensure_ascii=False)[:500]
+    return " | ".join(parts)[:800]
+
+
 def comfy_status(prompt_id):
     try:
         history = comfy_request(f"/history/{prompt_id}")
@@ -379,6 +409,11 @@ class Handler(BaseHTTPRequestHandler):
                 self._handle_upload_input(filename)
             else:
                 self._error("Non trovato", 404)
+        except urllib.error.HTTPError as e:
+            # ComfyUI WAS reached — it rejected the workflow. Different
+            # problem from "unreachable", so give the real reason.
+            detail = describe_comfy_http_error(e)
+            self._error(f"ComfyUI ha rifiutato il workflow (HTTP {e.code}): {detail}", 400)
         except urllib.error.URLError as e:
             self._error(f"ComfyUI non raggiungibile su {comfy_api_url()}: {e}", 502)
         except PermissionError as e:
