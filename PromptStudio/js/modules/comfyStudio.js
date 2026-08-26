@@ -6,7 +6,7 @@
 // sending a generation job to the local ComfyUI server.
 // ==========================================================================
 
-import { lsGet, lsSet } from "../storage.js";
+import { lsGet, lsSet, getImageRecord } from "../storage.js";
 import {
   getBridgeConfig, setBridgeConfig, checkHealth, pushConfigToBridge,
   fetchInventory, rescanInventory, listWorkflows, getWorkflow,
@@ -16,6 +16,7 @@ import {
 import { extractParams, setNodeInput, findImageNodes, isApiFormat } from "./workflowParams.js";
 import { detectFamily, compareCompatibility, badgeLabel } from "./compat.js";
 import { pickImportSource, resolveImportedFile } from "../components/importSource.js";
+import { pickCharacterReferenceImage } from "../components/characterImagePicker.js";
 import { openImageViewer } from "../components/imageViewer.js";
 import { toast } from "../components/toast.js";
 import { getProject, getPositivePrompt, getNegativePrompt } from "../state.js";
@@ -327,11 +328,20 @@ async function renderEditor(container, navigate) {
 
   if (params.loras.length) {
     const box = sectionCard("LoRA");
+    const ckptFam = params.checkpoints[0] ? detectFamily({ name: params.checkpoints[0].value || "" }) : null;
+    if (loraNames && loraNames.length) {
+      const hint = document.createElement("p");
+      hint.className = "faint";
+      hint.style.marginTop = "-4px";
+      hint.textContent = ckptFam && ckptFam.family !== "unknown"
+        ? `Elenco ordinato per compatibilità con il checkpoint rilevato (${ckptFam.family}) — i ✅ Compatibili sono quelli che puoi scegliere con più sicurezza.`
+        : "Famiglia del checkpoint non determinabile: non posso ordinare per compatibilità con certezza, i LoRA restano tutti in \"❓ Da verificare\".";
+      box.appendChild(hint);
+    }
     params.loras.forEach((l) => {
       const onChange = (v) => { setNodeInput(wf.json, l.nodeId, "lora_name", v); persist(wf); };
-      const row = loraNames ? selectRow(l.title, l.value, loraNames, onChange) : fieldRow(l.title, l.value, onChange);
+      const row = loraNames ? selectRowGrouped(l.title, l.value, loraNames, ckptFam, onChange) : fieldRow(l.title, l.value, onChange);
       const famLora = detectFamily({ name: l.value || "" });
-      const ckptFam = params.checkpoints[0] ? detectFamily({ name: params.checkpoints[0].value || "" }) : null;
       const cmp = ckptFam ? compareCompatibility(ckptFam, famLora) : { level: "yellow" };
       const badge = document.createElement("span");
       badge.className = `badge badge-${cmp.level}`;
@@ -393,31 +403,68 @@ async function renderEditor(container, navigate) {
   if (params.loadImages.length) {
     const box = sectionCard("Immagini nel workflow (Load Image)");
     const p = getProject();
+
+    async function assignImageToNode(file, nodeId) {
+      try {
+        const { filename } = await uploadInputImage(file);
+        setNodeInput(wf.json, nodeId, "image", filename);
+        persist(wf);
+        toast(`Immagine "${filename}" caricata nella cartella input di ComfyUI e collegata al nodo.`);
+      } catch (e) {
+        toast(`Bridge non raggiungibile (${e.message}): imposto solo il nome file, copiala manualmente in ComfyUI/input.`, { error: true, ms: 6000 });
+        setNodeInput(wf.json, nodeId, "image", file.name);
+        persist(wf);
+      }
+    }
+
     params.loadImages.forEach((li) => {
-      const row = document.createElement("div");
-      row.className = "row";
-      row.style.justifyContent = "space-between";
-      row.innerHTML = `<span>${li.title}<br/><span class="faint">${li.value || "(nessuna)"}</span></span>`;
-      const btn = document.createElement("button");
-      btn.className = "btn btn-sm";
-      btn.textContent = p.referenceImageId ? "Usa reference del progetto" : "Assegna immagine";
-      btn.addEventListener("click", async () => {
+      const wrap = document.createElement("div");
+      wrap.style.marginBottom = "10px";
+      wrap.innerHTML = `<div>${li.title}<br/><span class="faint">${li.value || "(nessuna)"}</span></div>`;
+
+      const btnRow = document.createElement("div");
+      btnRow.className = "row";
+      btnRow.style.marginTop = "6px";
+
+      if (p.referenceImageId) {
+        const useProjectBtn = document.createElement("button");
+        useProjectBtn.className = "btn btn-sm btn-primary";
+        useProjectBtn.textContent = "⭐ Usa reference del progetto attuale";
+        useProjectBtn.addEventListener("click", async () => {
+          const rec = await getImageRecord(p.referenceImageId);
+          if (!rec) { toast("Reference non trovata.", { error: true }); return; }
+          const file = new File([rec.blob], `reference.${(rec.blob.type || "").split("/")[1] || "png"}`, { type: rec.blob.type });
+          await assignImageToNode(file, li.nodeId);
+          renderEditor(container, navigate);
+        });
+        btnRow.appendChild(useProjectBtn);
+      }
+
+      const fromCharBtn = document.createElement("button");
+      fromCharBtn.className = "btn btn-sm";
+      fromCharBtn.textContent = "📇 Da un personaggio salvato";
+      fromCharBtn.addEventListener("click", async () => {
+        const file = await pickCharacterReferenceImage();
+        if (!file) return;
+        await assignImageToNode(file, li.nodeId);
+        renderEditor(container, navigate);
+      });
+      btnRow.appendChild(fromCharBtn);
+
+      const fromFileBtn = document.createElement("button");
+      fromFileBtn.className = "btn btn-sm";
+      fromFileBtn.textContent = "📁 Assegna da file";
+      fromFileBtn.addEventListener("click", async () => {
         const picked = await pickImportSource({ accept: "image/*", title: `Assegna immagine a ${li.title}` });
         if (!picked) return;
         const file = await resolveImportedFile(picked);
-        try {
-          const { filename } = await uploadInputImage(file);
-          setNodeInput(wf.json, li.nodeId, "image", filename);
-          persist(wf);
-          toast(`Immagine "${filename}" caricata nella cartella input di ComfyUI e collegata al nodo.`);
-        } catch (e) {
-          toast(`Bridge non raggiungibile (${e.message}): imposto solo il nome file, copiala manualmente in ComfyUI/input.`, { error: true, ms: 6000 });
-          setNodeInput(wf.json, li.nodeId, "image", file.name);
-          persist(wf);
-        }
+        await assignImageToNode(file, li.nodeId);
+        renderEditor(container, navigate);
       });
-      row.appendChild(btn);
-      box.appendChild(row);
+      btnRow.appendChild(fromFileBtn);
+
+      wrap.appendChild(btnRow);
+      box.appendChild(wrap);
     });
     container.appendChild(box);
   }
@@ -500,6 +547,70 @@ function selectRow(label, value, options, onChange) {
   row.appendChild(select);
   return row;
 }
+
+/**
+ * Like selectRow, but grouped by compatibility with `ckptFam` (the
+ * detected family of the workflow's checkpoint) using <optgroup> — never
+ * hides an option outright (the family detection is heuristic and can
+ * miss a real match), just surfaces the ✅ compatible ones first so
+ * "il verde" is the obvious, easy pick.
+ */
+function selectRowGrouped(label, value, options, ckptFam, onChange) {
+  const row = document.createElement("div");
+  row.className = "row";
+  row.style.justifyContent = "space-between";
+  row.style.marginBottom = "8px";
+  row.style.flexWrap = "wrap";
+  const span = document.createElement("span");
+  span.textContent = label;
+  span.style.flex = "1 1 auto";
+  const select = document.createElement("select");
+  select.style.maxWidth = "220px";
+  select.style.background = "var(--bg-elev-2)";
+  select.style.border = "1px solid rgba(201,160,99,.3)";
+  select.style.color = "var(--text)";
+  select.style.borderRadius = "8px";
+  select.style.padding = "6px 8px";
+
+  const names = [...new Set(options)];
+  if (value && !names.includes(value)) names.unshift(value);
+
+  const groups = { green: [], yellow: [], red: [] };
+  names.forEach((name) => {
+    const level = ckptFam ? compareCompatibility(ckptFam, detectFamily({ name })).level : "yellow";
+    groups[level].push(name);
+  });
+
+  [
+    { level: "green", label: "✅ Compatibili" },
+    { level: "yellow", label: "❓ Da verificare" },
+    { level: "red", label: "⛔ Probabilmente incompatibili" },
+  ].forEach(({ level, label: groupLabel }) => {
+    if (!groups[level].length) return;
+    const og = document.createElement("optgroup");
+    og.label = groupLabel;
+    groups[level].forEach((name) => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      if (name === value) opt.selected = true;
+      og.appendChild(opt);
+    });
+    select.appendChild(og);
+  });
+  if (!names.length) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "(nessun modello trovato — vai in Inventario)";
+    select.appendChild(opt);
+  }
+
+  select.addEventListener("change", () => onChange(select.value));
+  row.appendChild(span);
+  row.appendChild(select);
+  return row;
+}
+
 function sliderRow(label, value, min, max, step, onChange) {
   const row = document.createElement("div");
   row.style.marginBottom = "10px";
@@ -664,10 +775,12 @@ function renderGenerate(container, navigate) {
 }
 
 async function pollStatus(promptId, statusBody, resultEl) {
+  let consecutiveFailures = 0;
   for (let i = 0; i < 120; i++) {
     await new Promise((r) => setTimeout(r, 2000));
     try {
       const status = await getGenerationStatus(promptId);
+      consecutiveFailures = 0;
       if (status.status === "completed") {
         statusBody.textContent = "✅ Generazione completata.";
         (status.images || []).forEach((img) => {
@@ -688,8 +801,15 @@ async function pollStatus(promptId, statusBody, resultEl) {
         statusBody.textContent = `⏳ ${status.status || "in elaborazione"}...`;
       }
     } catch (e) {
-      statusBody.textContent = `❌ ${e.message}`;
-      return;
+      consecutiveFailures++;
+      // A single hiccup talking to the Bridge shouldn't abort tracking a
+      // job that's likely still running fine — only give up after a run
+      // of real failures in a row.
+      if (consecutiveFailures >= 5) {
+        statusBody.textContent = `❌ ${e.message}`;
+        return;
+      }
+      statusBody.textContent = `⏳ In elaborazione (Bridge momentaneamente lento a rispondere: ${e.message})...`;
     }
   }
   statusBody.textContent = "⏱️ Timeout in attesa del risultato.";

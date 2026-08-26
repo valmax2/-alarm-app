@@ -21,7 +21,7 @@ const REFERENCE_PACK_SLOTS = [
   "Close-up volto", "Mezzo busto", "Full body",
 ];
 
-function getCharacters() { return lsGet(CHAR_KEY, []); }
+export function getCharacters() { return lsGet(CHAR_KEY, []); }
 function saveCharacters(list) { lsSet(CHAR_KEY, list); }
 function getSavedProjects() { return lsGet(PROJ_KEY, []); }
 function saveSavedProjects(list) { lsSet(PROJ_KEY, list); }

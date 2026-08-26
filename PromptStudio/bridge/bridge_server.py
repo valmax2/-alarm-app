@@ -15,6 +15,7 @@
 import json
 import mimetypes
 import os
+import socket
 import struct
 import sys
 import uuid
@@ -239,12 +240,12 @@ def comfy_api_url():
     return (CONFIG.get("comfy_api_url") or "http://127.0.0.1:8188").rstrip("/")
 
 
-def comfy_request(path, data=None, method="GET"):
+def comfy_request(path, data=None, method="GET", timeout=60):
     url = comfy_api_url() + path
     body = json.dumps(data).encode("utf-8") if data is not None else None
     req = urllib.request.Request(url, data=body, method=method,
                                   headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
@@ -301,8 +302,18 @@ def describe_execution_error(info):
 
 def comfy_status(prompt_id):
     try:
-        history = comfy_request(f"/history/{prompt_id}")
+        # A short read timeout here so a single slow poll doesn't stall the
+        # Bridge for long, but see below: a timeout on THIS call means
+        # ComfyUI is just busy (heavy sampling can starve its HTTP server
+        # for a while), not that the job failed — so it must never be
+        # reported as an error, or the frontend gives up on a job that's
+        # actually still running fine.
+        history = comfy_request(f"/history/{prompt_id}", timeout=20)
+    except (socket.timeout, TimeoutError):
+        return {"status": "running"}
     except urllib.error.URLError as e:
+        if isinstance(e.reason, (socket.timeout, TimeoutError)):
+            return {"status": "running"}
         return {"status": "error", "error": str(e)}
     entry = history.get(prompt_id)
     if not entry:
