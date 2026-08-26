@@ -1,0 +1,59 @@
+PROMPT STUDIO — BRIDGE LOCALE
+==============================
+
+Cos'è
+-----
+Il Bridge è un piccolo programma che gira sul tuo PC e collega Prompt Studio
+(che apri nel browser, anche da tablet o telefono) alla tua installazione di
+ComfyUI. Legge SOLO le cartelle che gli indichi (la cartella di ComfyUI ed,
+eventualmente, una cartella personale) e non espone il resto del computer.
+
+Come si avvia
+--------------
+1. Assicurati che Python 3 sia installato (https://www.python.org/downloads/,
+   spuntando "Add python.exe to PATH" durante l'installazione).
+2. Fai doppio clic su AVVIA_BRIDGE.bat.
+3. Lascia la finestra nera aperta finché usi Prompt Studio: lì dentro vedrai
+   i log delle richieste.
+4. In Prompt Studio vai su "ComfyUI Studio" → "Configurazione" e:
+   - verifica l'indirizzo (di default http://127.0.0.1:8765)
+   - indica il percorso della cartella ComfyUI
+     (esempio: H:\ComfyUI_Windows_portable\ComfyUI)
+   - indica, se vuoi, una cartella personale con le tue immagini
+     (esempio: D:\Immagini_AI)
+5. Premi "Salva e scansiona".
+
+Da tablet o telefono
+---------------------
+Se apri Prompt Studio da un altro dispositivo sulla stessa rete Wi-Fi,
+sostituisci "127.0.0.1" con l'indirizzo IP del PC (esempio:
+http://192.168.1.23:8765) nella pagina di Configurazione.
+
+Cosa fa il Bridge
+------------------
+- Scansiona models/checkpoints, models/loras, models/vae,
+  models/text_encoders, models/clip, models/controlnet,
+  models/upscale_models, models/unet, models/diffusion_models e
+  custom_nodes dentro la cartella ComfyUI indicata.
+- Cerca i workflow salvati in ComfyUI/user/default/workflows,
+  ComfyUI/workflows e in una cartella "workflows" accanto a ComfyUI.
+- Mantiene una sua libreria di workflow importati in
+  bridge/workflow_library (questi puoi anche eliminarli da Prompt Studio;
+  i file dentro la cartella di ComfyUI non vengono mai toccati o eliminati).
+- Invia i workflow al server API di ComfyUI (di default
+  http://127.0.0.1:8188) e recupera lo stato/le immagini generate.
+
+Sicurezza
+---------
+Il Bridge non chiede mai password di servizi cloud e non naviga fuori dalle
+due cartelle che hai configurato. Se vuoi fermarlo, chiudi semplicemente la
+finestra nera oppure premi CTRL+C al suo interno.
+
+Problemi comuni
+-----------------
+- "Python non è stato trovato": installa Python 3 e riavvia il PC se serve.
+- "Bridge non raggiungibile" in Prompt Studio: controlla che la finestra del
+  Bridge sia ancora aperta e che l'indirizzo in Configurazione sia corretto.
+- "ComfyUI non raggiungibile" durante la generazione: assicurati che ComfyUI
+  sia avviato e raggiungibile all'indirizzo indicato in bridge_config.json
+  (campo comfy_api_url, di default http://127.0.0.1:8188).

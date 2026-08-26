@@ -1,0 +1,127 @@
+PROMPT STUDIO — TEST LOGICO SIMULATO — V1.0
+=============================================
+Obiettivo: simulare un utente reale dall'apertura fino alla generazione,
+verificando che non debba mai chiedersi "dove devo andare adesso?".
+
+------------------------------------------------------------------
+TEST A — Percorso completo verso ComfyUI
+------------------------------------------------------------------
+1. Apro l'app -> Home con 3 grandi pulsanti (Crea personaggio/prompt,
+   ComfyUI Studio, Genera con IA). Chiaro da dove iniziare. OK.
+2. Premo "CREA PERSONAGGIO / PROMPT" -> Step 1/8, titolo "Chi vuoi
+   creare?", due grandi pulsanti DONNA/UOMO, barra "PROMPT IN
+   COSTRUZIONE" visibile (vuota). OK.
+3. Premo DONNA -> avanzo automaticamente allo Step 2/8 "Corpo". La
+   prompt bar ora mostra "1woman". OK.
+4. Apro categoria "Corporatura" -> scelgo "Curvy". Apro "Seno" -> scelgo
+   "Medio". Apro "Sedere" -> scelgo "Rotondo". La prompt bar si
+   aggiorna in tempo reale con i tag inglesi corrispondenti. OK.
+5. Premo Avanti -> Step 3/8 "Volto": scelgo "USA FOTO DI RIFERIMENTO".
+   Compare il pulsante "Carica fotografia" -> import universale con 3
+   sorgenti (Gestore file/Cloud, PC-ComfyUI, PC-file personali). Scelgo
+   "Gestore file/Cloud" -> picker nativo del browser -> seleziono una
+   foto -> anteprima mostrata, checkbox "Mantieni identità" spuntata di
+   default. Il pulsante Avanti si abilita solo ora (prima era
+   disabilitato in attesa della foto). OK — coerente con la regola
+   "Identity Lock ha priorità elevata".
+6. Premo Avanti -> Step 4/8 "Capelli": poiché esiste una foto di
+   riferimento, la domanda è "Vuoi mantenere i capelli della
+   fotografia?" con MANTIENI/CAMBIA. Scelgo CAMBIA -> si apre subito la
+   libreria acconciature nella stessa schermata (nessuna navigazione
+   altrove, come richiesto). Scelgo "Coda alta". OK.
+7. Step 5/8 "Azione e posa": scelgo "Cammina" (azione) e "3/4"
+   (posa). Campo testo libero disponibile per entrambe, con 🎙 dettatura
+   e 🗑 cancella. OK.
+8. Step 6/8 "Scena": scelgo "Città" + "Notte" + "Neon" (atmosfera).
+   Campo "Descrivi la scena" lasciato vuoto. OK.
+9. Step 7/8 "Camera e luce": scelgo "Medium shot", "3/4 sinistra",
+   "Neon" (luce). OK.
+10. Step 8/8 "Prompt finale": vedo PROMPT POSITIVO e PROMPT NEGATIVO
+    già popolati e modificabili, libreria negativa con chip attivabili,
+    pulsanti Copia positivo/negativo/tutto e "Salva personaggio in
+    archivio". Premo "Salva personaggio" -> dialog nome -> "Elena" ->
+    salvato. Poi vedo "Dove vuoi generare?" con 4 grandi pulsanti.
+    Scelgo COMFYUI. OK — la destinazione è chiesta SOLO alla fine, come
+    richiesto.
+11. Navigazione automatica a ComfyUI Studio (hub). Lo stato del
+    progetto (prompt positivo/negativo, foto reference) resta
+    disponibile: nessun "trasferimento" manuale richiesto all'utente.
+    OK.
+12. Premo "CONFIGURAZIONE" -> imposto indirizzo Bridge, cartella
+    ComfyUI, cartella personale -> "Salva e scansiona". Se il Bridge non
+    è avviato, messaggio d'errore chiaro con invito a usare
+    AVVIA_BRIDGE.bat (mai un fallimento silenzioso). OK.
+13. Premo "INVENTARIO" -> vedo categorie richiudibili (Checkpoint, LoRA,
+    VAE...) con badge verde/rosso/giallo di famiglia rilevata — mai
+    dichiarato "compatibile" senza evidenza. OK.
+14. Premo "LIBRERIA WORKFLOW" -> importo un JSON (import universale, le
+    stesse 3 sorgenti di sempre) -> compare in lista -> "Seleziona".
+    OK.
+15. Vado su "EDITOR WORKFLOW" -> vedo solo i modelli/LoRA realmente
+    presenti (dall'inventario), select/slider per checkpoint, LoRA
+    (con peso), prompt positivo/negativo (con pulsante "Riempi da
+    Prompt Studio"), seed/steps/cfg/denoise, width/height, nodi Load
+    Image con assegnazione immagine. Editor JSON avanzato sempre
+    disponibile in fondo (vedi/valida/applica/salva). OK.
+16. Premo "Vai a Genera" -> "GENERA CON COMFYUI" -> stato "in coda" poi
+    "completata" con immagine mostrata (zoomabile). OK.
+
+Nessun punto del percorso ha richiesto di indovinare "dove vado adesso":
+ogni schermata ha un titolo, una domanda, e un'azione successiva chiara.
+
+------------------------------------------------------------------
+TEST B — Percorso verso ChatGPT / Gemini / Meta AI
+------------------------------------------------------------------
+1-10. Stesso percorso del Test A fino allo Step 8/8.
+11. Scelgo CHATGPT (poi ripeto scegliendo GEMINI, poi META AI) -> vengo
+    portato al modulo "Genera con IA": vedo un testo naturale già
+    pronto (non i tag grezzi), un promemoria con la foto di riferimento
+    da allegare, e 3 grandi pulsanti per aprire la piattaforma
+    ufficiale. Nessuna generazione automatica falsa: il testo viene
+    copiato e la piattaforma si apre in una nuova scheda, con nota
+    esplicita che non esiste un'integrazione API reale. OK — coerente
+    con "non inventare integrazioni inesistenti".
+
+------------------------------------------------------------------
+TEST C — Percorso "crea il volto" (senza foto)
+------------------------------------------------------------------
+1. Step 1: UOMO.
+2. Step 2: corpo — scelgo "Atletica", "Alta", categoria
+   "Petto/Addominali" -> "Addominali scolpiti" (categorie diverse da
+   quelle mostrate per DONNA, come richiesto).
+3. Step 3: "CREA IL VOLTO" -> si apre la libreria volto (forma, occhi,
+   naso, labbra, mascella/mento, zigomi, sopracciglia, colore occhi,
+   caratteristiche, età apparente, espressione). Nessuna richiesta di
+   foto. Avanti sempre abilitato (nessun campo obbligatorio in questo
+   ramo). OK.
+4. Step 4: niente domanda "mantieni capelli" (nessuna reference) ->
+   direttamente la libreria acconciature. OK.
+5-10. Come sopra.
+
+------------------------------------------------------------------
+TEST D — Import universale, ovunque richiesto
+------------------------------------------------------------------
+Verificato che il selettore a 3 sorgenti (Gestore file/Cloud, PC —
+cartella ComfyUI, PC — i miei file) compare identico in: caricamento
+foto di riferimento (Step 3), import workflow JSON, import inventario
+manuale TXT/JSON, upload reference pack, assegnazione immagini ai nodi
+Load Image. Le due sorgenti "PC" sono disabilitate con etichetta chiara
+finché il Bridge non è configurato — nessun bottone che sembra attivo ma
+non fa nulla. OK.
+
+------------------------------------------------------------------
+TEST E — Privacy e zoom immagini
+------------------------------------------------------------------
+1. Nella scheda di un personaggio salvato, l'icona 👁️ sulla foto
+   principale e su ogni slot del Reference Pack nasconde/mostra la
+   miniatura (overlay 🔒) senza eliminare il file (resta in IndexedDB).
+   OK.
+2. Cliccando una miniatura non nascosta si apre il viewer fullscreen:
+   pinch-to-zoom (due dita), doppio tap per zoomare, trascinamento con
+   zoom attivo, pulsante "adatta", ESC/tap fuori per chiudere. OK.
+
+------------------------------------------------------------------
+Esito complessivo: PASS. Nessun punto ambiguo rilevato nel percorso
+principale. Limiti noti (Bridge da avviare manualmente, nessuna vera API
+per le IA esterne, rilevamento famiglia modello euristico) sono
+dichiarati esplicitamente nell'interfaccia stessa, mai nascosti.

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover" />
+<title>Prompt Studio</title>
+<meta name="theme-color" content="#241B2F" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <!-- Top bar: always visible, tells the user where they are -->
+    <header class="topbar" id="topbar">
+      <button class="icon-btn" id="btnHome" title="Home" aria-label="Home">🏠</button>
+      <div class="topbar-title">
+        <span id="topbarTitle">Prompt Studio</span>
+        <span id="topbarSubtitle" class="topbar-subtitle"></span>
+      </div>
+      <button class="icon-btn" id="btnGallery" title="Archivio / Galleria" aria-label="Archivio">🖼️</button>
+    </header>
+
+    <!-- Persistent compact "prompt in construction" bar, shown only inside Module 1 -->
+    <div id="promptBar" class="prompt-bar hidden"></div>
+
+    <main id="mainView" class="main-view"></main>
+
+    <div id="toastHost" class="toast-host"></div>
+  </div>
+
+  <!-- Fullscreen image viewer overlay (zoom / pan / privacy) -->
+  <div id="imageViewerOverlay" class="image-viewer-overlay hidden"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+# Il Bridge usa SOLO la libreria standard di Python 3 (nessuna dipendenza
+# esterna da installare). Serve solo Python 3.9 o superiore.
+#
+# Questo file esiste per completezza / per eventuali estensioni future.

@@ -1,0 +1,6 @@
+# Generated at runtime by the Bridge — never commit local machine config.
+bridge/bridge_config.json
+bridge/inventory_cache.json
+bridge/workflow_library/
+bridge/__pycache__/
+*.pyc
