@@ -11,7 +11,7 @@ import {
   getBridgeConfig, setBridgeConfig, checkHealth, pushConfigToBridge,
   fetchInventory, rescanInventory, listWorkflows, getWorkflow,
   saveWorkflowToLibrary, deleteWorkflow, generateWorkflow, getGenerationStatus,
-  getGeneratedImageUrl, uploadInputImage,
+  getGeneratedImageUrl, uploadInputImage, fetchInstalledNodeTypes,
 } from "./comfyBridge.js";
 import { extractParams, setNodeInput, findImageNodes, isApiFormat } from "./workflowParams.js";
 import { detectFamily, compareCompatibility, badgeLabel } from "./compat.js";
@@ -35,7 +35,7 @@ export async function render(container, params, { navigate, setHeader }) {
     case "inventory": setHeader("ComfyUI Studio", "Inventario"); await renderInventory(container, navigate); break;
     case "workflows": setHeader("ComfyUI Studio", "Libreria workflow"); await renderWorkflows(container, navigate); break;
     case "editor": setHeader("ComfyUI Studio", "Editor workflow"); await renderEditor(container, navigate); break;
-    case "generate": setHeader("ComfyUI Studio", "Genera"); renderGenerate(container, navigate); break;
+    case "generate": setHeader("ComfyUI Studio", "Genera"); await renderGenerate(container, navigate); break;
     default: setHeader("ComfyUI Studio", "Panoramica"); renderHub(container, navigate); break;
   }
 }
@@ -789,23 +789,50 @@ function renderJsonEditor(container, wf, navigate) {
 }
 
 // ---------------- GENERA ----------------
-function renderGenerate(container, navigate) {
+async function renderGenerate(container, navigate) {
   const wf = getActiveWorkflow();
   if (!wf) {
     container.innerHTML = `<div class="card"><h3>Nessun workflow attivo</h3><button class="btn btn-primary" id="goLib">Scegli un workflow</button></div>`;
     container.querySelector("#goLib").addEventListener("click", () => navigate("/comfy/workflows"));
     return;
   }
-  const missingImages = isApiFormat(wf.json)
+  const apiFormat = isApiFormat(wf.json);
+  const missingImages = apiFormat
     ? findImageNodes(wf.json).filter((n) => !n.value || !String(n.value).trim())
     : [];
+
+  // Cross-check every node type the workflow uses against what ComfyUI has
+  // actually registered (built-in + installed custom nodes) — catches a
+  // missing custom node BEFORE submission instead of via a 400 from ComfyUI.
+  let missingNodeTypes = [];
+  let nodeCheckUnavailable = false;
+  if (apiFormat) {
+    try {
+      const installed = new Set(await fetchInstalledNodeTypes());
+      const usedTypes = new Set(Object.values(wf.json).map((n) => n.class_type).filter(Boolean));
+      missingNodeTypes = [...usedTypes].filter((t) => !installed.has(t));
+    } catch (e) {
+      nodeCheckUnavailable = true;
+    }
+  }
+
+  const blockers = missingImages.length || missingNodeTypes.length;
 
   container.innerHTML = `
     <div class="card">
       <h3>Riepilogo</h3>
       <p>Workflow attivo: <strong>${wf.name}</strong></p>
-      <p class="faint">Formato: ${isApiFormat(wf.json) ? "API (compatibile con l'invio diretto)" : "UI — non inviabile direttamente, ri-esporta in formato API da ComfyUI"}</p>
+      <p class="faint">Formato: ${apiFormat ? "API (compatibile con l'invio diretto)" : "UI — non inviabile direttamente, ri-esporta in formato API da ComfyUI"}</p>
+      ${nodeCheckUnavailable ? `<p class="faint">Bridge/ComfyUI non raggiungibile: non posso controllare in anticipo se mancano custom node installati.</p>` : ""}
     </div>
+    ${missingNodeTypes.length ? `
+    <div class="card" style="border-color:rgba(217,83,79,.5);">
+      <h3 style="color:var(--red);">⚠️ Nodi non installati</h3>
+      <p class="muted">Questo workflow usa dei nodi che non risultano installati in ComfyUI (probabilmente custom node mancanti). Installali con ComfyUI Manager (o manualmente) e riavvia ComfyUI, altrimenti la generazione verrà rifiutata:</p>
+      <ul style="margin:8px 0;padding-left:20px;">
+        ${missingNodeTypes.map((t) => `<li>${t}</li>`).join("")}
+      </ul>
+    </div>` : ""}
     ${missingImages.length ? `
     <div class="card" style="border-color:rgba(217,83,79,.5);">
       <h3 style="color:var(--red);">⚠️ Immagini mancanti</h3>
@@ -816,8 +843,8 @@ function renderGenerate(container, navigate) {
       <button class="btn btn-primary" id="goFixImages">🖼️ Vai all'editor per assegnarle</button>
     </div>` : ""}
     <div class="row">
-      <button class="btn btn-primary" id="genBtn" ${isApiFormat(wf.json) ? "" : "disabled"}>🚀 GENERA CON COMFYUI</button>
-      ${missingImages.length ? `<button class="btn btn-sm" id="genAnyway">Genera comunque, ignora l'avviso</button>` : ""}
+      <button class="btn btn-primary" id="genBtn" ${apiFormat ? "" : "disabled"}>🚀 GENERA CON COMFYUI</button>
+      ${blockers ? `<button class="btn btn-sm" id="genAnyway">Genera comunque, ignora l'avviso</button>` : ""}
     </div>
     <div id="genStatus" class="card hidden"><h3>Stato</h3><div id="genStatusBody" class="muted"></div></div>
     <div id="genResult" class="stack" style="margin-top:12px;"></div>
@@ -825,6 +852,8 @@ function renderGenerate(container, navigate) {
 
   if (missingImages.length) {
     container.querySelector("#goFixImages").addEventListener("click", () => navigate("/comfy/editor"));
+  }
+  if (blockers) {
     container.querySelector("#genBtn").disabled = true;
     container.querySelector("#genAnyway").addEventListener("click", () => {
       container.querySelector("#genBtn").disabled = false;

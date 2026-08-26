@@ -398,6 +398,12 @@ class Handler(BaseHTTPRequestHandler):
             elif parsed.path == "/comfyui/status":
                 prompt_id = qs.get("prompt_id", [""])[0]
                 self._json(comfy_status(prompt_id))
+            elif parsed.path == "/comfyui/node_types":
+                # Just the registered node type names (built-in + every
+                # installed custom node) — used to warn before submission
+                # if a workflow references one that isn't installed.
+                info = comfy_request("/object_info", timeout=30)
+                self._json(list(info.keys()))
             elif parsed.path == "/comfyui/image":
                 self._handle_comfy_image(qs)
             else:

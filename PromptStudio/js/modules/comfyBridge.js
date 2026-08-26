@@ -129,6 +129,14 @@ export async function getGenerationStatus(promptId) {
   return res.json();
 }
 
+/** Every node type name ComfyUI actually has registered (built-in + every
+ * installed custom node) — lets the UI warn about a missing custom node
+ * before submitting, instead of the user finding out from a 400. */
+export async function fetchInstalledNodeTypes() {
+  const res = await req("/comfyui/node_types");
+  return res.json();
+}
+
 /** Uploads a File/Blob straight into ComfyUI's own input/ folder via the Bridge. */
 export async function uploadInputImage(file) {
   const res = await fetch(`${baseUrl()}/comfyui/input?filename=${encodeURIComponent(file.name)}`, {
