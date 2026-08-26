@@ -14,7 +14,8 @@ import { hairCategories, buildKeepReferenceHairFragment } from "./data/hair.js";
 import { actionCategories, poseCategories } from "./data/actionsPoses.js";
 import { sceneCategories } from "./data/scenes.js";
 import { cameraCategories, lightCategories } from "./data/cameraLight.js";
-import { defaultNegativePrompt } from "./data/negative.js";
+import { negativeCategories, defaultNegativePrompt } from "./data/negative.js";
+import { getCustomOptions } from "./modules/customOptions.js";
 
 const PROJECT_KEY = "current_project";
 
@@ -173,7 +174,7 @@ export function isNegativeFragmentActive(frag) {
 
 // ---------------- Category lookups (persona-aware) ----------------
 
-export function getCategoriesFor(stepKey) {
+function baseCategoriesFor(stepKey) {
   switch (stepKey) {
     case "body": return getBodyCategories(project.persona || "donna");
     case "face": return faceCategories;
@@ -183,8 +184,21 @@ export function getCategoriesFor(stepKey) {
     case "scene": return sceneCategories;
     case "camera": return cameraCategories;
     case "light": return lightCategories;
+    case "negative": return negativeCategories;
     default: return [];
   }
+}
+
+/**
+ * Categories for a step, with the user's own custom buttons
+ * (see modules/customOptions.js) merged into each category's option list.
+ * Never mutates the underlying data/*.js arrays.
+ */
+export function getCategoriesFor(stepKey) {
+  return baseCategoriesFor(stepKey).map((cat) => ({
+    ...cat,
+    options: [...cat.options, ...getCustomOptions(stepKey, cat.id)],
+  }));
 }
 
 function fragmentsFor(stepKey) {

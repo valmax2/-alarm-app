@@ -10,8 +10,8 @@ import {
   setFaceMode, setReferenceImage, setIdentityLock, setHairMode, setCustomField,
   setDestination, setNegativeText, getNegativePrompt, getPositivePrompt,
   setPositiveManualText, clearPositiveManualOverride, toggleNegativeFragment,
+  isNegativeFragmentActive,
 } from "../state.js";
-import { negativeCategories } from "../data/negative.js";
 import { saveImageBlob, getImageUrl } from "../storage.js";
 import { renderStepProgress, renderCategoryAccordions, renderCustomTextField } from "../components/stepper.js";
 import { mountPromptBar } from "../components/promptBar.js";
@@ -91,8 +91,8 @@ function renderPersona(container, nextBtn, goNext) {
   const grid = document.createElement("div");
   grid.className = "big-choices";
   grid.innerHTML = `
-    <div class="big-choice" id="pDonna"><div class="ico">👩</div><div class="title">DONNA</div></div>
-    <div class="big-choice" id="pUomo"><div class="ico">👨</div><div class="title">UOMO</div></div>
+    <div class="big-choice" id="pDonna"><div class="ico">👩</div><div class="title">DONNA</div><div class="desc">woman</div></div>
+    <div class="big-choice" id="pUomo"><div class="ico">👨</div><div class="title">UOMO</div><div class="desc">man</div></div>
   `;
   container.appendChild(grid);
 
@@ -117,6 +117,7 @@ function renderCorpo(container) {
   renderCategoryAccordions(container, cats, {
     onToggle: (catId, optId) => toggleSelection("body", catId, optId),
     isSelected: (catId, optId) => isSelected("body", catId, optId),
+    stepKey: "body",
   });
 }
 
@@ -154,6 +155,7 @@ function renderVolto(container, nextBtn) {
       renderCategoryAccordions(sub, cats, {
         onToggle: (catId, optId) => toggleSelection("face", catId, optId),
         isSelected: (catId, optId) => isSelected("face", catId, optId),
+        stepKey: "face",
       });
     } else if (p.faceMode === "reference") {
       renderReferenceUpload(sub, markChoice);
@@ -267,6 +269,7 @@ function renderHairLibrary(container) {
   renderCategoryAccordions(container, cats, {
     onToggle: (catId, optId) => toggleSelection("hair", catId, optId),
     isSelected: (catId, optId) => isSelected("hair", catId, optId),
+    stepKey: "hair",
   });
   renderCustomTextField(container, {
     label: "Acconciatura personalizzata",
@@ -291,6 +294,7 @@ function renderAzionePosa(container) {
   renderCategoryAccordions(container, getCategoriesFor("action"), {
     onToggle: (catId, optId) => toggleSelection("action", catId, optId),
     isSelected: (catId, optId) => isSelected("action", catId, optId),
+    stepKey: "action",
   });
   renderCustomTextField(container, {
     label: "Azione personalizzata",
@@ -307,6 +311,7 @@ function renderAzionePosa(container) {
   renderCategoryAccordions(container, getCategoriesFor("pose"), {
     onToggle: (catId, optId) => toggleSelection("pose", catId, optId),
     isSelected: (catId, optId) => isSelected("pose", catId, optId),
+    stepKey: "pose",
   });
 }
 
@@ -321,6 +326,7 @@ function renderScena(container) {
   renderCategoryAccordions(container, getCategoriesFor("scene"), {
     onToggle: (catId, optId) => toggleSelection("scene", catId, optId),
     isSelected: (catId, optId) => isSelected("scene", catId, optId),
+    stepKey: "scene",
   });
   renderCustomTextField(container, {
     label: "Descrivi la scena",
@@ -340,6 +346,7 @@ function renderCameraLuce(container) {
   renderCategoryAccordions(container, getCategoriesFor("camera"), {
     onToggle: (catId, optId) => toggleSelection("camera", catId, optId),
     isSelected: (catId, optId) => isSelected("camera", catId, optId),
+    stepKey: "camera",
   });
 
   const lightTitle = document.createElement("h3");
@@ -350,6 +357,7 @@ function renderCameraLuce(container) {
   renderCategoryAccordions(container, getCategoriesFor("light"), {
     onToggle: (catId, optId) => toggleSelection("light", catId, optId),
     isSelected: (catId, optId) => isSelected("light", catId, optId),
+    stepKey: "light",
   });
 }
 
@@ -384,16 +392,17 @@ function renderFinale(container, { navigate }) {
   negBox.addEventListener("input", () => setNegativeText(negBox.textContent));
   negCard.appendChild(negBox);
 
-  renderCategoryAccordions(negCard, negativeCategories, {
+  renderCategoryAccordions(negCard, getCategoriesFor("negative"), {
     onToggle: (catId, optId) => {
-      const opt = negativeCategories.find((c) => c.id === catId).options.find((o) => o.id === optId);
+      const opt = getCategoriesFor("negative").find((c) => c.id === catId).options.find((o) => o.id === optId);
       toggleNegativeFragment(opt.frag);
       negBox.textContent = getNegativePrompt();
     },
     isSelected: (catId, optId) => {
-      const opt = negativeCategories.find((c) => c.id === catId).options.find((o) => o.id === optId);
-      return getNegativePrompt().toLowerCase().split(",").map((s) => s.trim()).includes(opt.frag.toLowerCase());
+      const opt = getCategoriesFor("negative").find((c) => c.id === catId).options.find((o) => o.id === optId);
+      return isNegativeFragmentActive(opt.frag);
     },
+    stepKey: "negative",
   });
 
   const negBtnRow = document.createElement("div");

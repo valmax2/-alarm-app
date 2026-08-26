@@ -5,6 +5,11 @@
 // ==========================================================================
 
 import { buildDictationRow } from "./voice.js";
+import { openCustomOptionDialog } from "./customOptionDialog.js";
+import { addCustomOption, removeCustomOption } from "../modules/customOptions.js";
+import { askConfirm } from "./promptDialog.js";
+import { toast } from "./toast.js";
+import { getCategoriesFor } from "../state.js";
 
 export function renderStepProgress(container, currentIndex, total) {
   const wrap = document.createElement("div");
@@ -19,54 +24,108 @@ export function renderStepProgress(container, currentIndex, total) {
 
 /**
  * Renders a list of categories as collapsible accordions of chip options.
+ * Every chip shows the Italian label on top and the English prompt
+ * fragment below it. Each category also gets a dashed "➕ Aggiungi" tile
+ * that lets the user create their own button (typed or dictated in
+ * Italian, auto-translated to English) — it's saved to a persistent
+ * per-category library (customOptions.js) and can be removed again with
+ * the small ✕ badge that appears on custom chips only.
+ *
  * @param {HTMLElement} container
- * @param {Array} categories - [{id, name, options:[{id,label,frag}]}]
+ * @param {Array} categories - [{id, name, options:[{id,label,frag,custom?}]}]
  * @param {(categoryId:string, optionId:string)=>void} onToggle
  * @param {(categoryId:string, optionId:string)=>boolean} isSelected
- * @param {(categoryId:string)=>number} [selectedCount]
  * @param {Set<string>} [openByDefault] category ids to render expanded initially
+ * @param {string} [stepKey] enables "add your own" / delete-custom when set
  */
-export function renderCategoryAccordions(container, categories, { onToggle, isSelected, openByDefault } = {}) {
+export function renderCategoryAccordions(container, categories, { onToggle, isSelected, openByDefault, stepKey } = {}) {
   categories.forEach((cat, idx) => {
     const box = document.createElement("div");
     box.className = "category" + (openByDefault && openByDefault.has(cat.id) ? " open" : idx === 0 ? " open" : "");
 
     const head = document.createElement("div");
     head.className = "category-head";
-    const selCount = cat.options.filter((o) => isSelected(cat.id, o.id)).length;
-    head.innerHTML = `<span class="name">${cat.name}${selCount ? `<span class="category-badge">${selCount}</span>` : ""}</span><span class="chev">▶</span>`;
     head.addEventListener("click", () => box.classList.toggle("open"));
 
     const body = document.createElement("div");
     body.className = "category-body";
     const grid = document.createElement("div");
     grid.className = "chip-grid";
-
-    cat.options.forEach((opt) => {
-      const chip = document.createElement("button");
-      chip.type = "button";
-      chip.className = "chip" + (isSelected(cat.id, opt.id) ? " selected" : "");
-      chip.textContent = opt.label;
-      chip.addEventListener("click", () => {
-        onToggle(cat.id, opt.id);
-        chip.classList.toggle("selected");
-        const count = cat.options.filter((o) => isSelected(cat.id, o.id)).length;
-        const badge = head.querySelector(".category-badge");
-        if (count) {
-          if (badge) badge.textContent = String(count);
-          else head.querySelector(".name").insertAdjacentHTML("beforeend", `<span class="category-badge">${count}</span>`);
-        } else if (badge) {
-          badge.remove();
-        }
-      });
-      grid.appendChild(chip);
-    });
-
     body.appendChild(grid);
     box.appendChild(head);
     box.appendChild(body);
     container.appendChild(box);
+
+    function updateBadge(cat2) {
+      const count = cat2.options.filter((o) => isSelected(cat2.id, o.id)).length;
+      head.innerHTML = `<span class="name">${cat2.name}${count ? `<span class="category-badge">${count}</span>` : ""}</span><span class="chev">▶</span>`;
+    }
+
+    async function refresh() {
+      const freshCat = stepKey ? getFreshCategory(stepKey, cat.id, cat) : cat;
+      drawGrid(freshCat);
+    }
+
+    function drawGrid(cat2) {
+      updateBadge(cat2);
+      grid.innerHTML = "";
+
+      cat2.options.forEach((opt) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "chip" + (isSelected(cat2.id, opt.id) ? " selected" : "");
+        chip.innerHTML = `<span class="chip-it">${escapeHtml(opt.label)}</span><span class="chip-en">${escapeHtml(opt.frag)}</span>`;
+
+        if (opt.custom) {
+          const del = document.createElement("span");
+          del.className = "chip-del";
+          del.textContent = "✕";
+          del.title = "Rimuovi questo pulsante";
+          del.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            if (!(await askConfirm(`Rimuovere il pulsante "${opt.label}"?`))) return;
+            removeCustomOption(stepKey, cat2.id, opt.id);
+            toast("Pulsante rimosso.");
+            refresh();
+          });
+          chip.appendChild(del);
+        }
+
+        chip.addEventListener("click", () => {
+          onToggle(cat2.id, opt.id);
+          chip.classList.toggle("selected");
+          updateBadge(cat2);
+        });
+        grid.appendChild(chip);
+      });
+
+      if (stepKey) {
+        const addTile = document.createElement("button");
+        addTile.type = "button";
+        addTile.className = "chip chip-add";
+        addTile.innerHTML = `<span class="chip-it">➕ Aggiungi</span><span class="chip-en">crea il tuo</span>`;
+        addTile.addEventListener("click", async () => {
+          const result = await openCustomOptionDialog({ categoryName: cat2.name });
+          if (!result) return;
+          addCustomOption(stepKey, cat2.id, result);
+          toast(`Pulsante "${result.label}" creato.`);
+          refresh();
+        });
+        grid.appendChild(addTile);
+      }
+    }
+
+    drawGrid(cat);
   });
+}
+
+function getFreshCategory(stepKey, categoryId, fallback) {
+  const fresh = getCategoriesFor(stepKey).find((c) => c.id === categoryId);
+  return fresh || fallback;
+}
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
 /** A labeled free-text field with mic dictation + clear, inside a card. */

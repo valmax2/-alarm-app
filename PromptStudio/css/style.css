@@ -248,21 +248,63 @@ button { font-family: inherit; }
   background: var(--bg-elev-2);
   border: 1px solid rgba(201,160,99,.2);
   color: var(--text);
-  border-radius: 999px;
-  padding: 9px 15px;
+  border-radius: 14px;
+  padding: 7px 14px 8px;
   font-size: .86rem;
   cursor: pointer;
   transition: all .1s ease;
   user-select: none;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  line-height: 1.25;
 }
 .chip:hover { border-color: var(--gold); }
+.chip-it { font-size: .86rem; }
+.chip-en { font-size: .68rem; font-style: italic; color: var(--text-faint); }
 .chip.selected {
   background: var(--gold);
   border-color: var(--gold);
   color: #241B2F;
+}
+.chip.selected .chip-it { font-weight: 700; }
+.chip.selected .chip-en { color: rgba(36,27,47,.7); }
+.chip.selected::after {
+  content: "✓";
+  position: absolute;
+  top: 3px;
+  right: 6px;
+  font-size: .62rem;
   font-weight: 700;
 }
-.chip.selected::after { content: " ✓"; }
+.chip-add {
+  border-style: dashed;
+  border-color: var(--gold-dim);
+  background: transparent;
+  color: var(--gold);
+}
+.chip-add:hover { border-color: var(--gold); background: rgba(201,160,99,.08); }
+.chip-add .chip-en { color: var(--gold-dim); }
+/* Inset (not protruding) so it never gets clipped by .category's overflow:hidden */
+.chip-del {
+  position: absolute;
+  bottom: 3px;
+  right: 5px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: rgba(217,83,79,.85);
+  color: #fff;
+  font-size: .58rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  line-height: 1;
+}
+.chip-del:hover { background: var(--red); }
 
 /* ---------------- Custom text / dictation field ---------------- */
 .text-field-row {
