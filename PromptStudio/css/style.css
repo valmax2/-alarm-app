@@ -83,6 +83,15 @@ button { font-family: inherit; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.app-version {
+  font-size: .68rem;
+  color: var(--gold-dim);
+  border: 1px solid rgba(201,160,99,.25);
+  border-radius: 999px;
+  padding: 2px 8px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
 .icon-btn {
   background: var(--bg-elev-2);
   border: 1px solid rgba(201,160,99,.25);

@@ -18,11 +18,15 @@ import * as promptBuilder from "./modules/promptBuilder.js";
 import * as comfyStudio from "./modules/comfyStudio.js";
 import * as aiExternal from "./modules/aiExternal.js";
 import * as gallery from "./modules/gallery.js";
+import { APP_VERSION } from "./version.js";
 
 const mainView = document.getElementById("mainView");
 const promptBarEl = document.getElementById("promptBar");
 const topbarTitle = document.getElementById("topbarTitle");
 const topbarSubtitle = document.getElementById("topbarSubtitle");
+
+const appVersionEl = document.getElementById("appVersion");
+if (appVersionEl) appVersionEl.textContent = `v${APP_VERSION}`;
 
 document.getElementById("btnHome").addEventListener("click", () => navigate("/home"));
 document.getElementById("btnGallery").addEventListener("click", () => navigate("/gallery"));
