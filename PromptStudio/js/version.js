@@ -3,4 +3,4 @@
 // Bump this (and add an entry to CHANGELOG.md) on every release.
 // ==========================================================================
 
-export const APP_VERSION = "0.4.1";
+export const APP_VERSION = "0.4.2";

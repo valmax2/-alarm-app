@@ -131,6 +131,48 @@ export function pickImportSource({ accept = "*/*", title = "Importa" } = {}) {
       });
       list.appendChild(pasteBtn);
     }
+
+    // Source 5: paste an IMAGE from the clipboard — the equivalent
+    // fallback for photo imports, where pasting raw text isn't practical.
+    // Copy the photo elsewhere (gallery/Drive/Dropbox share sheet ->
+    // "Copia immagine" / long-press -> Copia), come back here and paste
+    // (Ctrl+V, or the phone's own paste gesture) into the target box. This
+    // reads the OS clipboard directly via the paste event — no OS file
+    // dialog and no network fetch, so it works even where the native
+    // picker can't open at all (e.g. inside a sandboxed preview page).
+    if (accept.includes("image")) {
+      const pasteImgBtn = document.createElement("button");
+      pasteImgBtn.type = "button";
+      pasteImgBtn.className = "import-source-btn";
+      pasteImgBtn.innerHTML = `<span class="ico">📋</span><span><strong>Incolla immagine</strong><br><span class="faint">Copia la foto altrove (Galleria, Drive, Dropbox) e incollala qui — funziona anche se il selettore file non si apre</span></span>`;
+      pasteImgBtn.addEventListener("click", () => {
+        card.innerHTML = `<h3>${title}</h3>
+          <p class="faint" style="margin-top:-4px;">1) Vai nella Galleria/Drive/Dropbox e copia la foto (di solito: tieni premuto sulla foto → Copia).<br>2) Torna qui, tocca il riquadro qui sotto e incolla (tieni premuto → Incolla, o Ctrl+V sul PC).</p>
+          <div id="pasteImgTarget" tabindex="0" contenteditable="true" style="min-height:120px;border:2px dashed rgba(201,160,99,.4);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:.85rem;padding:10px;outline:none;text-align:center;">Tocca qui, poi incolla</div>
+          <div class="row" style="justify-content:flex-end;margin-top:14px;">
+            <button class="btn" id="pasteImgBack">Indietro</button>
+          </div>`;
+        card.querySelector("#pasteImgBack").addEventListener("click", () => finish(null));
+        const target = card.querySelector("#pasteImgTarget");
+        target.focus();
+        target.addEventListener("paste", (e) => {
+          e.preventDefault();
+          const items = (e.clipboardData || window.clipboardData || {}).items || [];
+          for (const item of items) {
+            if (item.type && item.type.startsWith("image/")) {
+              const blob = item.getAsFile();
+              if (!blob) continue;
+              const ext = item.type.split("/")[1] || "png";
+              const file = new File([blob], `incollata.${ext}`, { type: item.type });
+              finish({ source: "native", file, name: file.name });
+              return;
+            }
+          }
+          target.textContent = "Non ho trovato un'immagine negli appunti. Copiala di nuovo e riprova a incollare.";
+        });
+      });
+      list.appendChild(pasteImgBtn);
+    }
   });
 }
 

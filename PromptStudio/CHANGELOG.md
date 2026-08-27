@@ -3,6 +3,16 @@
 Versione mostrata in alto a destra nell'app, accanto all'icona Archivio.
 Da qui in poi, ogni round di modifiche aggiorna il numero e questa pagina.
 
+## v0.4.2
+
+- **Nuova opzione "📋 Incolla immagine"** ovunque si importi una foto
+  (foto di riferimento, "Parti da una foto", foto personaggio, reference
+  pack...): stessa idea di "Incolla testo" per i workflow, ma per le
+  immagini. Copi la foto altrove (Galleria, Drive, Dropbox — di solito
+  tieni premuto sulla foto → Copia), torni nell'app, tocchi il riquadro e
+  incolli. Utile quando il selettore file/cloud non si apre proprio
+  (tipico delle pagine di anteprima "chiuse" come l'anteprima mobile).
+
 ## v0.4.1
 
 - **Corretto un problema serio**: i campi liberi "Acconciatura
