@@ -102,6 +102,35 @@ export function pickImportSource({ accept = "*/*", title = "Importa" } = {}) {
       else finish(null);
     });
     list.appendChild(personalBtn);
+
+    // Source 4: paste text directly — the fallback that always works, no
+    // OS file picker involved at all. Only offered for text-ish imports
+    // (JSON, txt), not for photo uploads. This is the one option that
+    // still works even somewhere a native/cloud file picker can't open
+    // (e.g. a sandboxed preview page) — you copy the file's content
+    // elsewhere and paste it in here instead of picking the file itself.
+    if (!accept.includes("image")) {
+      const pasteBtn = document.createElement("button");
+      pasteBtn.type = "button";
+      pasteBtn.className = "import-source-btn";
+      pasteBtn.innerHTML = `<span class="ico">📋</span><span><strong>Incolla testo</strong><br><span class="faint">Copia il contenuto del file e incollalo qui — funziona sempre, anche se il selettore file non si apre</span></span>`;
+      pasteBtn.addEventListener("click", () => {
+        card.innerHTML = `<h3>${title}</h3>
+          <p class="faint" style="margin-top:-4px;">Incolla qui sotto il contenuto del file (es. il JSON del workflow).</p>
+          <textarea id="pasteArea" rows="10" style="width:100%;font-family:monospace;font-size:.85rem;background:rgba(0,0,0,.25);color:inherit;border:1px solid rgba(201,160,99,.25);border-radius:var(--radius-md);padding:10px;"></textarea>
+          <div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px;">
+            <button class="btn" id="pasteBack">Indietro</button>
+            <button class="btn btn-primary" id="pasteConfirm">Importa</button>
+          </div>`;
+        card.querySelector("#pasteBack").addEventListener("click", () => finish(null));
+        card.querySelector("#pasteConfirm").addEventListener("click", () => {
+          const text = card.querySelector("#pasteArea").value;
+          if (!text || !text.trim()) { toast("Incolla prima del testo.", { error: true }); return; }
+          finish({ source: "paste", text, name: "incollato.json" });
+        });
+      });
+      list.appendChild(pasteBtn);
+    }
   });
 }
 
@@ -233,6 +262,9 @@ export async function resolveImportedFile(result) {
   if (result.source === "native") return result.file;
   if (result.source === "bridge") {
     return bridgeFetchFile(result.bridgeRoot, result.bridgePath);
+  }
+  if (result.source === "paste") {
+    return new File([result.text], result.name || "incollato.json", { type: "application/json" });
   }
   return null;
 }

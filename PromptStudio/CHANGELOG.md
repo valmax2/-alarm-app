@@ -3,6 +3,16 @@
 Versione mostrata in alto a destra nell'app, accanto all'icona Archivio.
 Da qui in poi, ogni round di modifiche aggiorna il numero e questa pagina.
 
+## v0.3.3
+
+- **Nuova opzione "📋 Incolla testo"** in ogni finestra di importazione file
+  di testo/JSON (workflow, inventario): oltre a "Gestore file / Cloud" e
+  alle due cartelle sul PC, ora puoi anche incollare direttamente il
+  contenuto del file in un riquadro di testo. Serve soprattutto quando il
+  selettore file del telefono/browser non si apre (es. dentro pagine di
+  anteprima "chiuse" come l'anteprima mobile) — incollare il testo
+  funziona sempre, in qualunque situazione.
+
 ## v0.3.2
 
 - **Corretto "Importa workflow JSON" (ComfyUI Studio → Libreria Workflow)**:
