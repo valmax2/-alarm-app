@@ -167,6 +167,17 @@ async function renderCharacterDetail(container, id, navigate) {
       toast(`Reference di "${c.name}" caricata nel progetto in corso.`);
       navigate("/builder/8");
     }));
+    if (c.mainImageId) {
+      btns.appendChild(mkBtn("🤖 Modifica con IA esterna", () => {
+        const p = getProject();
+        p.referenceImageId = c.mainImageId;
+        p.faceMode = "reference";
+        p.identityLock = true;
+        loadProjectObject(p);
+        toast(`"${c.name}" caricata: scrivi che modifica vuoi chiedere all'IA.`);
+        navigate("/ai");
+      }));
+    }
     mainWrap.appendChild(btns);
   }
   await drawMain();

@@ -39,6 +39,14 @@ const STEPS = [
 ];
 
 export async function render(container, params, { navigate, setHeader }) {
+  if (params[0] === "0") {
+    mountPromptBar(document.getElementById("promptBar"));
+    setHeader("Crea personaggio / prompt", "Da dove iniziamo?");
+    container.innerHTML = "";
+    renderStartHub(container, { navigate });
+    return;
+  }
+
   const stepNum = Math.min(Math.max(parseInt(params[0] || "1", 10) || 1, 1), STEPS.length);
   const stepIndex = stepNum - 1;
   const step = STEPS[stepIndex];
@@ -85,6 +93,38 @@ export async function render(container, params, { navigate, setHeader }) {
     case "camera": renderCameraLuce(content); nextBtn.addEventListener("click", goNext); break;
     case "finale": nextBtn.remove(); renderFinale(content, { navigate }); break;
   }
+}
+
+// ---------------- STEP 0 — DA DOVE INIZIAMO? (prima ancora della persona) ----------------
+function renderStartHub(container, { navigate }) {
+  const q = document.createElement("p");
+  q.className = "step-question";
+  q.textContent = "Da dove vuoi iniziare?";
+  container.appendChild(q);
+
+  const grid = document.createElement("div");
+  grid.className = "big-choices";
+  grid.innerHTML = `
+    <div class="big-choice" id="hubNew"><div class="ico">🆕</div><div class="title">NUOVO PERSONAGGIO</div><div class="desc">Da zero, passo per passo</div></div>
+    <div class="big-choice" id="hubPhoto"><div class="ico">📷</div><div class="title">PARTI DA UNA FOTO</div><div class="desc">Telefono, PC, Drive, Dropbox…</div></div>
+    <div class="big-choice" id="hubLibrary"><div class="ico">📚</div><div class="title">LA MIA LIBRERIA</div><div class="desc">Riapri o riusa un personaggio salvato</div></div>
+  `;
+  container.appendChild(grid);
+
+  grid.querySelector("#hubNew").addEventListener("click", () => navigate("/builder/1"));
+  grid.querySelector("#hubLibrary").addEventListener("click", () => navigate("/gallery/characters"));
+  grid.querySelector("#hubPhoto").addEventListener("click", async () => {
+    const picked = await pickImportSource({ accept: "image/*", title: "Importa fotografia di riferimento" });
+    if (!picked) return;
+    const file = await resolveImportedFile(picked);
+    if (!file) return;
+    const imgId = await saveImageBlob(file, { kind: "reference" });
+    setReferenceImage(imgId);
+    setFaceMode("reference");
+    setIdentityLock(true);
+    toast("Foto caricata come identità di riferimento. Ora scegli donna/uomo per continuare.");
+    navigate("/builder/1");
+  });
 }
 
 // ---------------- STEP 1 — PERSONA ----------------

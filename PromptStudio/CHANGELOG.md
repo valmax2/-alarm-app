@@ -3,6 +3,25 @@
 Versione mostrata in alto a destra nell'app, accanto all'icona Archivio.
 Da qui in poi, ogni round di modifiche aggiorna il numero e questa pagina.
 
+## v0.4.0
+
+- **Nuova schermata iniziale prima ancora della scelta donna/uomo**:
+  toccando "Crea personaggio / prompt" ora scegli subito tra:
+  - 🆕 **Nuovo personaggio** — il percorso guidato di sempre
+  - 📷 **Parti da una foto** — importi subito la fotografia (telefono, PC,
+    Drive, Dropbox) e diventa l'identità di riferimento ancora prima di
+    scegliere donna/uomo
+  - 📚 **La mia libreria** — vai dritto ai personaggi già salvati
+- **Nuovo pulsante "🤖 Modifica con IA esterna"** sulla scheda di un
+  personaggio salvato (Archivio → Personaggi): carica l'identità del
+  personaggio e ti porta dritto al Modulo 3 (ChatGPT/Gemini/Meta AI) per
+  chiedere una modifica specifica, invece che generare da zero.
+- **Modulo 3, nuovo campo "Vuoi chiedere una modifica specifica?"**:
+  scrivi cosa vuoi cambiare (es. "rendila più formosa", "dammi una foto a
+  figura intera") e il testo pronto per l'IA esterna viene preparato
+  automaticamente come richiesta di modifica sul personaggio che hai già
+  creato, invece che come generazione da zero.
+
 ## v0.3.4
 
 - **Trovato (grazie a un video che mi hai mandato!) il vero motivo per cui

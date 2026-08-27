@@ -60,6 +60,8 @@ function blankProject() {
     destination: null, // 'comfyui' | 'chatgpt' | 'gemini' | 'metaai'
 
     referencePack: [], // [{id, label, imageId}]
+
+    aiModificationNote: "", // Module 3: free-text "what change do you want" note
   };
 }
 
@@ -201,6 +203,11 @@ export function setHairMode(mode) {
 
 export function setCustomField(field, value) {
   project[field] = value;
+  persist();
+}
+
+export function setAiModificationNote(text) {
+  project.aiModificationNote = text;
   persist();
 }
 

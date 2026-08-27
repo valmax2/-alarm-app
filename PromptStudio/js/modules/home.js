@@ -30,7 +30,7 @@ export async function render(container, params, { navigate }) {
     </div>
   `;
 
-  container.querySelector("#goBuilder").addEventListener("click", () => navigate("/builder/1"));
+  container.querySelector("#goBuilder").addEventListener("click", () => navigate("/builder/0"));
   container.querySelector("#goComfy").addEventListener("click", () => navigate("/comfy"));
   container.querySelector("#goAi").addEventListener("click", () => navigate("/ai"));
   container.querySelector("#goGallery").addEventListener("click", () => navigate("/gallery"));
