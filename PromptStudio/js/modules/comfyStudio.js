@@ -276,17 +276,22 @@ async function renderWorkflows(container, navigate) {
     if (!isApiFormat(json)) {
       toast("Attenzione: sembra un workflow in formato UI (non API). L'editor visuale sarà limitato; potrai comunque usare l'editor JSON.", { error: true, ms: 5000 });
     }
+    const name = picked.name.replace(/\.json$/i, "");
+    // Importing a workflow also makes it the ACTIVE one right away, both
+    // here and in the Bridge-unreachable fallback below — otherwise it
+    // just sat in the library while the editor kept showing whatever
+    // workflow (or none) was active before, which looked like "importing
+    // does nothing".
     try {
-      await saveWorkflowToLibrary(picked.name.replace(/\.json$/i, ""), json);
-      toast("Workflow salvato nella libreria.");
+      const { path } = await saveWorkflowToLibrary(name, json);
+      setActiveWorkflow({ name, path, json });
+      toast(`Workflow "${name}" importato e selezionato.`);
+      navigate("/comfy/editor");
     } catch (e) {
-      // Bridge unreachable: keep it purely local as the active workflow.
-      setActiveWorkflow({ name: picked.name.replace(/\.json$/i, ""), path: null, json });
+      setActiveWorkflow({ name, path: null, json });
       toast("Bridge non raggiungibile: workflow caricato solo in locale come attivo.");
       navigate("/comfy/editor");
-      return;
     }
-    await loadList();
   });
 
   async function loadList() {

@@ -3,6 +3,18 @@
 Versione mostrata in alto a destra nell'app, accanto all'icona Archivio.
 Da qui in poi, ogni round di modifiche aggiorna il numero e questa pagina.
 
+## v0.3.2
+
+- **Corretto "Importa workflow JSON" (ComfyUI Studio → Libreria Workflow)**:
+  quando il Bridge era raggiungibile, importare un file salvava il
+  workflow in libreria ma **non lo rendeva quello attivo** — restava solo
+  un messaggio che spariva in fretta, e l'Editor continuava a mostrare
+  qualsiasi altro workflow (o nessuno) fosse attivo prima. Sembrava che
+  "importare non facesse niente". Ora importare un workflow lo rende
+  subito quello attivo e ti porta direttamente nell'Editor con il suo
+  contenuto vero, come già succedeva scegliendo "Seleziona" da un
+  workflow già in libreria.
+
 ## v0.3.1
 
 - **Trovato e corretto il vero motivo per cui cambiare telecamera, vestiti
