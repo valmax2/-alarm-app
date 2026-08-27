@@ -8,6 +8,11 @@ function opts(list) {
   return list.map(([id, label, frag]) => ({ id, label, frag }));
 }
 
+// Single-trait categories (a face has ONE shape, ONE apparent age, ONE eye
+// color) — the wizard toggles these with {exclusive:true} so picking a new
+// value replaces the old one instead of both staying selected at once.
+export const EXCLUSIVE_FACE_CATEGORY_IDS = new Set(["forma_volto", "eta_apparente", "occhi_colore"]);
+
 export const faceCategories = [
   {
     id: "forma_volto", name: "Forma del volto",

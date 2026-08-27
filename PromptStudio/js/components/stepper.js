@@ -110,8 +110,11 @@ export function renderCategoryAccordions(container, categories, { onToggle, isSe
 
         chip.addEventListener("click", () => {
           onToggle(cat2.id, opt.id);
-          chip.classList.toggle("selected");
-          updateBadge(cat2);
+          // Full redraw (not just this chip's own class): an exclusive
+          // toggle can deselect a DIFFERENT chip in the same category, and
+          // that chip needs its "selected" class cleared too, or the UI
+          // shows two contradictory choices highlighted at once.
+          refresh();
         });
         grid.appendChild(chip);
       });

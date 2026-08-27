@@ -17,6 +17,8 @@ import {
   setCameraZoom, getCameraZoom, CAMERA_ZOOM_IDS,
 } from "../state.js";
 import { saveImageBlob } from "../storage.js";
+import { EXCLUSIVE_BODY_CATEGORY_IDS } from "../data/body.js";
+import { EXCLUSIVE_FACE_CATEGORY_IDS } from "../data/face.js";
 import { renderStepProgress, renderCategoryAccordions, renderCustomTextField } from "../components/stepper.js";
 import { renderCameraRig } from "../components/cameraOrbit.js";
 import { mountPromptBar } from "../components/promptBar.js";
@@ -123,7 +125,12 @@ function renderCorpo(container) {
   const anatomyCats = allCats.filter((c) => c.id.startsWith("anatomia_"));
 
   const toggleOpts = {
-    onToggle: (catId, optId) => toggleSelection("body", catId, optId),
+    // Single-trait categories (corporatura, altezza, seno_dimensione, ...)
+    // are exclusive: picking a new value replaces the old one instead of
+    // piling up alongside it (that pile-up — e.g. "slim body" AND "curvy
+    // body" both staying selected — was silently diluting/confusing the
+    // final prompt, so changing the physique looked like it did nothing).
+    onToggle: (catId, optId) => toggleSelection("body", catId, optId, { exclusive: EXCLUSIVE_BODY_CATEGORY_IDS.has(catId) }),
     isSelected: (catId, optId) => isSelected("body", catId, optId),
     stepKey: "body",
   };
@@ -141,7 +148,10 @@ function renderCorpo(container) {
   clothingHint.textContent = "Specifica se è nuda/o, in intimo o vestita/o — sempre a pulsanti, come tutto il resto.";
   container.appendChild(clothingHint);
   renderCategoryAccordions(container, getCategoriesFor("clothing"), {
-    onToggle: (catId, optId) => toggleSelection("clothing", catId, optId),
+    // "Livello di nudità" is exclusive (can't be both "nuda" and "vestita
+    // elegante"); intimo/coperture stay multi-select since combining them
+    // (e.g. lace bra + garter belt) is normal and expected.
+    onToggle: (catId, optId) => toggleSelection("clothing", catId, optId, { exclusive: catId === "abbigliamento_livello" }),
     isSelected: (catId, optId) => isSelected("clothing", catId, optId),
     stepKey: "clothing",
   });
@@ -191,7 +201,7 @@ function renderVolto(container, nextBtn) {
     if (p.faceMode === "create") {
       const cats = getCategoriesFor("face");
       renderCategoryAccordions(sub, cats, {
-        onToggle: (catId, optId) => toggleSelection("face", catId, optId),
+        onToggle: (catId, optId) => toggleSelection("face", catId, optId, { exclusive: EXCLUSIVE_FACE_CATEGORY_IDS.has(catId) }),
         isSelected: (catId, optId) => isSelected("face", catId, optId),
         stepKey: "face",
       });

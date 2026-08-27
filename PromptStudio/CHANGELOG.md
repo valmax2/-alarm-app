@@ -3,6 +3,31 @@
 Versione mostrata in alto a destra nell'app, accanto all'icona Archivio.
 Da qui in poi, ogni round di modifiche aggiorna il numero e questa pagina.
 
+## v0.3.1
+
+- **Trovato e corretto il vero motivo per cui cambiare telecamera, vestiti
+  o fisico "non cambiava niente"**: molte categorie a pulsanti (es.
+  Corporatura: Magra/Curvy/Atletica...) permettevano di tenere selezionate
+  contemporaneamente due opzioni in contraddizione fra loro (es. "Magra" E
+  "Curvy" entrambe attive) — il pulsante nuovo si aggiungeva invece di
+  sostituire il vecchio, quindi il prompt finale restava con la
+  descrizione vecchia ancora dentro, mischiata con quella nuova, e il
+  risultato non cambiava in modo visibile.
+- Ora le categorie che descrivono UN solo tratto (Corporatura, Altezza,
+  Vita, Fianchi, Braccia, tono/dimensione di Seno/Sedere/Gambe/Pelle,
+  Forma del volto, Età apparente, Colore occhi, Livello di nudità/
+  abbigliamento, e altre) funzionano a scelta singola: selezionarne una
+  nuova sostituisce sempre la precedente, come un interruttore.
+- Le categorie "Seno", "Gambe", "Pelle", "Sedere", "Torso" e "Petto" sono
+  state divise in sotto-categorie più precise (es. Seno → dimensione /
+  sodezza / forma / posizione) così restano comunque combinabili tra loro
+  quando ha senso (es. "piccolo" + "cadente" + "a goccia" insieme), ma non
+  più contraddittorie all'interno della stessa sotto-categoria.
+- Corretto anche un bug più profondo nell'interfaccia: cliccando un
+  pulsante veniva aggiornato solo quel pulsante a schermo, quindi in una
+  categoria a scelta singola il vecchio pulsante restava visivamente
+  "acceso" anche se non lo era più nei dati.
+
 ## v0.3.0
 
 - **Telecamera "da professionista", riscritta**: ora ha due viste
