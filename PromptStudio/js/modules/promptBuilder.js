@@ -8,7 +8,7 @@
 import {
   getProject, setPersona, toggleSelection, isSelected, getCategoriesFor,
   setFaceMode, setReferenceImage, setIdentityLock,
-  setHairMode, setCustomField,
+  setHairMode, setCustomField, setCustomFieldEn,
   setDestination, setNegativeText, getNegativePrompt, getPositivePrompt,
   setPositiveManualText, clearPositiveManualOverride, toggleNegativeFragment,
   isNegativeFragmentActive, isPositivePromptStale,
@@ -356,6 +356,9 @@ function renderHairLibrary(container) {
     placeholder: "Descrivi un'acconciatura specifica...",
     value: p.customHair,
     onChange: (v) => setCustomField("customHair", v),
+    translate: true,
+    translatedValue: p.customHairEn,
+    onTranslated: (en) => setCustomFieldEn("customHair", en),
   });
 }
 
@@ -381,6 +384,9 @@ function renderAzionePosa(container) {
     placeholder: "Descrivi un'azione specifica...",
     value: p.customAction,
     onChange: (v) => setCustomField("customAction", v),
+    translate: true,
+    translatedValue: p.customActionEn,
+    onTranslated: (en) => setCustomFieldEn("customAction", en),
   });
 
   const poseTitle = document.createElement("h3");
@@ -414,6 +420,9 @@ function renderScena(container) {
     value: p.customScene,
     onChange: (v) => setCustomField("customScene", v),
     multiline: true,
+    translate: true,
+    translatedValue: p.customSceneEn,
+    onTranslated: (en) => setCustomFieldEn("customScene", en),
   });
 }
 

@@ -3,6 +3,21 @@
 Versione mostrata in alto a destra nell'app, accanto all'icona Archivio.
 Da qui in poi, ogni round di modifiche aggiorna il numero e questa pagina.
 
+## v0.4.1
+
+- **Corretto un problema serio**: i campi liberi "Acconciatura
+  personalizzata", "Azione personalizzata" e "Descrivi la scena"
+  finivano nel prompt finale **letteralmente in italiano**, senza
+  nessuna traduzione — quindi il prompt reale era per metà tag inglesi e
+  per metà frasi italiane, cosa che confonde il modello (che "capisce"
+  soprattutto inglese). Ora questi tre campi vengono tradotti
+  automaticamente in inglese pochi istanti dopo che smetti di scrivere
+  (o di dettare), e sotto al campo vedi live cosa finirà davvero nel
+  prompt ("→ nel prompt: ..."), così puoi verificarlo invece di doverti
+  fidare alla cieca. Se la traduzione automatica non va a buon fine (es.
+  senza connessione), te lo dice chiaramente e usa il testo così com'è,
+  invece di far sparire silenziosamente quello che hai scritto.
+
 ## v0.4.0
 
 - **Nuova schermata iniziale prima ancora della scelta donna/uomo**:

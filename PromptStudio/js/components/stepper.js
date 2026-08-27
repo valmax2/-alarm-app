@@ -10,6 +10,7 @@ import { addCustomOption, removeCustomOption } from "../modules/customOptions.js
 import { askConfirm } from "./promptDialog.js";
 import { toast } from "./toast.js";
 import { getCategoriesFor } from "../state.js";
+import { translateItToEn } from "./translate.js";
 
 /**
  * @param {(stepIndex:number)=>void} [onGoto] — when given, each dot is a
@@ -148,8 +149,19 @@ function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-/** A labeled free-text field with mic dictation + clear, inside a card. */
-export function renderCustomTextField(container, { label, placeholder, value, onChange, multiline = false }) {
+/**
+ * A labeled free-text field with mic dictation + clear, inside a card.
+ * @param {boolean} [translate] when set, the field is auto-translated
+ * IT->EN a moment after the user stops typing/dictating (debounced) or on
+ * blur — this is what actually goes in the tag-based prompt, shown live
+ * so the user can see and trust it instead of getting a mixed-language
+ * prompt with no warning.
+ * @param {string} [translatedValue] the last known translated value, so a
+ * re-render (e.g. navigating back to this step) shows it immediately.
+ * @param {(enText:string)=>void} [onTranslated] called with the English
+ * result ("" on failure/empty, so the caller falls back to raw text).
+ */
+export function renderCustomTextField(container, { label, placeholder, value, onChange, multiline = false, translate = false, translatedValue = "", onTranslated } = {}) {
   const card = document.createElement("div");
   card.className = "card";
   const title = document.createElement("h3");
@@ -166,6 +178,43 @@ export function renderCustomTextField(container, { label, placeholder, value, on
 
   const row = buildDictationRow(input, onChange);
   card.appendChild(row);
+
+  if (translate) {
+    const status = document.createElement("div");
+    status.className = "faint";
+    status.style.cssText = "margin-top:6px;min-height:16px;";
+    card.appendChild(status);
+
+    function showTranslated(text) {
+      status.innerHTML = text
+        ? `→ nel prompt: <span style="color:var(--gold-soft);">${escapeHtml(text)}</span>`
+        : "";
+    }
+    showTranslated(translatedValue);
+
+    let debounceTimer = null;
+    async function runTranslate() {
+      const text = input.value.trim();
+      if (!text) { showTranslated(""); if (onTranslated) onTranslated(""); return; }
+      status.textContent = "🔄 Traduzione in corso...";
+      const translated = await translateItToEn(text);
+      if (input.value.trim() !== text) return; // stale — user kept typing meanwhile
+      if (translated) {
+        showTranslated(translated);
+        if (onTranslated) onTranslated(translated);
+      } else {
+        status.textContent = "⚠️ Traduzione automatica non riuscita: nel prompt finirà il testo così com'è, in italiano.";
+        if (onTranslated) onTranslated("");
+      }
+    }
+    input.addEventListener("input", () => {
+      clearTimeout(debounceTimer);
+      status.textContent = "";
+      debounceTimer = setTimeout(runTranslate, 900);
+    });
+    input.addEventListener("blur", () => { clearTimeout(debounceTimer); runTranslate(); });
+  }
+
   container.appendChild(card);
   return input;
 }

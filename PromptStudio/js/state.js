@@ -48,10 +48,13 @@ function blankProject() {
     identityLock: true,
 
     hairMode: null, // 'keep' | 'change' (only asked when a reference exists)
-    customHair: "",
+    customHair: "", // shown to the user, in Italian
+    customHairEn: "", // auto-translated, what actually goes in the prompt
 
     customAction: "",
+    customActionEn: "",
     customScene: "",
+    customSceneEn: "",
 
     negativeText: defaultNegativePrompt(),
     positiveManualText: null, // set once the user hand-edits the box directly
@@ -206,6 +209,26 @@ export function setCustomField(field, value) {
   persist();
 }
 
+/** Stores the auto-translated English version of a free-text field
+ * (e.g. "customHair" -> "customHairEn") — see components/stepper.js's
+ * translate-on-blur behavior. Passing "" clears it (translation failed
+ * or the field was emptied), so buildAutoPositivePrompt() falls back to
+ * the raw Italian text rather than silently dropping the content. */
+export function setCustomFieldEn(field, value) {
+  project[`${field}En`] = value;
+  persist();
+}
+
+/** The value to actually put in the prompt for a free-text field: the
+ * translated English version if we have one, otherwise the raw text the
+ * user typed (better a stray Italian phrase than losing it silently). */
+function customFieldForPrompt(field) {
+  const en = project[`${field}En`];
+  if (en && en.trim()) return en.trim();
+  const raw = project[field];
+  return raw ? raw.trim() : "";
+}
+
 export function setAiModificationNote(text) {
   project.aiModificationNote = text;
   persist();
@@ -340,14 +363,17 @@ export function buildAutoPositivePrompt() {
   } else {
     parts.push(...fragmentsFor("hair"));
   }
-  if (project.customHair && project.customHair.trim()) parts.push(project.customHair.trim());
+  const customHairText = customFieldForPrompt("customHair");
+  if (customHairText) parts.push(customHairText);
 
   parts.push(...fragmentsFor("action"));
-  if (project.customAction && project.customAction.trim()) parts.push(project.customAction.trim());
+  const customActionText = customFieldForPrompt("customAction");
+  if (customActionText) parts.push(customActionText);
   parts.push(...fragmentsFor("pose"));
 
   parts.push(...fragmentsFor("scene"));
-  if (project.customScene && project.customScene.trim()) parts.push(project.customScene.trim());
+  const customSceneText = customFieldForPrompt("customScene");
+  if (customSceneText) parts.push(customSceneText);
 
   parts.push(...fragmentsFor("camera"));
   parts.push(...fragmentsFor("light"));
