@@ -19,6 +19,29 @@ function title(node) {
   return (node._meta && node._meta.title) || node.class_type;
 }
 
+// Beyond the standard "CLIPTextEncode", real-world workflows (Qwen, Flux,
+// SD3, and plenty of custom-node packs) route the prompt through nodes
+// with all sorts of other class_type names — if we only recognized the
+// exact standard one, the whole "Prompt" section (and its fill button)
+// silently failed to appear at all for those workflows, with no error.
+// So: any node whose class_type merely *looks* prompt/text/encode-related
+// is treated as a candidate, and we look for a plausible string-valued
+// input field on it instead of assuming the field is called "text".
+const TEXT_NODE_HINT = /text|prompt|clip.*encode|encode.*clip|conditioning/i;
+const TEXT_FIELD_CANDIDATES = ["text", "text_g", "text_l", "prompt", "string", "positive", "negative", "value"];
+
+/** Finds the input field on a node that plausibly holds its prompt text. */
+function findTextField(inputs) {
+  for (const key of TEXT_FIELD_CANDIDATES) {
+    if (typeof inputs[key] === "string") return key;
+  }
+  // Last resort: any plain string-valued input at all (unknown custom node).
+  for (const key of Object.keys(inputs)) {
+    if (typeof inputs[key] === "string" && inputs[key].length > 0) return key;
+  }
+  return null;
+}
+
 /**
  * Scans the workflow and returns every parameter type the editor can show
  * as a select/toggle/slider/field, grouped by kind.
@@ -43,12 +66,13 @@ export function extractParams(workflow) {
       });
     } else if (/VAELoader/i.test(type)) {
       result.vaes.push({ nodeId, title: title(node), value: inputs.vae_name });
-    } else if (/CLIPTextEncode/i.test(type)) {
+    } else if (/CLIPTextEncode/i.test(type) || (TEXT_NODE_HINT.test(type) && findTextField(inputs))) {
+      const field = inputs.text !== undefined ? "text" : findTextField(inputs) || "text";
       const t = title(node).toLowerCase();
       let role = "unknown";
       if (t.includes("negative") || t.includes("negativo")) role = "negative";
       else if (t.includes("positive") || t.includes("positivo")) role = "positive";
-      result.textPrompts.push({ nodeId, title: title(node), text: inputs.text, role });
+      result.textPrompts.push({ nodeId, title: title(node), text: inputs[field], textField: field, role });
     } else if (/KSampler/i.test(type)) {
       result.samplers.push({
         nodeId, title: title(node),

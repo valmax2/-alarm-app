@@ -434,7 +434,7 @@ async function renderEditor(container, navigate) {
       : "Questo workflow ha ancora il suo testo originale. Premi il pulsante per sostituirlo con il prompt che hai creato nel percorso guidato.";
     box.appendChild(fillHint);
     params.textPrompts.forEach((p) => {
-      box.appendChild(textAreaRow(`${p.title} ${p.role !== "unknown" ? `(${p.role === "positive" ? "positivo" : "negativo"})` : ""}`, p.text || "", (v) => { setNodeInput(wf.json, p.nodeId, "text", v); persist(wf); }));
+      box.appendChild(textAreaRow(`${p.title} ${p.role !== "unknown" ? `(${p.role === "positive" ? "positivo" : "negativo"})` : ""}`, p.text || "", (v) => { setNodeInput(wf.json, p.nodeId, p.textField || "text", v); persist(wf); }));
     });
     const fillBtn = document.createElement("button");
     fillBtn.className = filled && !stale ? "btn btn-sm" : "btn btn-primary";
@@ -444,7 +444,7 @@ async function renderEditor(container, navigate) {
       const negText = getNegativePrompt();
       params.textPrompts.forEach((p) => {
         const text = p.role === "negative" ? negText : posText;
-        setNodeInput(wf.json, p.nodeId, "text", text);
+        setNodeInput(wf.json, p.nodeId, p.textField || "text", text);
       });
       wf.filledForProjectId = proj.id;
       wf.filledPositiveText = posText;

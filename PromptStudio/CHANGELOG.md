@@ -3,6 +3,20 @@
 Versione mostrata in alto a destra nell'app, accanto all'icona Archivio.
 Da qui in poi, ogni round di modifiche aggiorna il numero e questa pagina.
 
+## v0.3.4
+
+- **Trovato (grazie a un video che mi hai mandato!) il vero motivo per cui
+  la sezione "Prompt" con la freccia ⬇️ a volte non si vede proprio, con
+  nessun workflow reale**: il codice riconosceva un nodo come "prompt"
+  solo se si chiamava esattamente `CLIPTextEncode`. Il tuo workflow
+  (Qwen + ClownsharKSampler) usa un nodo diverso per il testo — quindi la
+  sezione Prompt non veniva disegnata affatto, non era un problema di
+  scroll. Ora il riconoscimento è molto più permissivo: qualunque nodo il
+  cui nome assomigli a testo/prompt/encode viene controllato per un campo
+  di testo plausibile, indipendentemente dal nome esatto del nodo o del
+  campo. Riempire/aggiornare il prompt ora scrive nel campo giusto anche
+  per questi workflow non standard.
+
 ## v0.3.3
 
 - **Nuova opzione "📋 Incolla testo"** in ogni finestra di importazione file
