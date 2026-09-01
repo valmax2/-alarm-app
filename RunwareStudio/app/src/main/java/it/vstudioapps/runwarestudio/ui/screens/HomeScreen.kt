@@ -95,7 +95,7 @@ fun HomeScreen(
             if (state.translatedPreview.isNotBlank()) {
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "EN: ${state.translatedPreview}",
+                    "Prompt inviato (EN): ${state.translatedPreview}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -108,6 +108,31 @@ fun HomeScreen(
                 label = { Text("Modello: ${state.selectedModel.displayName}") },
                 leadingIcon = { Icon(Icons.Filled.AutoAwesome, contentDescription = null) }
             )
+
+            Spacer(Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Ottimizzazione automatica del prompt", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        if (state.autoOptimizeEnabled) {
+                            "Adatta il prompt tradotto allo stile del modello scelto (tag di qualità, termini fotografici...)."
+                        } else {
+                            "Disattivata: invio esattamente la traduzione, senza aggiunte — controllo manuale totale."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = state.autoOptimizeEnabled,
+                    onCheckedChange = viewModel::setAutoOptimizeEnabled
+                )
+            }
 
             Spacer(Modifier.height(16.dp))
 

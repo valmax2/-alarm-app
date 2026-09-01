@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import it.vstudioapps.runwarestudio.RunwareStudioApplication
 import it.vstudioapps.runwarestudio.data.ModelCatalog
 import it.vstudioapps.runwarestudio.data.api.ImageInferenceRequest
+import it.vstudioapps.runwarestudio.data.prompt.PromptOptimizer
 import it.vstudioapps.runwarestudio.model.ArchiveJob
 import it.vstudioapps.runwarestudio.model.GenerationParams
 import it.vstudioapps.runwarestudio.model.GenerationStatus
@@ -21,10 +22,18 @@ import kotlinx.coroutines.launch
 
 data class HomeUiState(
     val promptIt: String = "",
+    /** The prompt actually sent to Runware once a generation runs — the plain EN translation
+     *  when [autoOptimizeEnabled] is off, or PromptOptimizer's per-model version when it's on.
+     *  Shown back to the user so the automation is never a black box. */
     val translatedPreview: String = "",
     val selectedModel: ModelPreset = ModelCatalog.default,
     val params: GenerationParams = ModelCatalog.default.toDefaultParams(),
     val referenceImages: List<Uri> = emptyList(),
+    /** "Fai tutto in automatico": when true, PromptOptimizer adapts the translated prompt to
+     *  the selected model's conventions before it's sent. Off = exactly what was translated,
+     *  untouched, for full manual control. Defaults on since it only ever adds to what the
+     *  user wrote, never removes or reinterprets it. */
+    val autoOptimizeEnabled: Boolean = true,
     val status: GenerationStatus = GenerationStatus.Idle,
     /** Local file paths of the last successful run's results, read back from the archive so
      *  Home always shows the same durable copy the archive itself has. */
@@ -111,6 +120,10 @@ class GenerationViewModel(application: Application) : AndroidViewModel(applicati
         _uiState.update { it.copy(errorMessage = null) }
     }
 
+    fun setAutoOptimizeEnabled(enabled: Boolean) {
+        _uiState.update { it.copy(autoOptimizeEnabled = enabled) }
+    }
+
     fun generate() {
         val state = _uiState.value
         if (state.isBusy) return
@@ -125,12 +138,23 @@ class GenerationViewModel(application: Application) : AndroidViewModel(applicati
             return
         }
 
+        val model = state.selectedModel
+        val params = state.params
+
         viewModelScope.launch {
             _uiState.update { it.copy(status = GenerationStatus.Translating, resultPaths = emptyList()) }
             val translation = container.translator.translate(state.promptIt)
-            val promptEn = translation.getOrElse { e ->
+            val rawEn = translation.getOrElse { e ->
                 fail(e.message ?: "Traduzione non riuscita")
                 return@launch
+            }
+            // "Ottimizzazione automatica": adapts the translated prompt to what this specific
+            // model responds well to (Pony score tags, photographic terms, ...). Off means the
+            // raw translation goes out exactly as written — see PromptOptimizer.
+            val promptEn = if (state.autoOptimizeEnabled) {
+                PromptOptimizer.optimizePositive(rawEn, model)
+            } else {
+                rawEn
             }
             _uiState.update { it.copy(translatedPreview = promptEn) }
 
@@ -153,8 +177,6 @@ class GenerationViewModel(application: Application) : AndroidViewModel(applicati
             }
 
             _uiState.update { it.copy(status = GenerationStatus.Generating) }
-            val model = state.selectedModel
-            val params = state.params
             val request = ImageInferenceRequest(
                 positivePrompt = promptEn,
                 negativePrompt = params.negativePrompt,
