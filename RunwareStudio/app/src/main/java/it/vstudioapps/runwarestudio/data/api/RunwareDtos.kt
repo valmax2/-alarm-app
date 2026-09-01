@@ -45,6 +45,24 @@ data class GeneratedImage(
     val seed: Long?
 )
 
+/** How [ImageInferenceRequest.referenceImageUUIDs] get attached to the task, chosen by
+ *  GenerationViewModel from the selected model — see ModelPreset.referenceMode. */
+enum class ReferenceMode {
+    /** No reference images attached. */
+    NONE,
+    /** ACE++ character-consistent editing — requires model = "runware:102@1", sends every
+     *  reference image via `referenceImages`. */
+    ACE_PLUS_PLUS,
+    /** PuLID identity transfer (`puLID` object: images + idWeight/trueCFGScale/CFGStartStep) —
+     *  works alongside most SDXL-family checkpoints (photoreal/anime/artistic/Pony), giving
+     *  much better face consistency than plain img2img without needing a dedicated model. */
+    PULID,
+    /** Classic img2img (`seedImage` + `strength`, first reference image only) — the fallback
+     *  for models PuLID isn't confirmed compatible with (FLUX's own identity technique is a
+     *  separate PuLID-FLUX variant this app doesn't send). */
+    IMG2IMG
+}
+
 /** Everything RunwareApiClient.generateImages needs — a flattened, already-resolved view of
  *  GenerationParams + prompt strings + model AIR + any uploaded reference image UUIDs. */
 data class ImageInferenceRequest(
@@ -60,11 +78,11 @@ data class ImageInferenceRequest(
     val seed: Long?,
     val checkNsfw: Boolean,
     val referenceImageUUIDs: List<String> = emptyList(),
+    /** 0.1–1.0 from the UI slider. Used as img2img `strength` for [ReferenceMode.IMG2IMG], or
+     *  as PuLID `idWeight` for [ReferenceMode.PULID] (PuLID's own range is 0–3; the slider's
+     *  0.1–1.0 stays a safe, well-tested subset of that rather than exposing the full range). */
     val referenceStrength: Float = 0.55f,
-    /** True -> send referenceImageUUIDs as `referenceImages` (ACE++ character consistency,
-     *  model runware:102@1). False -> classic img2img via `seedImage` + `strength`, using
-     *  only the first reference image. */
-    val useCharacterConsistency: Boolean = false
+    val referenceMode: ReferenceMode = ReferenceMode.NONE
 )
 
 class RunwareException(message: String, cause: Throwable? = null) : Exception(message, cause)

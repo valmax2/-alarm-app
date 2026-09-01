@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import it.vstudioapps.runwarestudio.RunwareStudioApplication
 import it.vstudioapps.runwarestudio.data.ModelCatalog
 import it.vstudioapps.runwarestudio.data.api.ImageInferenceRequest
+import it.vstudioapps.runwarestudio.data.api.ReferenceMode
 import it.vstudioapps.runwarestudio.data.prompt.PromptOptimizer
 import it.vstudioapps.runwarestudio.model.ArchiveJob
 import it.vstudioapps.runwarestudio.model.GenerationParams
@@ -191,7 +192,7 @@ class GenerationViewModel(application: Application) : AndroidViewModel(applicati
                 checkNsfw = params.checkNsfw,
                 referenceImageUUIDs = referenceUUIDs,
                 referenceStrength = params.referenceStrength,
-                useCharacterConsistency = model.supportsCharacterReference && referenceUUIDs.isNotEmpty()
+                referenceMode = if (referenceUUIDs.isEmpty()) ReferenceMode.NONE else model.referenceMode
             )
             val generated = container.apiClient.generateImages(request)
             val images = generated.getOrElse { e ->

@@ -2,6 +2,7 @@ package it.vstudioapps.runwarestudio.data.archive
 
 import android.content.Context
 import android.net.Uri
+import it.vstudioapps.runwarestudio.data.api.ReferenceMode
 import it.vstudioapps.runwarestudio.data.db.JobDao
 import it.vstudioapps.runwarestudio.data.db.JobEntity
 import it.vstudioapps.runwarestudio.data.db.RunwareDatabase
@@ -66,7 +67,7 @@ class ArchiveRepository(private val context: Context) {
                 seed = params.seed,
                 checkNsfw = params.checkNsfw,
                 referenceStrength = params.referenceStrength,
-                useCharacterConsistency = model.supportsCharacterReference,
+                useCharacterConsistency = model.referenceMode == ReferenceMode.ACE_PLUS_PLUS,
                 referenceImagePaths = referencePaths.joinToString("\n"),
                 resultImagePaths = resultPaths.joinToString("\n"),
                 createdAt = System.currentTimeMillis()

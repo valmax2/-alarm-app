@@ -1,5 +1,6 @@
 package it.vstudioapps.runwarestudio.data
 
+import it.vstudioapps.runwarestudio.data.api.ReferenceMode
 import it.vstudioapps.runwarestudio.model.ModelCategory
 import it.vstudioapps.runwarestudio.model.ModelPreset
 
@@ -29,7 +30,11 @@ object ModelCatalog {
             defaultWidth = 1024,
             defaultHeight = 1024,
             defaultScheduler = "Default",
-            defaultNegativePrompt = "blurry, low quality, watermark, text, distorted"
+            defaultNegativePrompt = "blurry, low quality, watermark, text, distorted",
+            // PuLID's SDXL variant is confirmed by Runware; a FLUX variant exists too
+            // (PuLID-FLUX) but this app doesn't know its exact field shape is the same "puLID"
+            // object — falls back to plain img2img here rather than guessing.
+            referenceMode = ReferenceMode.IMG2IMG
         ),
         ModelPreset(
             id = "flux-dev",
@@ -42,7 +47,8 @@ object ModelCatalog {
             defaultWidth = 1024,
             defaultHeight = 1024,
             defaultScheduler = "Default",
-            defaultNegativePrompt = "blurry, low quality, watermark, text, distorted, deformed"
+            defaultNegativePrompt = "blurry, low quality, watermark, text, distorted, deformed",
+            referenceMode = ReferenceMode.IMG2IMG
         ),
         ModelPreset(
             id = "ace-plus-plus",
@@ -56,7 +62,7 @@ object ModelCatalog {
             defaultHeight = 1024,
             defaultScheduler = "Default",
             defaultNegativePrompt = "blurry, low quality, watermark, distorted face, inconsistent face",
-            supportsCharacterReference = true
+            referenceMode = ReferenceMode.ACE_PLUS_PLUS
         ),
         ModelPreset(
             id = "sdxl-base",

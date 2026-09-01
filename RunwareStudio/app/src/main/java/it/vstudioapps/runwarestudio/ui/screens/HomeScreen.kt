@@ -43,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import it.vstudioapps.runwarestudio.data.api.ReferenceMode
 import it.vstudioapps.runwarestudio.model.GenerationParams
 import it.vstudioapps.runwarestudio.model.GenerationStatus
 import it.vstudioapps.runwarestudio.ui.components.ModelPickerSheet
@@ -142,21 +143,33 @@ fun HomeScreen(
                 onRemove = viewModel::removeReferenceImage
             )
 
-            if (state.referenceImages.isNotEmpty() && !state.selectedModel.supportsCharacterReference) {
+            if (state.referenceImages.isNotEmpty() && state.selectedModel.referenceMode != ReferenceMode.ACE_PLUS_PLUS) {
                 Spacer(Modifier.height(8.dp))
                 Column {
+                    val strengthLabel = if (state.selectedModel.referenceMode == ReferenceMode.PULID) {
+                        "Forza identità (PuLID)"
+                    } else {
+                        "Forza del riferimento"
+                    }
                     Text(
-                        "${state.selectedModel.displayName} non ha coerenza personaggio dedicata: la foto " +
-                            "viene usata come punto di partenza (img2img), non come vera identità da " +
-                            "mantenere. Per somigliare di più, descrivi nel prompt i tratti della foto " +
-                            "(capelli, occhi, carnagione, età) e tieni la forza bassa. Per coerenza vera " +
-                            "tra più immagini scegli \"ACE++ Coerenza personaggio\".",
+                        if (state.selectedModel.referenceMode == ReferenceMode.PULID) {
+                            "${state.selectedModel.displayName} usa PuLID: la foto guida il volto/aspetto " +
+                                "mentre il modello genera la scena dal prompt — molto più fedele di un " +
+                                "semplice img2img. Per il massimo, tieni la forza medio-bassa e descrivi " +
+                                "comunque i tratti principali nel prompt."
+                        } else {
+                            "${state.selectedModel.displayName} non ha coerenza personaggio dedicata: la foto " +
+                                "viene usata come punto di partenza (img2img), non come vera identità da " +
+                                "mantenere. Per somigliare di più, descrivi nel prompt i tratti della foto " +
+                                "(capelli, occhi, carnagione, età) e tieni la forza bassa. Per coerenza vera " +
+                                "tra più immagini scegli \"ACE++ Coerenza personaggio\" o un modello con PuLID."
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        "Forza del riferimento: ${"%.0f".format(state.params.referenceStrength * 100)}%",
+                        "$strengthLabel: ${"%.0f".format(state.params.referenceStrength * 100)}%",
                         style = MaterialTheme.typography.labelMedium
                     )
                     Slider(

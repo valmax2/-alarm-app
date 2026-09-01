@@ -1,5 +1,7 @@
 package it.vstudioapps.runwarestudio.model
 
+import it.vstudioapps.runwarestudio.data.api.ReferenceMode
+
 /**
  * One entry in the curated "modelli pronti all'uso" catalog shown in the model picker. [air]
  * is Runware's model identifier format (AIR — "civitai:<model>@<version>" or
@@ -28,10 +30,10 @@ data class ModelPreset(
      *  affects a small "18+" badge in the picker — the app never blocks a prompt by category,
      *  the NSFW-filter toggle in Settings is the only gate. */
     val adultCapable: Boolean = false,
-    /** Set for models that support Runware's ACE++ character-consistent editing
-     *  (model = "runware:102@1"), which is what powers the "immagini di riferimento
-     *  personaggio" feature end to end instead of a plain img2img strength blend. */
-    val supportsCharacterReference: Boolean = false
+    /** How reference photos get sent for this model — see ReferenceMode. Defaults to PULID
+     *  (good face consistency with almost any SDXL-family checkpoint); ACE++ itself and the
+     *  FLUX models (uncertain PuLID-FLUX field compatibility, untested) override it. */
+    val referenceMode: ReferenceMode = ReferenceMode.PULID
 )
 
 enum class ModelCategory(val label: String) {

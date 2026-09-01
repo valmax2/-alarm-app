@@ -12,6 +12,7 @@ import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -91,13 +92,23 @@ class RunwareApiClient(
                     put("checkNSFW", request.checkNsfw)
 
                     if (request.referenceImageUUIDs.isNotEmpty()) {
-                        if (request.useCharacterConsistency) {
-                            putJsonArray("referenceImages") {
+                        when (request.referenceMode) {
+                            ReferenceMode.ACE_PLUS_PLUS -> putJsonArray("referenceImages") {
                                 request.referenceImageUUIDs.forEach { add(it) }
                             }
-                        } else {
-                            put("seedImage", request.referenceImageUUIDs.first())
-                            put("strength", request.referenceStrength)
+                            ReferenceMode.PULID -> putJsonObject("puLID") {
+                                putJsonArray("images") {
+                                    request.referenceImageUUIDs.forEach { add(it) }
+                                }
+                                put("idWeight", request.referenceStrength)
+                                put("trueCFGScale", 3.5)
+                                put("CFGStartStep", 4)
+                            }
+                            ReferenceMode.IMG2IMG -> {
+                                put("seedImage", request.referenceImageUUIDs.first())
+                                put("strength", request.referenceStrength)
+                            }
+                            ReferenceMode.NONE -> {}
                         }
                     }
                 }
