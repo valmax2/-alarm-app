@@ -1,9 +1,11 @@
 package it.vstudioapps.runwarestudio.data.api
 
 import it.vstudioapps.runwarestudio.BuildConfig
+import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -163,27 +165,45 @@ class RunwareApiClient(
         }
     }
 
-    private suspend fun executeRaw(body: JsonArray): Result<RunwareEnvelope> = try {
+    private suspend fun executeRaw(body: JsonArray): Result<RunwareEnvelope> {
         val apiKey = apiKeyProvider()
         if (apiKey.isNullOrBlank()) {
-            Result.failure(RunwareException("Inserisci la tua API key di Runware nelle Impostazioni"))
-        } else {
-            val httpRequest = Request.Builder()
-                .url(baseUrl)
-                .addHeader("Authorization", "Bearer $apiKey")
-                .addHeader("Content-Type", "application/json")
-                .post(body.toString().toRequestBody("application/json".toMediaType()))
-                .build()
-            client.newCall(httpRequest).execute().use { response ->
-                val text = response.body?.string().orEmpty()
-                if (text.isBlank()) {
-                    Result.failure(RunwareException("Errore di rete: HTTP ${response.code}"))
-                } else {
-                    Result.success(json.decodeFromString(RunwareEnvelope.serializer(), text))
+            return Result.failure(RunwareException("Inserisci la tua API key di Runware nelle Impostazioni"))
+        }
+        val httpRequest = Request.Builder()
+            .url(baseUrl)
+            .addHeader("Authorization", "Bearer $apiKey")
+            .addHeader("Content-Type", "application/json")
+            .post(body.toString().toRequestBody("application/json".toMediaType()))
+            .build()
+
+        // Mobile connections drop mid-request often enough (network switch, brief signal loss)
+        // that a bare IOException ("Software caused connection abort" and friends) on the very
+        // first attempt shouldn't be shown to the user as a failure — one silent retry clears
+        // the vast majority of these. A second failure is treated as real.
+        var lastIoError: IOException? = null
+        repeat(2) { attempt ->
+            try {
+                client.newCall(httpRequest).execute().use { response ->
+                    val text = response.body?.string().orEmpty()
+                    return if (text.isBlank()) {
+                        Result.failure(RunwareException("Errore di rete: HTTP ${response.code}"))
+                    } else {
+                        Result.success(json.decodeFromString(RunwareEnvelope.serializer(), text))
+                    }
                 }
+            } catch (e: IOException) {
+                lastIoError = e
+                if (attempt == 0) delay(1500)
+            } catch (e: Exception) {
+                return Result.failure(RunwareException(e.message ?: "Errore di connessione a Runware", e))
             }
         }
-    } catch (e: Exception) {
-        Result.failure(RunwareException(e.message ?: "Errore di connessione a Runware", e))
+        return Result.failure(
+            RunwareException(
+                "Connessione persa con Runware. Controlla la connessione internet e riprova.",
+                lastIoError
+            )
+        )
     }
 }

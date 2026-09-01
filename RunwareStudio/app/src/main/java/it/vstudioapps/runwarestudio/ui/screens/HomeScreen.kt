@@ -143,7 +143,39 @@ fun HomeScreen(
                 onRemove = viewModel::removeReferenceImage
             )
 
-            if (state.referenceImages.isNotEmpty() && state.selectedModel.referenceMode != ReferenceMode.ACE_PLUS_PLUS) {
+            if (state.referenceImages.isNotEmpty()) {
+                val segmindKeyPresent = viewModel.hasSegmindKey()
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Scambia volto (Segmind)", style = MaterialTheme.typography.labelLarge)
+                        Text(
+                            if (segmindKeyPresent) {
+                                "Genera prima l'immagine, poi sostituisce il volto con quello della foto — " +
+                                    "funziona con qualsiasi modello, anche Pony."
+                            } else {
+                                "Aggiungi la tua API key di Segmind in Impostazioni per usarlo."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = state.useFaceSwap && segmindKeyPresent,
+                        enabled = segmindKeyPresent,
+                        onCheckedChange = viewModel::setUseFaceSwap
+                    )
+                }
+            }
+
+            if (state.referenceImages.isNotEmpty() &&
+                !state.useFaceSwap &&
+                state.selectedModel.referenceMode != ReferenceMode.ACE_PLUS_PLUS
+            ) {
                 Spacer(Modifier.height(8.dp))
                 Column {
                     val strengthLabel = if (state.selectedModel.referenceMode == ReferenceMode.PULID) {
@@ -367,5 +399,6 @@ private fun statusLabel(status: GenerationStatus): String = when (status) {
     GenerationStatus.Translating -> "Traduzione…"
     GenerationStatus.UploadingReferences -> "Caricamento riferimenti…"
     GenerationStatus.Generating -> "Generazione…"
+    GenerationStatus.SwappingFaces -> "Scambio volto…"
     else -> "Genera"
 }

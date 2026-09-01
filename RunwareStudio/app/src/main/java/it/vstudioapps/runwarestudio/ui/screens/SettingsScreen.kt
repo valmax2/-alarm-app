@@ -58,8 +58,12 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
     val connectionTest by viewModel.connectionTest.collectAsState()
     val archiveCleared by viewModel.archiveCleared.collectAsState()
 
+    val segmindKeyPresent by viewModel.segmindKeyPresent.collectAsState()
+
     var apiKeyField by remember { mutableStateOf(viewModel.currentApiKey().orEmpty()) }
     var keyVisible by remember { mutableStateOf(false) }
+    var segmindKeyField by remember { mutableStateOf(viewModel.currentSegmindApiKey().orEmpty()) }
+    var segmindKeyVisible by remember { mutableStateOf(false) }
     var showAdultTermsDialog by remember { mutableStateOf(false) }
     var showClearArchiveDialog by remember { mutableStateOf(false) }
 
@@ -111,6 +115,48 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
             }
             Spacer(Modifier.height(6.dp))
             ConnectionTestStatus(connectionTest)
+
+            Spacer(Modifier.height(24.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(16.dp))
+
+            Text("API Segmind (opzionale)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                "Serve solo per \"Scambia volto\" in Genera — sostituisce il volto nell'immagine già " +
+                    "generata con quello della foto di riferimento, funziona anche con Pony. Prendi una " +
+                    "chiave a consumo su segmind.com. Senza questa chiave il resto dell'app funziona lo stesso.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = segmindKeyField,
+                onValueChange = { segmindKeyField = it },
+                label = { Text("API key Segmind") },
+                singleLine = true,
+                visualTransformation = if (segmindKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { segmindKeyVisible = !segmindKeyVisible }) {
+                        Icon(
+                            if (segmindKeyVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                            contentDescription = "Mostra/nascondi"
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { viewModel.setSegmindApiKey(segmindKeyField) },
+                    enabled = segmindKeyField.isNotBlank()
+                ) { Text("Salva") }
+                if (segmindKeyPresent) {
+                    OutlinedButton(onClick = { viewModel.clearSegmindApiKey(); segmindKeyField = "" }) {
+                        Text("Rimuovi")
+                    }
+                }
+            }
 
             Spacer(Modifier.height(24.dp))
             HorizontalDivider()

@@ -13,6 +13,7 @@ import it.vstudioapps.runwarestudio.model.ArchiveJob
 import it.vstudioapps.runwarestudio.model.GenerationParams
 import it.vstudioapps.runwarestudio.model.GenerationStatus
 import it.vstudioapps.runwarestudio.model.ModelPreset
+import it.vstudioapps.runwarestudio.model.ResultImageSource
 import it.vstudioapps.runwarestudio.model.toDefaultParams
 import java.io.File
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +36,13 @@ data class HomeUiState(
      *  untouched, for full manual control. Defaults on since it only ever adds to what the
      *  user wrote, never removes or reinterprets it. */
     val autoOptimizeEnabled: Boolean = true,
+    /** "Scambia volto (Segmind)": when on and a reference photo is attached, Runware generates
+     *  normally (no img2img/PuLID sent to it — no point steering the diffusion toward the
+     *  reference when the face gets replaced afterwards anyway) and each result is then passed
+     *  through Segmind's face-swap API with that photo. Needs a Segmind API key in Impostazioni
+     *  — see SegmindApiClient. Off by default: it's a second provider/API key, not something
+     *  to opt into silently. */
+    val useFaceSwap: Boolean = false,
     val status: GenerationStatus = GenerationStatus.Idle,
     /** Local file paths of the last successful run's results, read back from the archive so
      *  Home always shows the same durable copy the archive itself has. */
@@ -43,7 +51,8 @@ data class HomeUiState(
 ) {
     val isBusy: Boolean get() = status is GenerationStatus.Translating ||
         status is GenerationStatus.UploadingReferences ||
-        status is GenerationStatus.Generating
+        status is GenerationStatus.Generating ||
+        status is GenerationStatus.SwappingFaces
 }
 
 /**
@@ -125,6 +134,12 @@ class GenerationViewModel(application: Application) : AndroidViewModel(applicati
         _uiState.update { it.copy(autoOptimizeEnabled = enabled) }
     }
 
+    fun setUseFaceSwap(enabled: Boolean) {
+        _uiState.update { it.copy(useFaceSwap = enabled) }
+    }
+
+    fun hasSegmindKey(): Boolean = container.secureKeyStore.hasSegmindApiKey()
+
     fun generate() {
         val state = _uiState.value
         if (state.isBusy) return
@@ -160,8 +175,13 @@ class GenerationViewModel(application: Application) : AndroidViewModel(applicati
             _uiState.update { it.copy(translatedPreview = promptEn) }
 
             val storage = container.archiveRepository.imageStorage()
+            // Segmind's face swap runs on the already-generated image, so there's no point
+            // steering Runware's own diffusion toward the reference photo too — skip
+            // uploading it to Runware at all in that mode; the photo only goes to Segmind,
+            // after generation.
+            val sendReferenceToRunware = state.referenceImages.isNotEmpty() && !state.useFaceSwap
             val referenceUUIDs = mutableListOf<String>()
-            if (state.referenceImages.isNotEmpty()) {
+            if (sendReferenceToRunware) {
                 _uiState.update { it.copy(status = GenerationStatus.UploadingReferences) }
                 for (uri in state.referenceImages) {
                     val dataUri = runCatching { storage.toDataUri(uri) }.getOrElse { e ->
@@ -205,6 +225,27 @@ class GenerationViewModel(application: Application) : AndroidViewModel(applicati
                 return@launch
             }
 
+            val resultSources: List<ResultImageSource> =
+                if (state.useFaceSwap && state.referenceImages.isNotEmpty()) {
+                    _uiState.update { it.copy(status = GenerationStatus.SwappingFaces) }
+                    val sourceFaceBase64 = runCatching {
+                        storage.toRawBase64(state.referenceImages.first())
+                    }.getOrElse { e ->
+                        fail(e.message ?: "Impossibile leggere la foto di riferimento")
+                        return@launch
+                    }
+                    resultUrls.map { url ->
+                        val swapped = container.segmindApiClient.swapFace(sourceFaceBase64, url)
+                        val bytes = swapped.getOrElse { e ->
+                            fail(e.message ?: "Scambio volto (Segmind) non riuscito")
+                            return@launch
+                        }
+                        ResultImageSource.Local(bytes)
+                    }
+                } else {
+                    resultUrls.map { ResultImageSource.Remote(it) }
+                }
+
             val jobId = runCatching {
                 container.archiveRepository.saveCompletedJob(
                     promptIt = state.promptIt,
@@ -212,7 +253,7 @@ class GenerationViewModel(application: Application) : AndroidViewModel(applicati
                     model = model,
                     params = params,
                     referenceUris = state.referenceImages,
-                    resultUrls = resultUrls
+                    results = resultSources
                 )
             }.getOrElse { e ->
                 fail(e.message ?: "Salvataggio nell'archivio non riuscito")

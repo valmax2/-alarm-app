@@ -9,6 +9,7 @@ import it.vstudioapps.runwarestudio.data.db.RunwareDatabase
 import it.vstudioapps.runwarestudio.model.ArchiveJob
 import it.vstudioapps.runwarestudio.model.GenerationParams
 import it.vstudioapps.runwarestudio.model.ModelPreset
+import it.vstudioapps.runwarestudio.model.ResultImageSource
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -41,15 +42,18 @@ class ArchiveRepository(private val context: Context) {
         model: ModelPreset,
         params: GenerationParams,
         referenceUris: List<Uri>,
-        resultUrls: List<String>
+        results: List<ResultImageSource>
     ): Long = withContext(Dispatchers.IO) {
         val jobKey = UUID.randomUUID().toString()
         try {
             val referencePaths = referenceUris.mapIndexed { index, uri ->
                 storage.copyReferenceImage(uri, jobKey, index).absolutePath
             }
-            val resultPaths = resultUrls.mapIndexed { index, url ->
-                storage.downloadResult(url, jobKey, index).absolutePath
+            val resultPaths = results.mapIndexed { index, source ->
+                when (source) {
+                    is ResultImageSource.Remote -> storage.downloadResult(source.url, jobKey, index)
+                    is ResultImageSource.Local -> storage.saveBytes(source.bytes, jobKey, index)
+                }.absolutePath
             }
             val entity = JobEntity(
                 promptIt = promptIt,

@@ -44,6 +44,15 @@ class ImageStorage(private val context: Context) {
             file
         }
 
+    /** Same destination naming as [downloadResult], for a result whose bytes are already in
+     *  hand (e.g. after a Segmind face-swap post-processing step) instead of a URL to fetch. */
+    suspend fun saveBytes(bytes: ByteArray, jobKey: String, index: Int): File =
+        withContext(Dispatchers.IO) {
+            val file = File(jobDir(jobKey), "result_$index.png")
+            file.writeBytes(bytes)
+            file
+        }
+
     suspend fun copyReferenceImage(uri: Uri, jobKey: String, index: Int): File =
         withContext(Dispatchers.IO) {
             val file = File(jobDir(jobKey), "reference_$index.jpg")
@@ -56,11 +65,18 @@ class ImageStorage(private val context: Context) {
     /** Base64 data URI Runware's imageUpload task expects, built straight from a picked uri —
      *  used before the job (and its archive folder) even exists. */
     suspend fun toDataUri(uri: Uri): String = withContext(Dispatchers.IO) {
+        val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
+        "data:$mime;base64,${readRawBase64(uri)}"
+    }
+
+    /** Plain base64 (no "data:...;base64," prefix) — what Segmind's faceswap API expects for
+     *  source_img, unlike Runware's data-URI convention. */
+    suspend fun toRawBase64(uri: Uri): String = withContext(Dispatchers.IO) { readRawBase64(uri) }
+
+    private fun readRawBase64(uri: Uri): String {
         val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
             ?: throw IOException("Impossibile leggere l'immagine di riferimento")
-        val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
-        val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-        "data:$mime;base64,$base64"
+        return Base64.encodeToString(bytes, Base64.NO_WRAP)
     }
 
     fun deleteJobFiles(jobKey: String) {

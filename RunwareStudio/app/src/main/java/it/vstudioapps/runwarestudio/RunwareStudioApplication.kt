@@ -2,6 +2,7 @@ package it.vstudioapps.runwarestudio
 
 import android.app.Application
 import it.vstudioapps.runwarestudio.data.api.RunwareApiClient
+import it.vstudioapps.runwarestudio.data.api.SegmindApiClient
 import it.vstudioapps.runwarestudio.data.archive.ArchiveRepository
 import it.vstudioapps.runwarestudio.data.settings.SecureKeyStore
 import it.vstudioapps.runwarestudio.data.settings.SettingsRepository
@@ -24,5 +25,8 @@ class RunwareStudioApplication : Application() {
     val translator by lazy { PromptTranslator() }
     val apiClient by lazy {
         RunwareApiClient(apiKeyProvider = { withContext(Dispatchers.IO) { secureKeyStore.getApiKey() } })
+    }
+    val segmindApiClient by lazy {
+        SegmindApiClient(apiKeyProvider = { withContext(Dispatchers.IO) { secureKeyStore.getSegmindApiKey() } })
     }
 }

@@ -6,6 +6,7 @@ sealed interface GenerationStatus {
     data object Translating : GenerationStatus
     data object UploadingReferences : GenerationStatus
     data object Generating : GenerationStatus
+    data object SwappingFaces : GenerationStatus
     data class Success(val jobId: Long) : GenerationStatus
     data class Error(val message: String) : GenerationStatus
 }

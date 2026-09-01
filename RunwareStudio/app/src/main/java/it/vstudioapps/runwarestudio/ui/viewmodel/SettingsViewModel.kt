@@ -30,6 +30,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _apiKeyPresent = MutableStateFlow(container.secureKeyStore.hasApiKey())
     val apiKeyPresent: StateFlow<Boolean> = _apiKeyPresent
 
+    private val _segmindKeyPresent = MutableStateFlow(container.secureKeyStore.hasSegmindApiKey())
+    val segmindKeyPresent: StateFlow<Boolean> = _segmindKeyPresent
+
     private val _connectionTest = MutableStateFlow<ConnectionTestState>(ConnectionTestState.Idle)
     val connectionTest: StateFlow<ConnectionTestState> = _connectionTest
 
@@ -48,6 +51,18 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         container.secureKeyStore.setApiKey(null)
         _apiKeyPresent.value = false
         _connectionTest.value = ConnectionTestState.Idle
+    }
+
+    fun currentSegmindApiKey(): String? = container.secureKeyStore.getSegmindApiKey()
+
+    fun setSegmindApiKey(key: String) {
+        container.secureKeyStore.setSegmindApiKey(key)
+        _segmindKeyPresent.value = container.secureKeyStore.hasSegmindApiKey()
+    }
+
+    fun clearSegmindApiKey() {
+        container.secureKeyStore.setSegmindApiKey(null)
+        _segmindKeyPresent.value = false
     }
 
     fun testConnection() {
