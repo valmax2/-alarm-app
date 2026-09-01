@@ -115,14 +115,16 @@ class RunwareApiClient(
                             }
                             // Same source: puLID.inputImages, not puLID.images — and idWeight is an
                             // integer 0-3 (default 1), not the 0.1-1.0 fraction our slider uses.
+                            // trueCFGScale and CFGStartStep are mutually exclusive (confirmed live:
+                            // "'puLID.trueCFGScale' cannot be set when puLID.CFGStartStep... is
+                            // provided") — leave both out and let Runware apply its own defaults
+                            // rather than guess which one to keep.
                             ReferenceMode.PULID -> putJsonObject("puLID") {
                                 putJsonArray("inputImages") {
                                     request.referenceImageUUIDs.forEach { add(it) }
                                 }
                                 val idWeight = (request.referenceStrength * 3f).roundToInt().coerceIn(0, 3)
                                 put("idWeight", idWeight)
-                                put("trueCFGScale", 3.5)
-                                put("CFGStartStep", 4)
                             }
                             ReferenceMode.IMG2IMG -> {
                                 put("seedImage", request.referenceImageUUIDs.first())
