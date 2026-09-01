@@ -8,7 +8,6 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.collectAsState
@@ -35,9 +34,27 @@ class MainActivity : ComponentActivity() {
     private var pendingExportFile: File? = null
     private var pendingGallerySave: Pair<File, String>? = null
 
+    // ACTION_OPEN_DOCUMENT (the system Files picker), not the restricted Photo Picker: this
+    // one surfaces every storage provider the device has — Google Drive, other cloud apps, a
+    // file manager, Downloads — not just the local Photos/Gallery app, which is what the
+    // Photo Picker limits itself to.
     private val pickReferenceImages =
-        registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(4)) { uris ->
-            if (uris.isNotEmpty()) generationViewModel.addReferenceImages(uris)
+        registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+            if (uris.isNotEmpty()) {
+                uris.forEach { uri ->
+                    // Best-effort: some providers (e.g. a plain file manager backed by
+                    // ExternalStorageProvider) don't grant persistable permissions, and that's
+                    // fine here since the image is read immediately (uploaded/copied during
+                    // generate()), not reopened after the process has restarted.
+                    runCatching {
+                        contentResolver.takePersistableUriPermission(
+                            uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                    }
+                }
+                generationViewModel.addReferenceImages(uris)
+            }
         }
 
     private val createExportDocument =
@@ -82,9 +99,7 @@ class MainActivity : ComponentActivity() {
                     archiveViewModel = archiveViewModel,
                     settingsViewModel = settingsViewModel,
                     onPickReferenceImages = {
-                        pickReferenceImages.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
+                        pickReferenceImages.launch(arrayOf("image/*"))
                     },
                     onExportFile = { file, suggestedName ->
                         pendingExportFile = file
