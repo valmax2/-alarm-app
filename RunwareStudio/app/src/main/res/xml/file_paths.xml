@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Exposes the private archive folder (filesDir/archive/...) as content:// uris for sharing
+     and "apri con" — see data/export/ExportUtils.kt and the FileProvider entry in the
+     manifest. Nothing outside that one folder is ever exposed. -->
+<paths>
+    <files-path name="archive" path="archive/" />
+</paths>
