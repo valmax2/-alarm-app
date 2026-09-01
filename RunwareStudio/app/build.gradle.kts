@@ -85,11 +85,16 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Only present on the machine that has keystore.properties (never CI, never a
-            // fresh checkout) — without it, ./gradlew bundleRelease still compiles, it just
-            // produces an unsigned bundle Play Console would reject.
-            if (keystorePropertiesFile.exists()) {
-                signingConfig = signingConfigs.getByName("release")
+            // The real release keystore is only present on a machine that has
+            // keystore.properties (never CI, never a fresh checkout) — Play Console needs a
+            // build signed with it. Everywhere else (CI, a quick local test install), fall
+            // back to the checked-in debug keystore so `assembleRelease`/`bundleRelease` still
+            // produce something *installable* — a shrunk build to test size/behavior — rather
+            // than an unsigned artifact nothing can install.
+            signingConfig = if (keystorePropertiesFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
             }
         }
     }

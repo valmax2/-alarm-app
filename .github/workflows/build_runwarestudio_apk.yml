@@ -42,41 +42,60 @@ jobs:
           CODE=$(grep -oP 'versionCode = \K[0-9]+' app/build.gradle.kts)
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           echo "code=$CODE" >> "$GITHUB_OUTPUT"
-          echo "filename=RunwareStudio-v${NAME}-${CODE}-debug" >> "$GITHUB_OUTPUT"
+          echo "filename_debug=RunwareStudio-v${NAME}-${CODE}-debug" >> "$GITHUB_OUTPUT"
+          echo "filename_release=RunwareStudio-v${NAME}-${CODE}-release" >> "$GITHUB_OUTPUT"
 
       # 6. Compila l'APK in modalità debug
       - run: ./gradlew assembleDebug --stacktrace
 
-      # 7. Esegue i test unitari (se presenti)
+      # 7. Compila anche la variante release (minificata/shrinkata con R8+risorse rimosse,
+      #    quindi molto più leggera del debug) — firmata con la stessa debug.keystore quando
+      #    manca keystore.properties (sempre il caso in CI), vedi il commento nel build.gradle.kts
+      #    dell'app: resta un APK installabile per testare peso/comportamento, non una build
+      #    da Play Store.
+      - run: ./gradlew assembleRelease --stacktrace
+
+      # 8. Esegue i test unitari (se presenti)
       - run: ./gradlew testDebugUnitTest --stacktrace
 
-      # 8. Rinomina l'APK includendo la versione, cosi il file scaricato la porta già nel nome
-      - name: Rinomina l'APK con la versione
+      # 9. Rinomina gli APK includendo la versione, cosi il file scaricato la porta già nel nome
+      - name: Rinomina gli APK con la versione
         run: |
           mkdir -p app/build/outputs/apk/debug/renamed
           cp app/build/outputs/apk/debug/app-debug.apk \
-             "app/build/outputs/apk/debug/renamed/${{ steps.version.outputs.filename }}.apk"
+             "app/build/outputs/apk/debug/renamed/${{ steps.version.outputs.filename_debug }}.apk"
+          mkdir -p app/build/outputs/apk/release/renamed
+          cp app/build/outputs/apk/release/app-release.apk \
+             "app/build/outputs/apk/release/renamed/${{ steps.version.outputs.filename_release }}.apk"
 
-      # 9. Carica l'APK tra gli allegati scaricabili della build
-      - name: Upload APK Artifact
+      # 10. Carica entrambi gli APK tra gli allegati scaricabili della build
+      - name: Upload APK debug Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.version.outputs.filename }}
-          path: RunwareStudio/app/build/outputs/apk/debug/renamed/${{ steps.version.outputs.filename }}.apk
+          name: ${{ steps.version.outputs.filename_debug }}
+          path: RunwareStudio/app/build/outputs/apk/debug/renamed/${{ steps.version.outputs.filename_debug }}.apk
+      - name: Upload APK release Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.version.outputs.filename_release }}
+          path: RunwareStudio/app/build/outputs/apk/release/renamed/${{ steps.version.outputs.filename_release }}.apk
 
-      # 10. Pubblica anche l'APK come allegato di una release "rolling" (stesso tag ogni volta,
-      #     sovrascritto ad ogni build) — a differenza degli artifact delle Actions, gli
+      # 11. Pubblica entrambi gli APK come allegati di una release "rolling" (stesso tag ogni
+      #     volta, sovrascritto ad ogni build) — a differenza degli artifact delle Actions, gli
       #     allegati di una release sono scaricabili direttamente da github.com senza dover
       #     passare dall'interfaccia di Actions.
-      - name: Pubblica l'APK come Release
+      - name: Pubblica gli APK come Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: runwarestudio-debug
-          name: Runware Studio (debug build)
+          name: Runware Studio (debug + release build)
           prerelease: true
           body: |
-            Build automatica di debug di Runware Studio dal commit ${{ github.sha }}.
-            Scarica `${{ steps.version.outputs.filename }}.apk` qui sotto e installalo sul telefono.
-          files: RunwareStudio/app/build/outputs/apk/debug/renamed/${{ steps.version.outputs.filename }}.apk
+            Build automatica di Runware Studio dal commit ${{ github.sha }}.
+            - `${{ steps.version.outputs.filename_release }}.apk`: build release (più leggera, minificata) — consigliata per l'uso normale.
+            - `${{ steps.version.outputs.filename_debug }}.apk`: build debug (più pesante, non minificata) — utile solo per debug.
+          files: |
+            RunwareStudio/app/build/outputs/apk/debug/renamed/${{ steps.version.outputs.filename_debug }}.apk
+            RunwareStudio/app/build/outputs/apk/release/renamed/${{ steps.version.outputs.filename_release }}.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
