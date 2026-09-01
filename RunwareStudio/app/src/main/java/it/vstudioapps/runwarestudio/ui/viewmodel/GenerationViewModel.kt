@@ -158,7 +158,9 @@ class GenerationViewModel(application: Application) : AndroidViewModel(applicati
         val params = state.params
 
         viewModelScope.launch {
-            _uiState.update { it.copy(status = GenerationStatus.Translating, resultPaths = emptyList()) }
+            _uiState.update {
+                it.copy(status = GenerationStatus.Translating, resultPaths = emptyList(), errorMessage = null)
+            }
             val translation = container.translator.translate(state.promptIt)
             val rawEn = translation.getOrElse { e ->
                 fail(e.message ?: "Traduzione non riuscita")
