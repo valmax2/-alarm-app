@@ -146,6 +146,16 @@ fun HomeScreen(
                 Spacer(Modifier.height(8.dp))
                 Column {
                     Text(
+                        "${state.selectedModel.displayName} non ha coerenza personaggio dedicata: la foto " +
+                            "viene usata come punto di partenza (img2img), non come vera identità da " +
+                            "mantenere. Per somigliare di più, descrivi nel prompt i tratti della foto " +
+                            "(capelli, occhi, carnagione, età) e tieni la forza bassa. Per coerenza vera " +
+                            "tra più immagini scegli \"ACE++ Coerenza personaggio\".",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
                         "Forza del riferimento: ${"%.0f".format(state.params.referenceStrength * 100)}%",
                         style = MaterialTheme.typography.labelMedium
                     )
