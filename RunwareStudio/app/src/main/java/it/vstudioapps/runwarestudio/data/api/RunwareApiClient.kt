@@ -15,6 +15,7 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import kotlin.math.roundToInt
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -95,14 +96,31 @@ class RunwareApiClient(
 
                     if (request.referenceImageUUIDs.isNotEmpty()) {
                         when (request.referenceMode) {
-                            ReferenceMode.ACE_PLUS_PLUS -> putJsonArray("referenceImages") {
-                                request.referenceImageUUIDs.forEach { add(it) }
-                            }
-                            ReferenceMode.PULID -> putJsonObject("puLID") {
-                                putJsonArray("images") {
+                            // Confirmed against Runware's own Python SDK source (runware.ai itself
+                            // is unreachable from this environment): acePlusPlus is a nested object
+                            // on the imageInference task, not a top-level `referenceImages` array —
+                            // sending it as a bare array silently falls through to FLUX Fill's plain
+                            // inpainting mode, which then demands a maskImage we don't have.
+                            // "subject" is the creation workflow (reference photo, no mask) as
+                            // opposed to "local_editing" (requires inputMasks) or "portrait".
+                            // repaintingScale runs opposite to our slider: 0 = keep identity, 1 =
+                            // follow the prompt — so it's inverted from the "Forza del riferimento"
+                            // the user tunes (higher = more identity preserved).
+                            ReferenceMode.ACE_PLUS_PLUS -> putJsonObject("acePlusPlus") {
+                                putJsonArray("inputImages") {
                                     request.referenceImageUUIDs.forEach { add(it) }
                                 }
-                                put("idWeight", request.referenceStrength)
+                                put("type", "subject")
+                                put("repaintingScale", 1f - request.referenceStrength)
+                            }
+                            // Same source: puLID.inputImages, not puLID.images — and idWeight is an
+                            // integer 0-3 (default 1), not the 0.1-1.0 fraction our slider uses.
+                            ReferenceMode.PULID -> putJsonObject("puLID") {
+                                putJsonArray("inputImages") {
+                                    request.referenceImageUUIDs.forEach { add(it) }
+                                }
+                                val idWeight = (request.referenceStrength * 3f).roundToInt().coerceIn(0, 3)
+                                put("idWeight", idWeight)
                                 put("trueCFGScale", 3.5)
                                 put("CFGStartStep", 4)
                             }
