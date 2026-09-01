@@ -8,6 +8,9 @@ on:
       - '.github/workflows/build_runwarestudio_apk.yml'
   workflow_dispatch: # Permette di avviare la build manualmente da GitHub
 
+permissions:
+  contents: write # serve per pubblicare la release con l'APK allegato
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -60,3 +63,20 @@ jobs:
         with:
           name: ${{ steps.version.outputs.filename }}
           path: RunwareStudio/app/build/outputs/apk/debug/renamed/${{ steps.version.outputs.filename }}.apk
+
+      # 10. Pubblica anche l'APK come allegato di una release "rolling" (stesso tag ogni volta,
+      #     sovrascritto ad ogni build) — a differenza degli artifact delle Actions, gli
+      #     allegati di una release sono scaricabili direttamente da github.com senza dover
+      #     passare dall'interfaccia di Actions.
+      - name: Pubblica l'APK come Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: runwarestudio-debug
+          name: Runware Studio (debug build)
+          prerelease: true
+          body: |
+            Build automatica di debug di Runware Studio dal commit ${{ github.sha }}.
+            Scarica `${{ steps.version.outputs.filename }}.apk` qui sotto e installalo sul telefono.
+          files: RunwareStudio/app/build/outputs/apk/debug/renamed/${{ steps.version.outputs.filename }}.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
