@@ -31,10 +31,9 @@ object ModelCatalog {
             defaultHeight = 1024,
             defaultScheduler = "Default",
             defaultNegativePrompt = "blurry, low quality, watermark, text, distorted",
-            // PuLID's SDXL variant is confirmed by Runware; a FLUX variant exists too
-            // (PuLID-FLUX) but this app doesn't know its exact field shape is the same "puLID"
-            // object — falls back to plain img2img here rather than guessing.
-            referenceMode = ReferenceMode.IMG2IMG
+            // Confirmed against a live Runware error response: PuLID's compatible model list
+            // is exactly runware:100@1 / runware:101@1 / runware:107@1.
+            referenceMode = ReferenceMode.PULID
         ),
         ModelPreset(
             id = "flux-dev",
@@ -48,7 +47,7 @@ object ModelCatalog {
             defaultHeight = 1024,
             defaultScheduler = "Default",
             defaultNegativePrompt = "blurry, low quality, watermark, text, distorted, deformed",
-            referenceMode = ReferenceMode.IMG2IMG
+            referenceMode = ReferenceMode.PULID
         ),
         ModelPreset(
             id = "ace-plus-plus",

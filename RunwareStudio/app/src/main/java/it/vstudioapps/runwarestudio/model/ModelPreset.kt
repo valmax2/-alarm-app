@@ -30,10 +30,12 @@ data class ModelPreset(
      *  affects a small "18+" badge in the picker — the app never blocks a prompt by category,
      *  the NSFW-filter toggle in Settings is the only gate. */
     val adultCapable: Boolean = false,
-    /** How reference photos get sent for this model — see ReferenceMode. Defaults to PULID
-     *  (good face consistency with almost any SDXL-family checkpoint); ACE++ itself and the
-     *  FLUX models (uncertain PuLID-FLUX field compatibility, untested) override it. */
-    val referenceMode: ReferenceMode = ReferenceMode.PULID
+    /** How reference photos get sent for this model — see ReferenceMode. Defaults to IMG2IMG:
+     *  confirmed against a real Runware error response, PuLID only accepts model AIRs
+     *  "runware:100@1", "runware:101@1", "runware:107@1" (the FLUX checkpoints) — every
+     *  Civitai/SDXL-family checkpoint here (Pony included) rejects it outright. Only FLUX.1
+     *  Schnell/Dev override this to PULID; ACE++ overrides it to its own mechanism. */
+    val referenceMode: ReferenceMode = ReferenceMode.IMG2IMG
 )
 
 enum class ModelCategory(val label: String) {

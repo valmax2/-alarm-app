@@ -53,13 +53,14 @@ enum class ReferenceMode {
     /** ACE++ character-consistent editing — requires model = "runware:102@1", sends every
      *  reference image via `referenceImages`. */
     ACE_PLUS_PLUS,
-    /** PuLID identity transfer (`puLID` object: images + idWeight/trueCFGScale/CFGStartStep) —
-     *  works alongside most SDXL-family checkpoints (photoreal/anime/artistic/Pony), giving
-     *  much better face consistency than plain img2img without needing a dedicated model. */
+    /** PuLID identity transfer (`puLID` object: images + idWeight/trueCFGScale/CFGStartStep).
+     *  Confirmed against a live Runware error response: only compatible with model AIRs
+     *  "runware:100@1", "runware:101@1", "runware:107@1" (the FLUX checkpoints) — every
+     *  Civitai/SDXL-family model (Pony included) rejects it. */
     PULID,
     /** Classic img2img (`seedImage` + `strength`, first reference image only) — the fallback
-     *  for models PuLID isn't confirmed compatible with (FLUX's own identity technique is a
-     *  separate PuLID-FLUX variant this app doesn't send). */
+     *  for every model PuLID doesn't accept (see PULID above), i.e. everything except FLUX
+     *  and ACE++ in this app's catalog. */
     IMG2IMG
 }
 
