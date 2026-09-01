@@ -19,6 +19,11 @@ data class ModelPreset(
     val defaultWidth: Int,
     val defaultHeight: Int,
     val defaultScheduler: String,
+    /** Pre-fills "Parametri avanzati" -> Prompt negativo when this model is selected, tuned to
+     *  what that specific checkpoint's community generally uses (a Pony-family model wants its
+     *  low-score tags here, a photoreal one wants anatomy/artifact terms, etc.) — same as every
+     *  other default here, always editable afterwards, never sent silently unmodified. */
+    val defaultNegativePrompt: String = "",
     /** True if this checkpoint is commonly used for uncensored/adult-content generation. Only
      *  affects a small "18+" badge in the picker — the app never blocks a prompt by category,
      *  the NSFW-filter toggle in Settings is the only gate. */

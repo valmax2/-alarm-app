@@ -28,7 +28,8 @@ object ModelCatalog {
             defaultCfgScale = 1f,
             defaultWidth = 1024,
             defaultHeight = 1024,
-            defaultScheduler = "Default"
+            defaultScheduler = "Default",
+            defaultNegativePrompt = "blurry, low quality, watermark, text, distorted"
         ),
         ModelPreset(
             id = "flux-dev",
@@ -40,7 +41,8 @@ object ModelCatalog {
             defaultCfgScale = 3.5f,
             defaultWidth = 1024,
             defaultHeight = 1024,
-            defaultScheduler = "Default"
+            defaultScheduler = "Default",
+            defaultNegativePrompt = "blurry, low quality, watermark, text, distorted, deformed"
         ),
         ModelPreset(
             id = "ace-plus-plus",
@@ -53,6 +55,7 @@ object ModelCatalog {
             defaultWidth = 1024,
             defaultHeight = 1024,
             defaultScheduler = "Default",
+            defaultNegativePrompt = "blurry, low quality, watermark, distorted face, inconsistent face",
             supportsCharacterReference = true
         ),
         ModelPreset(
@@ -65,7 +68,9 @@ object ModelCatalog {
             defaultCfgScale = 6.5f,
             defaultWidth = 1024,
             defaultHeight = 1024,
-            defaultScheduler = "DPM++ 2M Karras"
+            defaultScheduler = "DPM++ 2M Karras",
+            defaultNegativePrompt = "blurry, low quality, deformed hands, extra fingers, bad anatomy, " +
+                "watermark, text, jpeg artifacts, ugly, disfigured"
         ),
         ModelPreset(
             id = "realistic-vision",
@@ -77,7 +82,9 @@ object ModelCatalog {
             defaultCfgScale = 5f,
             defaultWidth = 832,
             defaultHeight = 1216,
-            defaultScheduler = "DPM++ SDE Karras"
+            defaultScheduler = "DPM++ SDE Karras",
+            defaultNegativePrompt = "deformed hands, extra fingers, bad anatomy, blurry, low quality, " +
+                "watermark, text, disfigured face, cross-eyed, bad teeth"
         ),
         ModelPreset(
             id = "pony-realism",
@@ -90,6 +97,13 @@ object ModelCatalog {
             defaultWidth = 896,
             defaultHeight = 1152,
             defaultScheduler = "DPM++ 2M Karras",
+            // Pony-family checkpoints are trained with "score_N" quality-rating tags; putting
+            // the low scores in the negative prompt (mirrored by score_9/score_8_up/score_7_up
+            // conventionally added at the *start* of the positive prompt by the community) is
+            // how this family is meant to be steered — plain English negatives alone work much
+            // less well here.
+            defaultNegativePrompt = "score_6, score_5, score_4, worst quality, low quality, blurry, " +
+                "deformed hands, bad anatomy, watermark, text, signature",
             adultCapable = true
         ),
         ModelPreset(
@@ -103,6 +117,8 @@ object ModelCatalog {
             defaultWidth = 1024,
             defaultHeight = 1024,
             defaultScheduler = "Euler A",
+            defaultNegativePrompt = "score_6, score_5, score_4, worst quality, low quality, blurry, " +
+                "bad anatomy, extra limbs, watermark, text, signature",
             adultCapable = true
         ),
         ModelPreset(
@@ -115,7 +131,9 @@ object ModelCatalog {
             defaultCfgScale = 7f,
             defaultWidth = 832,
             defaultHeight = 1216,
-            defaultScheduler = "Euler A"
+            defaultScheduler = "Euler A",
+            defaultNegativePrompt = "worst quality, low quality, blurry, bad anatomy, extra limbs, " +
+                "extra fingers, watermark, text, signature, jpeg artifacts"
         ),
         ModelPreset(
             id = "dreamshaper",
@@ -127,7 +145,9 @@ object ModelCatalog {
             defaultCfgScale = 6f,
             defaultWidth = 1024,
             defaultHeight = 1024,
-            defaultScheduler = "DPM++ 2M"
+            defaultScheduler = "DPM++ 2M",
+            defaultNegativePrompt = "blurry, low quality, deformed, bad anatomy, watermark, text, " +
+                "disfigured, extra limbs"
         )
     )
 

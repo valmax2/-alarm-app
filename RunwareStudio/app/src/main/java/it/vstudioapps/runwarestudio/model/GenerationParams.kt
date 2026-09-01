@@ -42,6 +42,7 @@ data class GenerationParams(
 }
 
 fun ModelPreset.toDefaultParams(): GenerationParams = GenerationParams(
+    negativePrompt = defaultNegativePrompt,
     steps = defaultSteps,
     cfgScale = defaultCfgScale,
     width = defaultWidth,
