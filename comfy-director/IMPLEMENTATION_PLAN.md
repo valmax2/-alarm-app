@@ -279,10 +279,31 @@ scritto manualmente dall'utente (Prompt Engine "proprio", campi IT/EN editabili,
 cronologia, preset, blocco traduzione) — questa resta la parte di Fase 9 ancora da
 costruire, insieme al Workflow Builder (Fase 5) che la userà.
 
-## FASE 10 — AI ASSISTANT — ⬜
-Chat, AI Tool Layer (§21) con preview/applica/annulla, mai editing diretto non
-validato (§22). L'astrazione provider (`ai_providers`, cifratura, CRUD) è già stata
-costruita in Fase 9 per "Prompt da Immagine" e verrà riusata qui, non ricostruita.
+## FASE 10 — AI ASSISTANT — 🟨 (v1: solo chat, nessun Tool Layer)
+- ✅ `bridge/ai_providers/chat.py`: chiamata REALE (non simulata) ad Anthropic
+  `/v1/messages` o OpenAI `/v1/chat/completions` con cronologia (ultimi 20 messaggi),
+  riusando la stessa astrazione provider/cifratura costruita in Fase 9 (mai ricostruita
+  — coerente con `docs/module-boundaries.md`).
+- ✅ Tabella `chat_messages` (migrazione `0006`) — conversazione unica e continua
+  (nessuna gestione di thread multipli in v1). Il messaggio dell'utente viene
+  committato subito, prima del tentativo di chiamata al provider: se la chiamata
+  fallisce non va perso (l'utente non deve riscriverlo).
+- ✅ `POST /chat/messages`, `GET /chat/messages`, `DELETE /chat/messages`.
+- ✅ Sezione "Assistente AI" abilitata in UI (era disattivata): cronologia reale,
+  selezione provider, invio, errori del provider mostrati così come sono (mai una
+  risposta inventata se la chiamata fallisce).
+- ✅ Verificato con una chiamata REALE (non mockata) verso `api.anthropic.com` con una
+  chiave invalida: la richiesta raggiunge davvero l'endpoint, l'errore
+  `authentication_error` di Anthropic viene propagato verbatim in UI — stessa modalità
+  di verifica già stabilita per "Prompt da Immagine" (Fase 9).
+- 🟨 **Deferito esplicitamente, dichiarato** (mai finto): **nessun AI Tool Layer** (§21)
+  — l'assistente non legge né modifica ancora il workflow dell'utente (nessun
+  `get_current_workflow`/`add_node`/`connect_nodes`/`set_node_parameter` ecc.), nessun
+  meccanismo di preview/applica/annulla (§22). Il system prompt dell'assistente lo
+  dichiara esplicitamente all'utente se gli viene chiesto di modificare il workflow,
+  invece di fingere di poterlo fare. Implementarlo ora, senza un meccanismo di
+  preview/conferma reale prima di mutare il workflow, avrebbe rischiato di violare
+  proprio la regola che il Tool Layer è pensato per rispettare.
 
 ## FASE 11 — HARDENING — ⬜
 Diagnostica avanzata con export report, backup/versioning completi, migrazioni Alembic

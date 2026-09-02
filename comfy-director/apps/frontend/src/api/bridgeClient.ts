@@ -233,6 +233,15 @@ export interface StructuredPromptOut {
   final_prompt_en: string;
 }
 
+export interface ChatMessageOut {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  provider_id: string | null;
+  error_message: string | null;
+  created_at: string;
+}
+
 export interface PromptFromImageResponse {
   provider_id: string;
   provider_kind: string;
@@ -387,4 +396,12 @@ export const bridgeClient = {
     form.append("provider_id", providerId);
     return requestMultipart<PromptFromImageResponse>("/prompt-from-image/analyze", form);
   },
+
+  listChatMessages: () => request<ChatMessageOut[]>("/chat/messages"),
+  sendChatMessage: (text: string, providerId: string) =>
+    request<ChatMessageOut[]>("/chat/messages", {
+      method: "POST",
+      body: JSON.stringify({ text, provider_id: providerId }),
+    }),
+  clearChatMessages: () => request<void>("/chat/messages", { method: "DELETE" }),
 };

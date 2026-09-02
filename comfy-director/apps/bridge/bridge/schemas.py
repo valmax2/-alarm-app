@@ -155,6 +155,20 @@ class PromptFromImageResponse(BaseModel):
     structured: StructuredPromptOut
 
 
+class ChatMessageOut(BaseModel):
+    id: str
+    role: Literal["user", "assistant"]
+    text: str
+    provider_id: str | None
+    error_message: str | None
+    created_at: datetime
+
+
+class ChatSendRequest(BaseModel):
+    text: str
+    provider_id: str
+
+
 class NodeSchemaOut(BaseModel):
     class_type: str
     display_name: str

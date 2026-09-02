@@ -1,5 +1,39 @@
 # CHANGELOG — Comfy Director
 
+## [Non rilasciato] — Fase 10 v1: chat reale con l'Assistente AI (2026-09-02)
+
+Richiesto esplicitamente ("riesco già... a interrogare un'IA?"), consegnato come chat
+testuale reale — senza il Tool Layer completo (§21), dichiarato esplicitamente non
+ancora implementato.
+
+### Backend
+- `bridge/ai_providers/chat.py`: chiamata reale ad Anthropic/OpenAI con cronologia
+  (ultimi 20 messaggi), riusa l'astrazione provider/cifratura della Fase 9.
+- Tabella `chat_messages` (migrazione `0006`).
+- `routers/chat.py`: `POST/GET/DELETE /chat/messages`. Il messaggio dell'utente è
+  committato subito (prima della chiamata al provider): se la chiamata fallisce non
+  va perso — richiedeva un commit esplicito perché `get_db_session` fa rollback
+  dell'intera sessione quando l'endpoint solleva un'eccezione più avanti.
+
+### Frontend
+- Sezione "Assistente AI" abilitata (era disattivata): `ChatPanel.tsx` con cronologia
+  reale, selezione provider, invio, errori del provider mostrati verbatim.
+
+### Test
+- Backend: +14 test (`test_chat.py`, `test_chat_endpoints.py`) — 159 totali, tutti
+  verdi.
+- Frontend: +3 test (`ChatPanel.test.tsx`) — 37 totali, tutti verdi.
+- Verificato con una chiamata REALE (non mockata) verso `api.anthropic.com` con una
+  chiave invalida: la richiesta raggiunge davvero l'endpoint (proxy di rete di questo
+  ambiente), l'errore `authentication_error` di Anthropic viene propagato verbatim in
+  UI — confermato sia via `curl` diretto sia con Playwright (screenshot).
+
+### Dichiarato esplicitamente come non ancora implementato (mai finto)
+- Nessun AI Tool Layer (§21): l'assistente non legge né modifica il workflow
+  dell'utente. Se gli viene chiesto, lo dichiara lui stesso (system prompt) invece di
+  fingere di poterlo fare.
+- Nessuna gestione di conversazioni/thread multipli — una cronologia unica e continua.
+
 ## [Non rilasciato] — Fase 6 v1: generazione reale via ComfyUI (2026-09-02)
 
 Richiesto esplicitamente dall'utente dopo aver chiesto conferma su cosa fosse già

@@ -529,3 +529,60 @@ input {
 .node-properties__field textarea {
   width: 100%;
 }
+
+/* Assistente AI (Fase 10 v1) */
+
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.chat-panel__messages {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+  padding: 0.5rem;
+  max-height: 40vh;
+  overflow-y: auto;
+  background: #16161a;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.chat-panel__message {
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  max-width: 90%;
+}
+
+.chat-panel__message p {
+  margin: 0.2rem 0 0;
+  white-space: pre-wrap;
+}
+
+.chat-panel__message--user {
+  align-self: flex-end;
+  background: var(--accent);
+  color: #fff;
+}
+
+.chat-panel__message--assistant {
+  align-self: flex-start;
+  background: #2a2a30;
+}
+
+.chat-panel__message-role {
+  font-size: 0.7rem;
+  opacity: 0.75;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.chat-panel__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}

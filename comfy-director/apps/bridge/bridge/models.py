@@ -219,3 +219,21 @@ class GenerationRecord(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ChatMessageRecord(Base):
+    """Un messaggio della chat con l'Assistente AI (Fase 10 v1, spec §21).
+
+    Conversazione unica e continua per questa consegna (nessuna gestione di più
+    conversazioni separate/thread — semplificazione dichiarata, coerente con una prima
+    versione "solo chat" senza AI Tool Layer). `provider_id` è nullable perché non ha
+    senso su un messaggio `role='user'`."""
+
+    __tablename__ = "chat_messages"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_new_id)
+    role: Mapped[str] = mapped_column(String(16))  # "user" | "assistant"
+    text: Mapped[str] = mapped_column(Text)
+    provider_id: Mapped[str | None] = mapped_column(String(32), ForeignKey("ai_providers.id", ondelete="SET NULL"), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)  # popolato se la chiamata al provider è fallita
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)

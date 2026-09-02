@@ -195,6 +195,20 @@ Regole versionate + osservazioni. Vedi `docs/compatibility-engine.md` per semant
 | structured_json | text (JSON), nullable | campi strutturati (§9: soggetto, capelli, volto, ...) quando prodotti da Prompt-da-Immagine |
 | created_at | datetime | |
 
+## `chat_messages` — [Fase 10, consegnata v1: solo chat, nessun Tool Layer]
+Conversazione unica e continua con l'Assistente AI — non lo schizzo originale del
+piano (che non la specificava nel dettaglio), aggiunta quando la chat è stata
+consegnata prima del Tool Layer completo (§21).
+
+| campo | tipo | note |
+|---|---|---|
+| id | str, PK | |
+| role | str | `user`\|`assistant` |
+| text | text | |
+| provider_id | FK → ai_providers.id (SET NULL), nullable | nullable perché non ha senso su un messaggio `role='user'` |
+| error_message | text, nullable | popolato se la chiamata al provider è fallita (in quel caso non viene creata alcuna riga `assistant`, solo il messaggio `user` resta salvato) |
+| created_at | datetime | |
+
 ## `errors` — [Fase 1, popolata progressivamente]
 Log applicativo strutturato persistito (oltre al file di log), per la Diagnostica (§25).
 

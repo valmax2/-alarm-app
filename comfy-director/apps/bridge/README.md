@@ -61,6 +61,14 @@ Bridge, verificare manualmente contro un'istanza ComfyUI reale:
    `GET /queue`) e marcare la generazione "Interrotta". Già verificato in sviluppo con
    un ComfyUI simulato (l'ambiente non ne ha uno reale, vedi sopra) — inclusi
    `POST /prompt`, `GET /queue`, `GET /history/{id}`, `POST /interrupt`, `GET /view`.
+9. Con un provider AI configurato, aprire "Assistente AI" e scrivere un messaggio →
+   deve arrivare una risposta reale (non un placeholder) e la cronologia deve
+   sopravvivere a un refresh (`GET /chat/messages`). Con una chiave non valida,
+   l'errore reale del provider deve comparire in UI, e il messaggio dell'utente deve
+   restare in cronologia (non deve doverlo riscrivere). Già verificato in sviluppo con
+   una chiamata reale (non mockata) verso `api.anthropic.com` con una chiave non
+   valida — manca solo una chiave reale per la verifica positiva completa (stessa
+   situazione di "Prompt da Immagine", punto 6).
 
 ## Migrazioni
 
@@ -79,7 +87,7 @@ bridge/
   db.py                     # engine SQLAlchemy async
   models.py                  # ORM (settings, comfy_instances, errors, nodes,
                               # node_schemas, models, model_metadata, ai_providers,
-                              # workflows, workflow_versions, generations)
+                              # workflows, workflow_versions, generations, chat_messages)
   schemas.py                   # contratti API (Pydantic)
   deps.py                       # dependency injection FastAPI
   comfy_instance.py               # gestione riga "default" di comfy_instances
@@ -94,10 +102,11 @@ bridge/
   media/                                 # Fase 8: parser chunk PNG (tEXt/zTXt/iTXt)
   workflow_import/                        # Fase 8: workflow da immagine; Fase 5:
                                            # workflow da file .json standalone
-  ai_providers/                            # Fase 9: CRUD provider, cifratura, vision
+  ai_providers/                            # Fase 9: CRUD provider, cifratura, vision;
+                                            # Fase 10: chat (send_chat_message)
   routers/                                  # health, comfy, settings, inventory,
                                              # workflows, workflow_import, ai_providers,
-                                             # prompt_from_image, generations
+                                             # prompt_from_image, generations, chat
 migrations/                                  # Alembic
 tests/                                        # pytest (mock respx, nessuna rete reale
                                                # verso ComfyUI; alcune verifiche manuali

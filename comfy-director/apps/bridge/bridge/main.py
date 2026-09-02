@@ -26,6 +26,7 @@ from bridge.db import make_engine, make_session_factory
 from bridge.logging_config import configure_logging
 from bridge.routers import (
     ai_providers,
+    chat,
     comfy,
     generations,
     health,
@@ -108,6 +109,7 @@ def build_app(settings: Settings, engine: AsyncEngine, session_factory: async_se
     app.include_router(prompt_from_image.router)
     app.include_router(workflows.router)
     app.include_router(generations.router)
+    app.include_router(chat.router)
 
     # In produzione, se il frontend è stato buildato (apps/frontend/dist), il Bridge lo
     # serve direttamente così l'utente apre un solo URL/processo (coerente con "avviare
