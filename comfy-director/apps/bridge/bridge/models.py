@@ -237,3 +237,44 @@ class ChatMessageRecord(Base):
     provider_id: Mapped[str | None] = mapped_column(String(32), ForeignKey("ai_providers.id", ondelete="SET NULL"), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)  # popolato se la chiamata al provider è fallita
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class CharacterRecord(Base):
+    """Personaggio della libreria (docs/data-model.md #characters, Fase 7).
+
+    `main_image_id` NON è una vera FK a livello DB (nessun `ForeignKey(...)`):
+    `character_images.character_id` punta già a `characters.id` con CASCADE, quindi un
+    vincolo nell'altro verso creerebbe un riferimento circolare tra le due tabelle,
+    complicando l'ordine di creazione senza un beneficio reale (l'invariante — un
+    main_image_id deve appartenere allo stesso personaggio — è comunque garantito dal
+    codice applicativo in `routers/characters.py`, mai lasciato incoerente in un modo
+    che l'utente possa osservare)."""
+
+    __tablename__ = "characters"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_new_id)
+    name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    main_image_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    tags: Mapped[str] = mapped_column(Text, default="[]")  # JSON list
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_private: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+
+
+class CharacterImageRecord(Base):
+    """Immagine di un personaggio (docs/data-model.md #character_images, Fase 7).
+    `storage_path` è un path RELATIVO a `Settings.storage_dir` — mai base64 in DB."""
+
+    __tablename__ = "character_images"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_new_id)
+    character_id: Mapped[str] = mapped_column(String(32), ForeignKey("characters.id", ondelete="CASCADE"))
+    storage_path: Mapped[str] = mapped_column(String(1000))
+    role: Mapped[str] = mapped_column(String(16), default="reference")  # "main" | "reference"
+    order_index: Mapped[int] = mapped_column(Integer, default=0)
+    source: Mapped[str] = mapped_column(String(16), default="upload")  # "upload" | "drag_drop" | "cloud_drive" | "generated"
+    width: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)

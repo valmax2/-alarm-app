@@ -1,5 +1,39 @@
 # CHANGELOG — Comfy Director
 
+## [Non rilasciato] — Fase 7 v1: libreria Personaggi (2026-09-02)
+
+Consegnata come libreria dati + immagini reali — nessun collegamento ancora al
+Workflow Builder / "Coerenza Personaggio" (dipende dalla Fase 5 completa, non ancora
+costruita), dichiarato esplicitamente.
+
+### Backend
+- Tabelle `characters`/`character_images` (migrazione `0007`).
+- `bridge/characters/storage.py`: storage filesystem reale in
+  `data/storage/characters/<id>/<uuid>.<ext>` — upload/delete operano su file veri,
+  mai file orfani (la cartella dell'intero personaggio viene rimossa alla sua
+  cancellazione).
+- `routers/characters.py`: CRUD personaggi, upload/eliminazione immagini, proxy per
+  servire il file.
+
+### Frontend
+- Sezione "Personaggi" abilitata (era disattivata): libreria, dettaglio, upload,
+  toggle privacy (offusca l'anteprima via blur CSS — solo visualizzazione, non un
+  vero controllo d'accesso, dichiarato).
+
+### Test
+- Backend: +17 test (`test_characters_storage.py`, `test_characters_endpoints.py`) —
+  176 totali, tutti verdi.
+- Frontend: +2 test (`CharactersPanel.test.tsx`) — 39 totali, tutti verdi.
+- Verificato dal vivo: upload di un PNG reale via UI, bytes confermati identici su
+  disco leggendo direttamente il file (non solo a schermo), cancellazione del
+  personaggio confermata rimuovere davvero la cartella dal filesystem.
+
+### Dichiarato esplicitamente come non ancora implementato (mai finto)
+- Nessun collegamento alla generazione/Coerenza Personaggio.
+- Nessun drag&drop in canvas, nessun export/import Character Pack.
+- Nessuna riordinabilità delle immagini, nessuna dimensione (width/height) derivata
+  automaticamente (nessuna dipendenza Pillow aggiunta per questo).
+
 ## [Non rilasciato] — Fase 10 v1: chat reale con l'Assistente AI (2026-09-02)
 
 Richiesto esplicitamente ("riesco già... a interrogare un'IA?"), consegnato come chat

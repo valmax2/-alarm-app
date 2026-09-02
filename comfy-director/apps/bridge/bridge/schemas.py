@@ -169,6 +169,50 @@ class ChatSendRequest(BaseModel):
     provider_id: str
 
 
+class CharacterImageOut(BaseModel):
+    id: str
+    character_id: str
+    role: Literal["main", "reference"]
+    order_index: int
+    source: str
+    width: int | None
+    height: int | None
+    created_at: datetime
+
+
+class CharacterCreateRequest(BaseModel):
+    name: str
+    description: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    notes: str | None = None
+    is_private: bool = False
+
+
+class CharacterUpdateRequest(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    tags: list[str] | None = None
+    notes: str | None = None
+    is_private: bool | None = None
+
+
+class CharacterSummaryOut(BaseModel):
+    id: str
+    name: str
+    description: str | None
+    tags: list[str]
+    is_private: bool
+    image_count: int
+    main_image_id: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class CharacterDetailOut(CharacterSummaryOut):
+    notes: str | None
+    images: list[CharacterImageOut]
+
+
 class NodeSchemaOut(BaseModel):
     class_type: str
     display_name: str

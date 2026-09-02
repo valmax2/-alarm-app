@@ -143,28 +143,28 @@ Regole versionate + osservazioni. Vedi `docs/compatibility-engine.md` per semant
 | note | text, nullable | |
 | created_at | datetime | |
 
-## `characters` — [Fase 7]
+## `characters` — [Fase 7, consegnata v1: libreria + immagini, nessun collegamento alla generazione]
 | campo | tipo | note |
 |---|---|---|
 | id | str, PK | |
 | name | str | |
 | description | text, nullable | |
-| main_image_id | FK → character_images.id, nullable | |
+| main_image_id | str, nullable | NON una vera FK a livello DB (nessun `ForeignKey`): evita un riferimento circolare con `character_images.character_id`, che punta già a questa tabella con CASCADE — l'invariante è garantito dal codice applicativo (`routers/characters.py`), vedi `bridge/models.py` |
 | tags | str (JSON list) | |
 | notes | text, nullable | |
-| is_private | bool | controlla oscuramento anteprima in UI |
+| is_private | bool | controlla SOLO l'oscuramento (blur) dell'anteprima in UI — non un vero controllo d'accesso: il file resta scaricabile via URL diretto (nessuna autenticazione esiste in questa app locale mono-utente) |
 | created_at / updated_at | datetime | |
 
-## `character_images` — [Fase 7]
+## `character_images` — [Fase 7, consegnata v1]
 | campo | tipo | note |
 |---|---|---|
 | id | str, PK | |
 | character_id | FK → characters.id (CASCADE) | |
-| storage_path | str | path relativo su filesystem (`data/storage/characters/<character_id>/<file>`) — MAI base64 in DB |
+| storage_path | str | path relativo su filesystem (`data/storage/characters/<character_id>/<uuid>.<ext>`) — MAI base64 in DB |
 | role | str | `main`\|`reference` |
-| order_index | int | |
-| source | str | `upload`\|`drag_drop`\|`cloud_drive`\|`generated` |
-| width / height | int, nullable | |
+| order_index | int | assegnato in ordine di caricamento in v1 — nessuna riordinabilità esplicita ancora |
+| source | str | `upload`\|`drag_drop`\|`cloud_drive`\|`generated` — solo `upload` è realmente implementato in v1, gli altri valori sono previsti nello schema per fasi future |
+| width / height | int, nullable | non ancora derivati automaticamente dall'immagine in v1 (nessuna dipendenza Pillow aggiunta per questo — dichiarato, mai un valore inventato) |
 | created_at | datetime | |
 
 ## `generations` — [Fase 6, consegnata v1]

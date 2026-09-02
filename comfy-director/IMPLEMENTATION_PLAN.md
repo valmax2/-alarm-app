@@ -241,9 +241,37 @@ confermato sia a schermo (screenshot) sia con endpoint chiamati direttamente. La
 verifica contro un ComfyUI reale (non simulato) resta a carico dell'utente — checklist
 in `docs/test-plan.md` e in `apps/bridge/README.md`.
 
-## FASE 7 — PERSONAGGI — ⬜
-Libreria (`characters`, `character_images`), storage filesystem reale, drag&drop nel
-workflow builder, privacy toggle, export/import Character Pack.
+## FASE 7 — PERSONAGGI — 🟨 (v1: libreria + immagini, nessun collegamento alla generazione)
+- ✅ Tabelle `characters`/`character_images` (migrazione `0007`) — `character_images.
+  storage_path` è sempre relativo a `Settings.storage_dir`, mai base64 in DB.
+  `characters.main_image_id` non è una vera FK a livello DB (evita un riferimento
+  circolare con `character_images.character_id`; l'invariante è garantito dal
+  codice applicativo, mai lasciato incoerente in modo osservabile dall'utente).
+- ✅ `bridge/characters/storage.py`: storage filesystem reale in
+  `data/storage/characters/<id>/<uuid>.<ext>` — upload salva i byte veri, delete
+  rimuove davvero il file (o l'intera cartella alla cancellazione del personaggio),
+  mai file orfani lasciati sul disco.
+- ✅ `POST/GET/PUT/DELETE /characters`, `POST/DELETE /characters/{id}/images`,
+  `GET /characters/{id}/images/{id}/file` (proxy dal disco).
+- ✅ Privacy toggle (`is_private`): offusca l'anteprima in UI (blur CSS) — per
+  dichiarazione esplicita dello schizzo originale è solo un controllo di
+  visualizzazione, non un vero controllo d'accesso (l'immagine resta comunque
+  scaricabile via URL diretto se qualcuno lo conosce — nessuna autenticazione
+  esiste in questa app locale, coerente con l'architettura "un solo utente sulla
+  propria macchina").
+- ✅ Sezione "Personaggi" abilitata in UI (era disattivata): libreria, dettaglio
+  personaggio, upload/eliminazione immagini reali, verificato caricando un PNG
+  reale (bytes confermati identici su disco via lettura diretta del file, non solo
+  a schermo) e verificando che la cancellazione rimuova davvero la cartella.
+- 🟨 **Deferito esplicitamente, dichiarato** (mai finto): **nessun collegamento al
+  Workflow Builder / "Coerenza Personaggio"** — un personaggio qui è solo dati
+  (nome, tag, immagini), non ancora utilizzabile per guidare una generazione;
+  quel flusso dipende dal Workflow Intelligence Engine (Fase 5 completa, non
+  ancora costruito). Nessun drag&drop nella canvas, nessun export/import
+  Character Pack, nessuna riordinabilità delle immagini (`order_index` è
+  assegnato in ordine di caricamento), nessuna dimensione (`width`/`height`)
+  derivata automaticamente dall'immagine (nessuna dipendenza Pillow aggiunta per
+  questo — dichiarato, non un dato inventato).
 
 ## FASE 8 — IMPORT — 🟨 (Workflow da Immagine consegnato, portato avanti su richiesta esplicita)
 Consegnato: **Workflow da Immagine** — lettura reale dei chunk PNG `tEXt`/`zTXt`/`iTXt`

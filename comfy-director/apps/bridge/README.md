@@ -69,6 +69,11 @@ Bridge, verificare manualmente contro un'istanza ComfyUI reale:
    una chiamata reale (non mockata) verso `api.anthropic.com` con una chiave non
    valida — manca solo una chiave reale per la verifica positiva completa (stessa
    situazione di "Prompt da Immagine", punto 6).
+10. Aprire "Personaggi", crearne uno, caricare un'immagine reale → il file deve
+    comparire davvero su disco in `data/storage/characters/<id>/` (byte identici a
+    quelli caricati, verificabile leggendo il file), e `GET /characters/{id}` deve
+    riportare `image_count: 1`. Eliminare il personaggio → la sua intera cartella
+    deve sparire dal disco, non solo la riga a DB. Già verificato in sviluppo.
 
 ## Migrazioni
 
@@ -87,7 +92,8 @@ bridge/
   db.py                     # engine SQLAlchemy async
   models.py                  # ORM (settings, comfy_instances, errors, nodes,
                               # node_schemas, models, model_metadata, ai_providers,
-                              # workflows, workflow_versions, generations, chat_messages)
+                              # workflows, workflow_versions, generations, chat_messages,
+                              # characters, character_images)
   schemas.py                   # contratti API (Pydantic)
   deps.py                       # dependency injection FastAPI
   comfy_instance.py               # gestione riga "default" di comfy_instances
@@ -104,9 +110,11 @@ bridge/
                                            # workflow da file .json standalone
   ai_providers/                            # Fase 9: CRUD provider, cifratura, vision;
                                             # Fase 10: chat (send_chat_message)
+  characters/                               # Fase 7: storage filesystem immagini
   routers/                                  # health, comfy, settings, inventory,
                                              # workflows, workflow_import, ai_providers,
-                                             # prompt_from_image, generations, chat
+                                             # prompt_from_image, generations, chat,
+                                             # characters
 migrations/                                  # Alembic
 tests/                                        # pytest (mock respx, nessuna rete reale
                                                # verso ComfyUI; alcune verifiche manuali

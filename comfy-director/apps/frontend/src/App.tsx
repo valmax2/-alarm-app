@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { BridgeStatus } from "./components/BridgeStatus";
 import { NodePropertiesPanel } from "./components/canvas/NodePropertiesPanel";
 import { WorkflowCanvas } from "./components/canvas/WorkflowCanvas";
+import { CharactersPanel } from "./components/CharactersPanel";
 import { ChatPanel } from "./components/ChatPanel";
 import { GenerationStatusBar } from "./components/GenerationStatusBar";
 import { ModelsPanel } from "./components/ModelsPanel";
@@ -30,7 +31,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: "flow-type", label: "Tipo Flusso", availableFromPhase: 5 },
   { id: "ai-engine", label: "Motore AI", availableFromPhase: 5 },
-  { id: "characters", label: "Personaggi", availableFromPhase: 7 },
+  { id: "characters", label: "Personaggi", availableFromPhase: null },
   { id: "workflows", label: "Workflow", availableFromPhase: null },
   { id: "workflow-from-image", label: "Workflow da Immagine", availableFromPhase: null },
   { id: "prompt-from-image", label: "Prompt da Immagine", availableFromPhase: null },
@@ -41,7 +42,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 const SECTION_IDS = [
-  "bridge", "models", "nodes", "workflow-from-image", "prompt-from-image", "workflows", "ai-assistant",
+  "bridge", "models", "nodes", "workflow-from-image", "prompt-from-image", "workflows", "ai-assistant", "characters",
 ];
 
 export default function App() {
@@ -123,6 +124,7 @@ export default function App() {
                 {activePanel === "prompt-from-image" && <PromptFromImagePanel />}
                 {activePanel === "workflows" && <WorkflowsPanel />}
                 {activePanel === "ai-assistant" && <ChatPanel />}
+                {activePanel === "characters" && <CharactersPanel />}
                 {!SECTION_IDS.includes(activePanel) && <p>Seleziona una sezione dai pulsanti sopra.</p>}
               </>
             )}

@@ -242,6 +242,34 @@ export interface ChatMessageOut {
   created_at: string;
 }
 
+export interface CharacterImageOut {
+  id: string;
+  character_id: string;
+  role: "main" | "reference";
+  order_index: number;
+  source: string;
+  width: number | null;
+  height: number | null;
+  created_at: string;
+}
+
+export interface CharacterSummaryOut {
+  id: string;
+  name: string;
+  description: string | null;
+  tags: string[];
+  is_private: boolean;
+  image_count: number;
+  main_image_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CharacterDetailOut extends CharacterSummaryOut {
+  notes: string | null;
+  images: CharacterImageOut[];
+}
+
 export interface PromptFromImageResponse {
   provider_id: string;
   provider_kind: string;
@@ -404,4 +432,27 @@ export const bridgeClient = {
       body: JSON.stringify({ text, provider_id: providerId }),
     }),
   clearChatMessages: () => request<void>("/chat/messages", { method: "DELETE" }),
+
+  listCharacters: () => request<CharacterSummaryOut[]>("/characters"),
+  getCharacter: (id: string) => request<CharacterDetailOut>(`/characters/${encodeURIComponent(id)}`),
+  createCharacter: (input: { name: string; description?: string; tags?: string[]; notes?: string; is_private?: boolean }) =>
+    request<CharacterSummaryOut>("/characters", { method: "POST", body: JSON.stringify(input) }),
+  updateCharacter: (
+    id: string,
+    input: Partial<{ name: string; description: string; tags: string[]; notes: string; is_private: boolean }>,
+  ) =>
+    request<CharacterSummaryOut>(`/characters/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(input) }),
+  deleteCharacter: (id: string) => request<void>(`/characters/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  uploadCharacterImage: (characterId: string, file: File, role: "main" | "reference" = "reference") => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("role", role);
+    return requestMultipart<CharacterImageOut>(`/characters/${encodeURIComponent(characterId)}/images`, form);
+  },
+  deleteCharacterImage: (characterId: string, imageId: string) =>
+    request<void>(`/characters/${encodeURIComponent(characterId)}/images/${encodeURIComponent(imageId)}`, {
+      method: "DELETE",
+    }),
+  characterImageUrl: (characterId: string, imageId: string) =>
+    `${BRIDGE_BASE_URL}/characters/${encodeURIComponent(characterId)}/images/${encodeURIComponent(imageId)}/file`,
 };

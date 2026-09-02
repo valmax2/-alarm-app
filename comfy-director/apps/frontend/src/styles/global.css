@@ -586,3 +586,27 @@ input {
   flex-direction: column;
   gap: 0.4rem;
 }
+
+/* Personaggi (Fase 7) */
+
+.characters-panel__image-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.characters-panel__image-item {
+  align-items: center;
+}
+
+.characters-panel__thumb {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.characters-panel__thumb--blurred {
+  filter: blur(16px);
+}
