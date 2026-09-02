@@ -167,19 +167,21 @@ Regole versionate + osservazioni. Vedi `docs/compatibility-engine.md` per semant
 | width / height | int, nullable | |
 | created_at | datetime | |
 
-## `generations` — [Fase 6]
+## `generations` — [Fase 6, consegnata v1]
 | campo | tipo | note |
 |---|---|---|
 | id | str, PK | |
+| workflow_id | FK → workflows.id (SET NULL) | aggiunta rispetto allo schizzo iniziale: serve a listare le generazioni di un workflow senza passare per un join su workflow_versions, che può essere stata cancellata |
 | workflow_version_id | FK → workflow_versions.id (SET NULL) | |
 | comfy_instance_id | FK → comfy_instances.id | |
 | comfy_prompt_id | str, nullable | ID di coda restituito da ComfyUI |
 | status | str | `queued`\|`running`\|`completed`\|`error`\|`aborted` |
-| seed | int, nullable | |
-| output_paths | str (JSON list) | path relativi immagini/video scaricati |
+| seed | int, nullable | non ancora derivato automaticamente dal grafo in v1 (nessuna assunzione su quale nodo/parametro sia "il seed") |
+| output_paths_json | str (JSON list di `{filename, subfolder, type}`) | rinominato da `output_paths` per riflettere il formato reale (non semplici path, ma gli oggetti che ComfyUI restituisce in `/history`) |
+| node_errors_json | str (JSON), nullable | errori di validazione riportati DA COMFYUI in risposta a `/prompt` — mai reinterpretati |
 | duration_ms | int, nullable | |
 | error_message | text, nullable | |
-| started_at / finished_at | datetime, nullable | |
+| created_at / started_at / finished_at | datetime, nullable (tranne created_at) | |
 
 ## `prompts` — [Fase 9]
 | campo | tipo | note |

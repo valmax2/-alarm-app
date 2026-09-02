@@ -191,3 +191,31 @@ class WorkflowVersionRecord(Base):
     validation_result_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # ultimo validate_structure
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class GenerationRecord(Base):
+    """Un job di generazione inviato a ComfyUI (docs/data-model.md #generations,
+    Fase 6). `workflow_id` è un'aggiunta pratica rispetto allo schizzo originale in
+    data-model.md (che aveva solo `workflow_version_id`) — serve per listare le
+    generazioni di un workflow senza dover passare per un join su
+    `workflow_versions`, che può anche essere stata cancellata (SET NULL)."""
+
+    __tablename__ = "generations"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_new_id)
+    workflow_id: Mapped[str | None] = mapped_column(String(32), ForeignKey("workflows.id", ondelete="SET NULL"), nullable=True)
+    workflow_version_id: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("workflow_versions.id", ondelete="SET NULL"), nullable=True
+    )
+    comfy_instance_id: Mapped[str] = mapped_column(String(32), ForeignKey("comfy_instances.id"))
+    comfy_prompt_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # queued | running | completed | error | aborted
+    status: Mapped[str] = mapped_column(String(16), default="queued")
+    seed: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    output_paths_json: Mapped[str] = mapped_column(Text, default="[]")  # JSON list di {filename, subfolder, type}
+    node_errors_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # errori di validazione da ComfyUI
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

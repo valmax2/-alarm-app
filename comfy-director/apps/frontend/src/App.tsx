@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { BridgeStatus } from "./components/BridgeStatus";
 import { NodePropertiesPanel } from "./components/canvas/NodePropertiesPanel";
 import { WorkflowCanvas } from "./components/canvas/WorkflowCanvas";
+import { GenerationStatusBar } from "./components/GenerationStatusBar";
 import { ModelsPanel } from "./components/ModelsPanel";
 import { NodesPanel } from "./components/NodesPanel";
 import { PromptFromImagePanel } from "./components/PromptFromImagePanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { WorkflowFromImagePanel } from "./components/WorkflowFromImagePanel";
 import { WorkflowsPanel } from "./components/WorkflowsPanel";
+import { useGenerationStore } from "./store/generationStore";
 import { useWorkflowStore } from "./store/workflowStore";
 
 interface NavItem {
@@ -43,9 +45,23 @@ const SECTION_IDS = [
 
 export default function App() {
   const [activePanel, setActivePanel] = useState<string>("workflows");
+  const workflowId = useWorkflowStore((s) => s.workflowId);
   const workflowName = useWorkflowStore((s) => s.workflowName);
   const versionNumber = useWorkflowStore((s) => s.versionNumber);
   const selectedNodeId = useWorkflowStore((s) => s.selectedNodeId);
+
+  const generation = useGenerationStore((s) => s.current);
+  const generateAction = useGenerationStore((s) => s.generate);
+  const abortAction = useGenerationStore((s) => s.abort);
+  const resetGeneration = useGenerationStore((s) => s.reset);
+
+  // Una generazione appartiene al workflow che l'ha avviata: cambiando/chiudendo il
+  // workflow, lo stato della generazione precedente non ha più senso in UI.
+  useEffect(() => {
+    resetGeneration();
+  }, [workflowId, resetGeneration]);
+
+  const isGenerating = generation !== null && (generation.status === "queued" || generation.status === "running");
 
   return (
     <div className="app-shell">
@@ -55,10 +71,15 @@ export default function App() {
           {workflowName ? `${workflowName} (v${versionNumber})` : "Nessun workflow aperto"}
         </span>
         <BridgeStatus />
-        <button type="button" disabled title="Disponibile da Fase 6 (Generazione)">
+        <button
+          type="button"
+          disabled={!workflowId || isGenerating}
+          title={workflowId ? undefined : "Apri o crea un workflow per generare"}
+          onClick={() => workflowId && void generateAction(workflowId)}
+        >
           GENERA
         </button>
-        <button type="button" disabled title="Disponibile da Fase 6 (Generazione)">
+        <button type="button" disabled={!isGenerating} onClick={() => void abortAction()}>
           ABORT
         </button>
       </header>
@@ -112,7 +133,7 @@ export default function App() {
       </div>
 
       <footer className="app-shell__bottombar">
-        <span>Prompt / Output / Progress / Log — non ancora implementati (Fasi 6, 9).</span>
+        <GenerationStatusBar />
       </footer>
     </div>
   );

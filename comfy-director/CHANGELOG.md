@@ -1,5 +1,61 @@
 # CHANGELOG — Comfy Director
 
+## [Non rilasciato] — Fase 6 v1: generazione reale via ComfyUI (2026-09-02)
+
+Richiesto esplicitamente dall'utente dopo aver chiesto conferma su cosa fosse già
+utilizzabile ("riesco già a generare qualcosa?") — risposta: non ancora, ed è diventata
+la priorità di questa consegna.
+
+### Backend
+- `bridge/workflow/compile.py`: `compile_to_comfy_payload()` — grafo interno → payload
+  API ComfyUI, risolve ogni arco in `[source_id, output_index]` reale tramite lo schema
+  sincronizzato; si rifiuta esplicitamente (`CompileError`) se non può farlo in modo
+  affidabile, mai un payload indovinato.
+- `comfy_client`: `queue_prompt`, `get_queue`, `get_history`, `interrupt`,
+  `get_view_bytes` — i quattro endpoint di generazione documentati in
+  `docs/comfyui-api.md` e finora non ancora implementati.
+- Tabella `generations` (migrazione `0005`).
+- `routers/generations.py`: `POST /workflows/{id}/generate` (blocco rigido su errori di
+  validazione, spec §26), `GET /generations/{id}` (polling: aggiorna lo stato leggendo
+  `/history` poi `/queue` dal vivo), `POST /generations/{id}/abort`,
+  `GET /generations/{id}/outputs/{i}/file` (proxy verso `/view`, il frontend non
+  contatta mai ComfyUI direttamente).
+
+### Frontend
+- Bottoni GENERA/ABORT in barra superiore, reali (erano disattivati).
+- `store/generationStore.ts`: polling ogni 1.5s finché la generazione non è in stato
+  terminale — nessuna relay WebSocket in questa consegna (dichiarato), quindi nessuna
+  percentuale di progresso finta nel frattempo.
+- `components/GenerationStatusBar.tsx` nel footer: stato reale, errori di ComfyUI
+  mostrati così come sono, miniature degli output al completamento.
+
+### Bug reale trovato e corretto durante la verifica dal vivo
+SQLite non conserva il fuso orario di una colonna `DateTime(timezone=True)` attraverso
+un giro di scrittura/lettura: un secondo poll su una generazione con `started_at` già
+persistito falliva con `TypeError: can't subtract offset-naive and offset-aware
+datetimes` nel calcolo di `duration_ms`. I test originali non lo intercettavano (la
+sessione DB per-richiesta nascondeva il problema entro una singola richiesta). Corretto
+con un helper `_aware_utc()`; aggiunto un test di regressione con due poll consecutivi
+in richieste separate, verificato che fallisce senza il fix e passa con il fix.
+
+### Test
+- Backend: +16 test (`test_workflow_compile.py`, `test_generations_endpoints.py`) — 145
+  totali, tutti verdi.
+- Frontend: +7 test (`generationStore.test.ts`, `GenerationStatusBar.test.tsx`) — 34
+  totali, tutti verdi.
+- Verifica E2E manuale con Bridge reale + un ComfyUI simulato (HTTP, non solo mock nei
+  test): GENERA → In coda → In esecuzione → Completata con miniatura reale scaricata
+  tramite il proxy del Bridge (screenshot), e ABORT → Interrotta. Confermato anche via
+  chiamate dirette agli endpoint, indipendenti dalla UI.
+
+### Dichiarato esplicitamente come non ancora implementato (mai finto)
+- Nessuna relay WebSocket: lo stato si aggiorna solo su richiesta (polling), non ad
+  ogni evento di ComfyUI.
+- Nessuna evidenziazione del nodo in esecuzione sulla canvas.
+- Nessuna percentuale di progresso (ComfyUI la espone solo via WS, non via
+  `/history`/`/queue`).
+- Verifica contro un ComfyUI reale (non simulato) resta a carico dell'utente.
+
 ## [Non rilasciato] — Fase 5 v1: scelta famiglia + import workflow JSON (2026-09-02)
 
 Richiesto esplicitamente dall'utente ("come creo un nuovo flusso scegliendo tra i vari

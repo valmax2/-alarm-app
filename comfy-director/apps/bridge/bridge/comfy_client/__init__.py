@@ -1,4 +1,4 @@
-from bridge.comfy_client.client import ComfyClient, ComfySystemStats
+from bridge.comfy_client.client import ComfyClient, ComfySystemStats, QueuePromptResult, QueueState
 from bridge.comfy_client.exceptions import (
     ComfyClientError,
     ComfyHTTPError,
@@ -15,4 +15,6 @@ __all__ = [
     "ComfySystemStats",
     "ComfyTimeout",
     "ComfyUnreachable",
+    "QueuePromptResult",
+    "QueueState",
 ]

@@ -181,6 +181,30 @@ export interface WorkflowImportJsonResponse {
   unmapped_widget_node_types: string[];
 }
 
+export interface GenerationOutput {
+  filename: string;
+  subfolder: string;
+  type: string;
+}
+
+export type GenerationStatus = "queued" | "running" | "completed" | "error" | "aborted";
+
+export interface GenerationOut {
+  id: string;
+  workflow_id: string | null;
+  workflow_version_id: string | null;
+  comfy_prompt_id: string | null;
+  status: GenerationStatus;
+  seed: number | null;
+  outputs: GenerationOutput[];
+  node_errors: Record<string, unknown> | null;
+  duration_ms: number | null;
+  error_message: string | null;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
 export type AIProviderKind = "anthropic" | "openai" | "local";
 
 export interface AIProviderOut {
@@ -327,6 +351,18 @@ export const bridgeClient = {
       body: JSON.stringify({ graph, note }),
     }),
   deleteWorkflow: (id: string) => request<void>(`/workflows/${encodeURIComponent(id)}`, { method: "DELETE" }),
+
+  generate: (workflowId: string) =>
+    request<GenerationOut>(`/workflows/${encodeURIComponent(workflowId)}/generate`, { method: "POST" }),
+  getGeneration: (id: string) => request<GenerationOut>(`/generations/${encodeURIComponent(id)}`),
+  abortGeneration: (id: string) => request<GenerationOut>(`/generations/${encodeURIComponent(id)}/abort`, { method: "POST" }),
+  listGenerations: (workflowId: string) =>
+    request<GenerationOut[]>(`/generations${buildQuery({ workflow_id: workflowId })}`),
+  // Non passa da `request<T>` (JSON): è l'URL diretto per un <img src=...> — il browser
+  // scarica i byte via il Bridge (proxy verso GET /view di ComfyUI, mai un contatto
+  // diretto frontend→ComfyUI, vedi docs/module-boundaries.md).
+  generationOutputUrl: (generationId: string, index: number) =>
+    `${BRIDGE_BASE_URL}/generations/${encodeURIComponent(generationId)}/outputs/${index}/file`,
 
   workflowFromImage: (file: File) => {
     const form = new FormData();

@@ -2,10 +2,14 @@
 
 Fase 1: `get_system_stats` (Bridge-status reale, §3 della spec).
 Fase 2: `get_object_info` (schema completo di tutti i nodi registrati — fonte
-dell'inventario nodi/modelli, §11 e Fase 2 del piano). Gli altri endpoint documentati
-in `docs/comfyui-api.md` (`/queue`, `/history`, `/prompt`, `/interrupt`, `/view`,
-WebSocket) vengono aggiunti in Fase 6 — aggiungerli ora senza un chiamante reale e senza
-test significativi violerebbe la regola "non fingere funzionalità implementate".
+dell'inventario nodi/modelli, §11 e Fase 2 del piano).
+Fase 6: `queue_prompt`, `get_queue`, `get_history`, `interrupt`, `get_view_bytes`
+(generazione reale, §18/§26). La relay WebSocket (`/ws?clientId=...`, progress live
+per-nodo) resta esplicitamente NON implementata in questa consegna — Fase 6 v1 usa
+polling su `/queue`+`/history` invece di un canale realtime persistente, una
+semplificazione dichiarata (vedi IMPLEMENTATION_PLAN.md) per consegnare la generazione
+reale senza l'infrastruttura aggiuntiva (task in background, riconnessione, multiplexing
+verso più client browser) che una relay WS robusta richiederebbe.
 
 Nessun altro modulo deve aprire connessioni dirette a ComfyUI: questo è l'unico punto di
 contatto (vedi docs/module-boundaries.md).
@@ -13,7 +17,7 @@ contatto (vedi docs/module-boundaries.md).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
@@ -42,6 +46,22 @@ class ComfySystemStats:
     raw: dict
 
 
+@dataclass(frozen=True)
+class QueuePromptResult:
+    prompt_id: str
+    number: int | None
+    node_errors: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class QueueState:
+    """Vista normalizzata di GET /queue: gli id dei prompt in coda, running o pending
+    (§18) — usata dal polling per distinguere "in coda" da "in esecuzione"."""
+
+    running_prompt_ids: list[str]
+    pending_prompt_ids: list[str]
+
+
 class ComfyClient:
     def __init__(self, base_url: str, timeout_seconds: float = 5.0):
         self._base_url = base_url.rstrip("/")
@@ -64,6 +84,30 @@ class ComfyClient:
         except httpx.HTTPError as exc:
             # Errori di trasporto non altrimenti classificati: trattati come
             # irraggiungibile, mai propagati come eccezione generica al chiamante.
+            raise ComfyUnreachable(f"Errore di connessione verso {url}: {exc}") from exc
+
+        if response.status_code >= 400:
+            raise ComfyHTTPError(response.status_code, response.text)
+
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise ComfyProtocolError(f"Risposta non JSON da {url}") from exc
+
+    async def _post_json(
+        self, path: str, body: dict[str, Any], timeout_seconds: float | None = None
+    ) -> Any:
+        """POST generico — stessa gestione errori tipizzata di `_get_json` (spec §26,
+        §34: mai un'eccezione generica)."""
+        url = f"{self._base_url}{path}"
+        try:
+            async with httpx.AsyncClient(timeout=timeout_seconds or self._timeout_seconds) as client:
+                response = await client.post(url, json=body)
+        except httpx.TimeoutException as exc:
+            raise ComfyTimeout(f"Timeout contattando {url}") from exc
+        except httpx.ConnectError as exc:
+            raise ComfyUnreachable(f"ComfyUI non raggiungibile su {url}") from exc
+        except httpx.HTTPError as exc:
             raise ComfyUnreachable(f"Errore di connessione verso {url}: {exc}") from exc
 
         if response.status_code >= 400:
@@ -106,3 +150,84 @@ class ComfyClient:
         # /object_info può essere pesante con molti custom node installati: un timeout
         # più lungo del default usato per /system_stats (docs/comfyui-api.md).
         return max(self._timeout_seconds, 20.0)
+
+    async def queue_prompt(self, prompt: dict[str, Any], client_id: str) -> QueuePromptResult:
+        """Chiama POST /prompt (spec §18/§26): invia un job compilato
+        (`bridge.workflow.compile_to_comfy_payload`) alla coda di ComfyUI.
+        `node_errors` non vuoto indica errori di validazione LATO COMFYUI (es. un
+        valore widget fuori range) — riportati così come sono, mai interpretati o
+        nascosti (il Bridge valida la struttura prima, ma solo ComfyUI conosce i
+        vincoli fini di ogni nodo)."""
+        data = await self._post_json("/prompt", {"prompt": prompt, "client_id": client_id})
+        if not isinstance(data, dict) or "prompt_id" not in data:
+            raise ComfyProtocolError("Risposta inattesa da POST /prompt: manca 'prompt_id'")
+        node_errors = data.get("node_errors")
+        return QueuePromptResult(
+            prompt_id=str(data["prompt_id"]),
+            number=data.get("number"),
+            node_errors=node_errors if isinstance(node_errors, dict) else {},
+        )
+
+    async def get_queue(self) -> QueueState:
+        """Chiama GET /queue: usato dal polling (Fase 6 v1, nessuna relay WS in
+        questa consegna) per sapere se un prompt è ancora in coda o già in
+        esecuzione, prima che compaia in /history."""
+        data = await self._get_json("/queue")
+        if not isinstance(data, dict):
+            raise ComfyProtocolError("Risposta JSON inattesa da /queue: non è un oggetto")
+
+        def _ids(section: Any) -> list[str]:
+            if not isinstance(section, list):
+                return []
+            ids = []
+            for entry in section:
+                # formato osservato: [number, prompt_id, prompt, extra_data, outputs_to_execute]
+                if isinstance(entry, list) and len(entry) > 1:
+                    ids.append(str(entry[1]))
+            return ids
+
+        return QueueState(
+            running_prompt_ids=_ids(data.get("queue_running")),
+            pending_prompt_ids=_ids(data.get("queue_pending")),
+        )
+
+    async def get_history(self, prompt_id: str) -> dict | None:
+        """Chiama GET /history/{prompt_id}. Ritorna `None` (non un'eccezione) se il
+        job non è ancora nello storico — stato normale mentre è in coda/esecuzione,
+        non un errore da propagare."""
+        data = await self._get_json(f"/history/{prompt_id}")
+        if not isinstance(data, dict) or prompt_id not in data:
+            return None
+        entry = data[prompt_id]
+        return entry if isinstance(entry, dict) else None
+
+    async def interrupt(self, prompt_id: str | None = None) -> None:
+        """Chiama POST /interrupt (ABORT, spec §18). Tenta prima la forma con
+        `prompt_id` (targeting più preciso, supportata da alcune versioni), e se
+        ComfyUI risponde errore ripiega sulla forma senza payload — tollerante, non
+        un'assunzione silenziosa di compatibilità (docs/comfyui-api.md)."""
+        if prompt_id is not None:
+            try:
+                await self._post_json("/interrupt", {"prompt_id": prompt_id})
+                return
+            except ComfyHTTPError:
+                pass  # ripiego sotto: alcune versioni non supportano il targeting
+        await self._post_json("/interrupt", {})
+
+    async def get_view_bytes(self, filename: str, subfolder: str, file_type: str) -> bytes:
+        """Chiama GET /view: scarica i byte grezzi di un output (immagine/video)."""
+        url = f"{self._base_url}/view"
+        params = {"filename": filename, "subfolder": subfolder, "type": file_type}
+        try:
+            async with httpx.AsyncClient(timeout=self._timeout_seconds) as client:
+                response = await client.get(url, params=params)
+        except httpx.TimeoutException as exc:
+            raise ComfyTimeout(f"Timeout contattando {url}") from exc
+        except httpx.ConnectError as exc:
+            raise ComfyUnreachable(f"ComfyUI non raggiungibile su {url}") from exc
+        except httpx.HTTPError as exc:
+            raise ComfyUnreachable(f"Errore di connessione verso {url}: {exc}") from exc
+
+        if response.status_code >= 400:
+            raise ComfyHTTPError(response.status_code, response.text)
+        return response.content

@@ -54,6 +54,13 @@ Bridge, verificare manualmente contro un'istanza ComfyUI reale:
    `GET /workflows/{id}` deve restituire il valore modificato, indipendentemente dalla
    UI. Già verificato in sviluppo con un ComfyUI simulato (l'ambiente non ne ha uno
    reale, vedi sopra).
+8. Con un workflow valido aperto, premere GENERA nella barra superiore → deve passare
+   da "In coda" a "In esecuzione" a "Completata" con una miniatura reale dell'output,
+   e `GET /generations/{id}` deve corrispondere a quanto mostra la UI. ABORT durante
+   l'esecuzione deve fermare davvero il job su ComfyUI (verificare che scompaia da
+   `GET /queue`) e marcare la generazione "Interrotta". Già verificato in sviluppo con
+   un ComfyUI simulato (l'ambiente non ne ha uno reale, vedi sopra) — inclusi
+   `POST /prompt`, `GET /queue`, `GET /history/{id}`, `POST /interrupt`, `GET /view`.
 
 ## Migrazioni
 
@@ -72,22 +79,25 @@ bridge/
   db.py                     # engine SQLAlchemy async
   models.py                  # ORM (settings, comfy_instances, errors, nodes,
                               # node_schemas, models, model_metadata, ai_providers,
-                              # workflows, workflow_versions)
+                              # workflows, workflow_versions, generations)
   schemas.py                   # contratti API (Pydantic)
   deps.py                       # dependency injection FastAPI
   comfy_instance.py               # gestione riga "default" di comfy_instances
   comfy_client/                     # unico punto di contatto HTTP con ComfyUI
+                                     # (Fase 6: + queue_prompt/get_queue/get_history/
+                                     # interrupt/get_view_bytes)
   inventory/                         # Fase 2: sync (/object_info + filesystem),
                                       # family detection, node_registry, safetensors
   compatibility/                       # Fase 4 v1: resolve() + filter_models_by_family
-  workflow/                             # Fase 3: modello grafo + validate_structure()
+  workflow/                             # Fase 3: modello grafo + validate_structure();
+                                         # Fase 6: compile_to_comfy_payload()
   media/                                 # Fase 8: parser chunk PNG (tEXt/zTXt/iTXt)
   workflow_import/                        # Fase 8: workflow da immagine; Fase 5:
                                            # workflow da file .json standalone
   ai_providers/                            # Fase 9: CRUD provider, cifratura, vision
   routers/                                  # health, comfy, settings, inventory,
                                              # workflows, workflow_import, ai_providers,
-                                             # prompt_from_image
+                                             # prompt_from_image, generations
 migrations/                                  # Alembic
 tests/                                        # pytest (mock respx, nessuna rete reale
                                                # verso ComfyUI; alcune verifiche manuali

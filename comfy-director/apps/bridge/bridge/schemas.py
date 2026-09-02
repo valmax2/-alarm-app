@@ -223,3 +223,27 @@ class WorkflowImportJsonResponse(BaseModel):
     # Tipi di nodo per cui non è stato possibile assegnare i valori widget (schema non
     # nell'ultimo inventario sincronizzato) — dichiarato in UI, mai nascosto.
     unmapped_widget_node_types: list[str]
+
+
+class GenerationOutputOut(BaseModel):
+    filename: str
+    subfolder: str
+    type: str
+
+
+class GenerationOut(BaseModel):
+    id: str
+    workflow_id: str | None
+    workflow_version_id: str | None
+    comfy_prompt_id: str | None
+    status: Literal["queued", "running", "completed", "error", "aborted"]
+    seed: int | None
+    outputs: list[GenerationOutputOut]
+    # Errori di validazione riportati DA COMFYUI STESSO (non dal Bridge) alla messa in
+    # coda — mai interpretati, mostrati così come sono.
+    node_errors: dict[str, Any] | None
+    duration_ms: int | None
+    error_message: str | None
+    created_at: datetime
+    started_at: datetime | None
+    finished_at: datetime | None

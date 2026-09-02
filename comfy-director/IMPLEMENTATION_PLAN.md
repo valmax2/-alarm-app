@@ -189,15 +189,57 @@ WAN/Qwen/...", "come faccio a importare un flusso?"):
   collegamento → canvas con nodi/porte/widget corretti → confermato con una lettura
   API indipendente dalla UI.
 
-## FASE 6 — GENERAZIONE — ⬜
-Compilazione modello interno → payload API ComfyUI (`POST /prompt`), tracking
-queue/history, WebSocket progress relay verso il frontend, evidenziazione nodo in
-esecuzione sulla canvas, ABORT (`POST /interrupt`), recupero output (`GET /view`),
-persistenza `generations`.
+## FASE 6 — GENERAZIONE — 🟨 (v1: polling, non WebSocket)
+- ✅ `bridge/workflow/compile.py`: `compile_to_comfy_payload(graph, node_schemas)` —
+  converte il grafo interno nel payload API ComfyUI (`{node_id: {class_type, inputs}}`),
+  risolvendo ogni arco nel `[source_id, output_index]` reale tramite lo schema
+  sincronizzato del nodo sorgente. Si rifiuta esplicitamente (`CompileError`, mai un
+  payload indovinato) se un nodo sorgente non è nell'inventario sincronizzato o non ha
+  la porta di output nominata nell'arco.
+- ✅ `comfy_client`: `queue_prompt` (`POST /prompt`), `get_queue` (`GET /queue`),
+  `get_history` (`GET /history/{id}`), `interrupt` (`POST /interrupt`, con fallback
+  se il targeting per `prompt_id` non è supportato), `get_view_bytes` (`GET /view`).
+- ✅ Tabella `generations` (migrazione `0005`) — un job per riga, stato
+  `queued|running|completed|error|aborted`, output (filename/subfolder/type),
+  eventuali `node_errors` riportati DA COMFYUI (mai reinterpretati).
+- ✅ `POST /workflows/{id}/generate`: **blocco rigido** (§26) se `validate_structure`
+  trova errori — compila e mette in coda solo un grafo strutturalmente valido. Se
+  ComfyUI stesso rifiuta il job (`node_errors` non vuoto in risposta a `/prompt`), la
+  generazione è marcata `error` subito, mai lasciata "in coda" a vuoto.
+- ✅ `GET /generations/{id}`: aggiorna lo stato leggendo `/history` poi `/queue`
+  dal vivo, lo persiste, lo restituisce. `POST /generations/{id}/abort` chiama
+  `/interrupt` e marca `aborted` SOLO se la chiamata riesce (mai uno stato inventato
+  se non sappiamo se ComfyUI ha davvero ricevuto l'abort).
+  `GET /generations/{id}/outputs/{i}/file` fa da proxy verso `GET /view` (il frontend
+  non contatta mai ComfyUI direttamente, unico punto di contatto = Bridge).
+- ✅ Frontend: bottoni GENERA/ABORT reali in barra superiore (era disattivati, Fase 6),
+  `generationStore.ts` con polling (1.5s) finché lo stato non è terminale,
+  `GenerationStatusBar` nel footer con stato reale e miniature degli output completati.
+- 🟨 **Deferito esplicitamente, dichiarato** (mai finto): nessuna relay WebSocket —
+  lo stato si aggiorna solo quando qualcuno lo richiede (polling), non c'è
+  evidenziazione del nodo in esecuzione sulla canvas, non c'è una percentuale di
+  progresso (ComfyUI la espone solo via WS `progress`, non via `/history`/`/queue`).
+  Semplificazione scelta per consegnare la generazione reale senza l'infrastruttura di
+  un canale realtime persistente (task in background, riconnessione, multiplexing
+  verso più client browser) — vedi `bridge/comfy_client/client.py` per il dettaglio.
 
-**DoD:** "workflow creato nell'app genera realmente attraverso ComfyUI" — richiede
-ComfyUI reale, verifica a carico dell'utente con checklist riprodotta in
-`docs/test-plan.md`.
+**Bug reale trovato e corretto durante la verifica dal vivo** (non dai test originali,
+che non lo intercettavano — vedi `test_generations_endpoints.py`, test di regressione
+aggiunto): SQLite non conserva il fuso orario di una colonna `DateTime(timezone=True)`
+attraverso un giro di scrittura/lettura — un secondo poll su una generazione il cui
+`started_at` era stato persistito da una richiesta precedente falliva con
+`TypeError: can't subtract offset-naive and offset-aware datetimes` nel calcolo di
+`duration_ms`. Corretto con un helper `_aware_utc()` che rende esplicito il fuso su
+ogni timestamp riletto dal DB, verificato riproducendo il TypeError disattivando
+temporaneamente il fix e confermando che il test di regressione lo cattura.
+
+**DoD:** "workflow creato nell'app genera realmente attraverso ComfyUI" — verificato
+end-to-end con Bridge reale + un ComfyUI simulato (HTTP `/prompt`, `/queue`,
+`/history`, `/interrupt`, `/view`): GENERA → "In coda" → "In esecuzione" → "Completata"
+con miniatura reale scaricata via il proxy del Bridge, e ABORT → "Interrotta",
+confermato sia a schermo (screenshot) sia con endpoint chiamati direttamente. La
+verifica contro un ComfyUI reale (non simulato) resta a carico dell'utente — checklist
+in `docs/test-plan.md` e in `apps/bridge/README.md`.
 
 ## FASE 7 — PERSONAGGI — ⬜
 Libreria (`characters`, `character_images`), storage filesystem reale, drag&drop nel
