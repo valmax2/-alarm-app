@@ -83,6 +83,58 @@ export interface NodesQuery {
   q?: string;
 }
 
+export interface ImportedNodeOut {
+  id: string;
+  class_type: string;
+  title: string | null;
+  present_in_inventory: boolean | null;
+}
+
+export interface WorkflowImportResponse {
+  found: boolean;
+  source: "workflow" | "prompt" | null;
+  node_count: number;
+  link_count: number;
+  nodes: ImportedNodeOut[];
+  missing_node_types: string[];
+  inventory_checked: boolean;
+  message: string;
+}
+
+export type AIProviderKind = "anthropic" | "openai" | "local";
+
+export interface AIProviderOut {
+  id: string;
+  kind: AIProviderKind;
+  label: string;
+  base_url: string | null;
+  default_model: string | null;
+  enabled: boolean;
+  has_api_key: boolean;
+  created_at: string;
+}
+
+export interface StructuredPromptOut {
+  subject: string;
+  identity: string;
+  hair: string;
+  face: string;
+  body_clothing: string;
+  pose_action: string;
+  environment: string;
+  camera: string;
+  light: string;
+  style: string;
+  details: string;
+  final_prompt_en: string;
+}
+
+export interface PromptFromImageResponse {
+  provider_id: string;
+  provider_kind: string;
+  structured: StructuredPromptOut;
+}
+
 /** Errore sollevato quando il Bridge stesso non risponde (processo spento/URL errato) —
  * distinto da un `ComfyStatusResponse.status === "offline"`, che invece significa "il
  * Bridge risponde ma ComfyUI no". */
@@ -134,6 +186,30 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
     throw new BridgeRequestError(response.status, detail || `Errore ${response.status}`);
   }
+  if (response.status === 204) return undefined as T; // es. DELETE: nessun corpo da leggere
+  return (await response.json()) as T;
+}
+
+/** Come `request`, ma per upload multipart (nessun `Content-Type` forzato: il
+ * browser imposta da solo il boundary corretto per FormData). */
+async function requestMultipart<T>(path: string, formData: FormData): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`${BRIDGE_BASE_URL}${path}`, { method: "POST", body: formData });
+  } catch (error) {
+    throw new BridgeUnreachableError(error);
+  }
+  if (!response.ok) {
+    const body = await response.text();
+    let detail = body;
+    try {
+      const parsed = JSON.parse(body) as { detail?: string };
+      if (parsed.detail) detail = parsed.detail;
+    } catch {
+      // corpo non JSON: usa il testo grezzo
+    }
+    throw new BridgeRequestError(response.status, detail || `Errore ${response.status}`);
+  }
   return (await response.json()) as T;
 }
 
@@ -149,4 +225,28 @@ export const bridgeClient = {
   syncComfy: () => request<SyncResponse>("/comfy/sync", { method: "POST" }),
   getModels: (query: ModelsQuery = {}) => request<ModelOut[]>(`/inventory/models${buildQuery(query)}`),
   getNodes: (query: NodesQuery = {}) => request<NodeOut[]>(`/inventory/nodes${buildQuery(query)}`),
+
+  workflowFromImage: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return requestMultipart<WorkflowImportResponse>("/workflow-import/from-image", form);
+  },
+
+  getAIProviders: () => request<AIProviderOut[]>("/ai-providers"),
+  createAIProvider: (input: {
+    kind: AIProviderKind;
+    label: string;
+    api_key?: string;
+    base_url?: string;
+    default_model?: string;
+  }) => request<AIProviderOut>("/ai-providers", { method: "POST", body: JSON.stringify(input) }),
+  deleteAIProvider: (id: string) =>
+    request<void>(`/ai-providers/${encodeURIComponent(id)}`, { method: "DELETE" }),
+
+  promptFromImage: (file: File, providerId: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("provider_id", providerId);
+    return requestMultipart<PromptFromImageResponse>("/prompt-from-image/analyze", form);
+  },
 };

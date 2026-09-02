@@ -2,6 +2,7 @@
 
 Fase 1: `settings`, `comfy_instances`, `errors`.
 Fase 2: `nodes`, `node_schemas`, `models`, `model_metadata` (Inventory Engine).
+Fase 9 (Prompt da Immagine, portata avanti su richiesta esplicita): `ai_providers`.
 Le restanti tabelle di docs/data-model.md vengono aggiunte nelle fasi che le usano,
 ciascuna con la propria migrazione Alembic — niente schema morto non testato.
 """
@@ -11,7 +12,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, LargeBinary, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -134,3 +135,24 @@ class ModelMetadataRecord(Base):
     )
     raw_header: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON header .safetensors
     extra: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
+
+
+class AIProviderRecord(Base):
+    """Provider AI configurato dall'utente per l'analisi immagine (spec §9, §20).
+
+    La chiave API è cifrata a riposo (`bridge.ai_providers.crypto`) — la colonna
+    contiene il ciphertext, mai la chiave in chiaro. Nessuna riga qui è mai creata
+    automaticamente: solo l'utente, esplicitamente, tramite `/ai-providers`.
+    """
+
+    __tablename__ = "ai_providers"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_new_id)
+    kind: Mapped[str] = mapped_column(String(32))  # "anthropic" | "openai" | "local"
+    label: Mapped[str] = mapped_column(String(255))
+    encrypted_api_key: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    base_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    default_model: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)

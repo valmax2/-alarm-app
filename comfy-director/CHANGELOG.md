@@ -1,5 +1,56 @@
 # CHANGELOG — Comfy Director
 
+## [Non rilasciato] — Fase 8 + Fase 9 parziali (2026-09-02)
+
+Richiesto esplicitamente: Workflow da Immagine e Prompt da Immagine, portati avanti
+rispetto alla roadmap originale (rispettivamente Fase 8 e Fase 9/10).
+
+### Workflow da Immagine (Fase 8, parziale)
+- `bridge/media/png_metadata.py`: parser reale dei chunk PNG `tEXt`/`zTXt`/`iTXt`
+  (nessuna dipendenza esterna) — bug reale di parsing `iTXt` trovato e corretto durante
+  la scrittura dei test (il campo `compression_flag` può valere `0x00`, un blind
+  `split(b"\x00")` lo scambiava per un separatore).
+- `bridge/workflow_import/`: estrae il grafo ComfyUI incorporato (formato `workflow`
+  UI con layout, o `prompt` API come fallback), confronta ogni nodo con l'ultimo
+  inventario sincronizzato (Fase 2) per segnalare componenti mancanti — solo se una
+  sync è già stata fatta, altrimenti onestamente "non verificato" (mai un falso "tutto
+  ok").
+- Endpoint `POST /workflow-import/from-image`; pannello frontend con vista strutturata
+  (testuale, non grafica: la canvas vera arriva in Fase 3, dichiarato esplicitamente).
+
+### Prompt da Immagine (Fase 9, parziale — porta avanti anche l'astrazione provider di Fase 10)
+- `bridge/ai_providers/`: tabella `ai_providers` cifrata a riposo (Fernet, chiave
+  locale in `data/secret.key`, mai committata), CRUD (`POST/GET/DELETE /ai-providers`,
+  la chiave non è mai restituita in chiaro), client vision reali per Anthropic e
+  OpenAI (chiamate HTTP vere) con prompt strutturato secondo spec §9 (soggetto,
+  identità, capelli, volto, corpo/abbigliamento, posa/azione, ambiente, camera, luce,
+  stile, dettagli, prompt finale EN) e istruzioni esplicite per evitare deduzioni
+  sensibili non necessarie. Modalità "locale" prevista nello schema ma dichiarata
+  esplicitamente non implementata.
+- Endpoint `POST /prompt-from-image/analyze`; pannello frontend (gestione provider +
+  upload/analisi con prompt EN finale copiabile).
+- **Verificato in questa sessione anche contro l'API reale di Anthropic** (non solo
+  mock): con una chiave finta, la richiesta ha raggiunto davvero `api.anthropic.com` e
+  ricevuto un vero errore 401 di autenticazione, correttamente propagato all'utente —
+  prova che l'integrazione end-to-end (build richiesta, header, encoding immagine,
+  gestione errore) funziona; con una chiave reale dell'utente funzionerà.
+
+### Layout frontend
+- Pulsanti dei flussi/sezioni spostati sulla barra **sinistra** (richiesta esplicita
+  dell'utente, dopo un primo spostamento a destra nella consegna precedente).
+- Abilitate le sezioni "Workflow da Immagine" e "Prompt da Immagine" nella barra.
+
+### Verifica
+- Suite completa: 98 test pytest + 14 test vitest, tutti verdi; lint pulito; build
+  frontend verificata; avvio end-to-end reale (Bridge + frontend con `--reload`)
+  verificato con richieste HTTP vere (incluse chiamate reali verso l'API Anthropic) e
+  screenshot della UI risultante.
+
+**Non ancora implementato**: canvas, workflow intelligence, generazione, personaggi,
+import di workflow JSON standalone, lettura metadata WebP, traduzione IT→EN
+indipendente, AI Assistant (chat), diagnostica avanzata, packaging desktop. Vedi
+`IMPLEMENTATION_PLAN.md`.
+
 ## [Non rilasciato] — Fase 0 + Fase 1 (2026-09-02)
 
 ### Fase 0 — Audit

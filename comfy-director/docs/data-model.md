@@ -5,7 +5,8 @@ migrazioni gestite da Alembic. Le tabelle marcate **[Fase N]** sono state (o sar
 introdotte in quella fase — vengono aggiunte quando il modulo corrispondente viene
 costruito, per evitare schema morto non testato (regola 1: non fingere funzionalità).
 Stato aggiornato: `settings`, `comfy_instances`, `errors` (Fase 1), `nodes`,
-`node_schemas`, `models` (Fase 2) esistono e sono popolate da dati reali;
+`node_schemas`, `models` (Fase 2), `ai_providers` (Fase 9, portata avanti su richiesta
+esplicita — vedi la sua sezione) esistono e sono popolate da dati reali;
 `model_metadata` esiste nello schema ma non è ancora scritta (vedi nota nella sua
 sezione); le altre restano da costruire nelle fasi indicate.
 
@@ -204,14 +205,19 @@ Log applicativo strutturato persistito (oltre al file di log), per la Diagnostic
 | context_json | text (JSON), nullable | dettagli non sensibili (segreti già redatti) |
 | created_at | datetime | |
 
-## `ai_providers` — [Fase 10, schema presente prima per non rompere Diagnostica]
+## `ai_providers` — [Fase 9, portata avanti dalla Fase 10 su richiesta esplicita]
+Costruita insieme a "Prompt da Immagine" (§9) invece che alla Fase 10 (AI Assistant)
+come originariamente pianificato: l'analisi immagine→prompt richiede comunque un
+provider AI cloud, quindi lo schema/CRUD/cifratura sono stati anticipati qui. L'AI
+Assistant (Fase 10) riuserà questa stessa tabella.
+
 | campo | tipo | note |
 |---|---|---|
 | id | str, PK | |
-| kind | str | `local`\|`openai`\|`anthropic`\|`other` |
+| kind | str | `local`\|`openai`\|`anthropic` (`local` accettato nello schema ma non ancora utilizzabile per l'analisi — vedi `docs/comfyui-api.md`-equivalente in `bridge/ai_providers/vision.py`) |
 | label | str | |
-| encrypted_api_key | blob, nullable | mai in chiaro, mai loggata |
-| base_url | str, nullable | per provider locali/self-hosted |
+| encrypted_api_key | blob, nullable | cifrata con Fernet (chiave locale in `data/secret.key`, mai committata) — mai in chiaro, mai loggata |
+| base_url | str, nullable | per endpoint OpenAI-compatibili non ufficiali |
 | default_model | str, nullable | |
 | enabled | bool | |
 | created_at / updated_at | datetime | |

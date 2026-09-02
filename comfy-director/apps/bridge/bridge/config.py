@@ -52,6 +52,12 @@ class Settings(BaseSettings):
     def log_dir(self) -> Path:
         return self.data_dir / "logs"
 
+    @property
+    def secret_key_path(self) -> Path:
+        """Chiave locale per cifrare le credenziali dei provider AI a riposo (mai nel
+        repository — vedi .gitignore — e mai nello stesso posto dei dati cifrati)."""
+        return self.data_dir / "secret.key"
+
     def resolved_database_url(self) -> str:
         if self.database_url:
             return self.database_url

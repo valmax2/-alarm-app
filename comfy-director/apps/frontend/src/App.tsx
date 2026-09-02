@@ -3,7 +3,9 @@ import { useState } from "react";
 import { BridgeStatus } from "./components/BridgeStatus";
 import { ModelsPanel } from "./components/ModelsPanel";
 import { NodesPanel } from "./components/NodesPanel";
+import { PromptFromImagePanel } from "./components/PromptFromImagePanel";
 import { SettingsPanel } from "./components/SettingsPanel";
+import { WorkflowFromImagePanel } from "./components/WorkflowFromImagePanel";
 
 interface NavItem {
   id: string;
@@ -13,8 +15,8 @@ interface NavItem {
   availableFromPhase: number | null;
 }
 
-// Pulsanti dei flussi/sezioni (spec §12), sulla DESTRA come richiesto — nella bozza
-// originale della spec erano a sinistra, spostati su richiesta esplicita dell'utente.
+// Pulsanti dei flussi/sezioni (spec §12), sulla SINISTRA (posizione richiesta
+// dall'utente — prima erano stati spostati a destra, poi riportati a sinistra).
 // Solo le sezioni con availableFromPhase: null sono reali in questa consegna: tutto il
 // resto è mostrato ma disabilitato con la fase in cui arriverà — mai un pulsante che
 // finge di fare qualcosa (regola 1 della spec).
@@ -23,8 +25,8 @@ const NAV_ITEMS: NavItem[] = [
   { id: "ai-engine", label: "Motore AI", availableFromPhase: 5 },
   { id: "characters", label: "Personaggi", availableFromPhase: 7 },
   { id: "workflows", label: "Workflow", availableFromPhase: 3 },
-  { id: "workflow-from-image", label: "Workflow da Immagine", availableFromPhase: 8 },
-  { id: "prompt-from-image", label: "Prompt da Immagine", availableFromPhase: 9 },
+  { id: "workflow-from-image", label: "Workflow da Immagine", availableFromPhase: null },
+  { id: "prompt-from-image", label: "Prompt da Immagine", availableFromPhase: null },
   { id: "models", label: "Modelli", availableFromPhase: null },
   { id: "nodes", label: "Nodi", availableFromPhase: null },
   { id: "bridge", label: "Bridge ComfyUI", availableFromPhase: null },
@@ -49,17 +51,7 @@ export default function App() {
       </header>
 
       <div className="app-shell__body">
-        <main className="app-shell__canvas" aria-label="Canvas workflow">
-          <div className="app-shell__canvas-placeholder">
-            <p>Canvas del workflow — non ancora implementata.</p>
-            <p className="app-shell__canvas-placeholder-note">
-              Arriva in Fase 3 (vedi IMPLEMENTATION_PLAN.md). Qui apparirà il grafo reale
-              del workflow, sincronizzato bidirezionalmente col modello interno.
-            </p>
-          </div>
-        </main>
-
-        <div className="app-shell__right-column">
+        <div className="app-shell__side-column">
           <nav className="app-shell__nav" aria-label="Sezioni Comfy Director">
             {NAV_ITEMS.map((item) => {
               const isAvailable = item.availableFromPhase === null;
@@ -82,15 +74,27 @@ export default function App() {
             })}
           </nav>
 
-          <aside className="app-shell__right-panel" aria-label="Proprietà contestuali">
+          <aside className="app-shell__side-panel" aria-label="Proprietà contestuali">
             {activePanel === "bridge" && <SettingsPanel />}
             {activePanel === "models" && <ModelsPanel />}
             {activePanel === "nodes" && <NodesPanel />}
-            {!["bridge", "models", "nodes"].includes(activePanel) && (
-              <p>Seleziona una sezione dai pulsanti sopra.</p>
-            )}
+            {activePanel === "workflow-from-image" && <WorkflowFromImagePanel />}
+            {activePanel === "prompt-from-image" && <PromptFromImagePanel />}
+            {![
+              "bridge", "models", "nodes", "workflow-from-image", "prompt-from-image",
+            ].includes(activePanel) && <p>Seleziona una sezione dai pulsanti sopra.</p>}
           </aside>
         </div>
+
+        <main className="app-shell__canvas" aria-label="Canvas workflow">
+          <div className="app-shell__canvas-placeholder">
+            <p>Canvas del workflow — non ancora implementata.</p>
+            <p className="app-shell__canvas-placeholder-note">
+              Arriva in Fase 3 (vedi IMPLEMENTATION_PLAN.md). Qui apparirà il grafo reale
+              del workflow, sincronizzato bidirezionalmente col modello interno.
+            </p>
+          </div>
+        </main>
       </div>
 
       <footer className="app-shell__bottombar">

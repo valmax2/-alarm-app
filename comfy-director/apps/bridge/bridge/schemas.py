@@ -70,6 +70,27 @@ class NodeOut(BaseModel):
     last_seen: datetime
 
 
+class ImportedNodeOut(BaseModel):
+    id: str
+    class_type: str
+    title: str | None
+    present_in_inventory: bool | None = Field(
+        default=None,
+        description="null = non verificabile (nessuna sincronizzazione inventario fatta finora).",
+    )
+
+
+class WorkflowImportResponse(BaseModel):
+    found: bool
+    source: Literal["workflow", "prompt"] | None
+    node_count: int
+    link_count: int
+    nodes: list[ImportedNodeOut]
+    missing_node_types: list[str]
+    inventory_checked: bool
+    message: str
+
+
 class ModelOut(BaseModel):
     id: str
     name: str
@@ -86,3 +107,47 @@ class ModelOut(BaseModel):
     # mai un semplice confronto di stringhe nascosto all'utente.
     compatibility: Literal["compatible", "incompatible", "unknown", "warning"] | None = None
     compatibility_reason: str | None = None
+
+
+class AIProviderCreateRequest(BaseModel):
+    kind: Literal["anthropic", "openai", "local"]
+    label: str
+    api_key: str | None = Field(
+        default=None, description="Richiesta per 'anthropic'/'openai'. Mai loggata, mai restituita in chiaro."
+    )
+    base_url: str | None = Field(
+        default=None, description="Solo per endpoint OpenAI-compatibili non ufficiali."
+    )
+    default_model: str | None = None
+
+
+class AIProviderOut(BaseModel):
+    id: str
+    kind: str
+    label: str
+    base_url: str | None
+    default_model: str | None
+    enabled: bool
+    has_api_key: bool = Field(description="Mai la chiave in chiaro né mascherata: solo se è configurata.")
+    created_at: datetime
+
+
+class StructuredPromptOut(BaseModel):
+    subject: str
+    identity: str
+    hair: str
+    face: str
+    body_clothing: str
+    pose_action: str
+    environment: str
+    camera: str
+    light: str
+    style: str
+    details: str
+    final_prompt_en: str
+
+
+class PromptFromImageResponse(BaseModel):
+    provider_id: str
+    provider_kind: str
+    structured: StructuredPromptOut

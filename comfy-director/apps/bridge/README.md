@@ -41,6 +41,13 @@ Bridge, verificare manualmente contro un'istanza ComfyUI reale:
    `comfy_root_path` (via `PUT /settings`) verso la cartella ComfyUI/models reale, la
    sync deve arricchire i modelli `.safetensors` con family detection da header
    (`detection_source: "metadata"`) e funzionare anche a ComfyUI spento.
+6. Con una vera API key Anthropic o OpenAI: creare un provider
+   (`POST /ai-providers`) e chiamare `POST /prompt-from-image/analyze` con
+   un'immagine reale → deve restituire un prompt strutturato coerente (non solo un
+   errore). Già verificato in sviluppo che la richiesta raggiunge davvero
+   `api.anthropic.com`/`api.openai.com` e che gli errori (es. chiave non valida) sono
+   propagati correttamente — manca solo una chiave reale per la verifica positiva
+   completa.
 
 ## Migrazioni
 
@@ -58,7 +65,7 @@ bridge/
   logging_config.py        # log JSON strutturato + redazione segreti
   db.py                     # engine SQLAlchemy async
   models.py                  # ORM (settings, comfy_instances, errors, nodes,
-                              # node_schemas, models, model_metadata)
+                              # node_schemas, models, model_metadata, ai_providers)
   schemas.py                   # contratti API (Pydantic)
   deps.py                       # dependency injection FastAPI
   comfy_instance.py               # gestione riga "default" di comfy_instances
@@ -66,7 +73,15 @@ bridge/
   inventory/                         # Fase 2: sync (/object_info + filesystem),
                                       # family detection, node_registry, safetensors
   compatibility/                       # Fase 4 v1: resolve() + filter_models_by_family
-  routers/                               # health, comfy, settings, inventory
-migrations/                                # Alembic
-tests/                                      # pytest (mock respx, nessuna rete reale)
+  media/                                 # Fase 8: parser chunk PNG (tEXt/zTXt/iTXt)
+  workflow_import/                        # Fase 8: workflow da immagine
+  ai_providers/                            # Fase 9: CRUD provider, cifratura, vision
+  routers/                                  # health, comfy, settings, inventory,
+                                             # workflow_import, ai_providers,
+                                             # prompt_from_image
+migrations/                                  # Alembic
+tests/                                        # pytest (mock respx, nessuna rete reale
+                                               # verso ComfyUI; alcune verifiche manuali
+                                               # in sviluppo hanno raggiunto davvero
+                                               # l'API Anthropic reale, vedi sopra)
 ```

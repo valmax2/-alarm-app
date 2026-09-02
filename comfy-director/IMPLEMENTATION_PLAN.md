@@ -157,19 +157,44 @@ ComfyUI reale, verifica a carico dell'utente con checklist riprodotta in
 Libreria (`characters`, `character_images`), storage filesystem reale, drag&drop nel
 workflow builder, privacy toggle, export/import Character Pack.
 
-## FASE 8 — IMPORT — ⬜
-Import workflow JSON (ComfyUI export e API format), lettura metadata PNG/WebP
-(chunk `tEXt`/`prompt`/`workflow` di ComfyUI), ricostruzione grafo + evidenziazione
-componenti mancanti, mai promettere ricostruzione se i metadata non esistono.
+## FASE 8 — IMPORT — 🟨 (Workflow da Immagine consegnato, portato avanti su richiesta esplicita)
+Consegnato: **Workflow da Immagine** — lettura reale dei chunk PNG `tEXt`/`zTXt`/`iTXt`
+(`bridge/media/png_metadata.py`, nessuna dipendenza esterna), estrazione del grafo
+ComfyUI incorporato (formato `workflow` UI con layout, o `prompt` API come fallback —
+`bridge/workflow_import/`), confronto con l'inventario nodi sincronizzato (Fase 2) per
+segnalare componenti mancanti, endpoint `POST /workflow-import/from-image`, pannello
+frontend con vista strutturata (**non grafica**: la canvas vera arriva in Fase 3, qui è
+dichiarato esplicitamente come vista provvisoria). Mai un workflow inventato quando i
+metadata non ci sono (spec §8) — verificato con un bug reale di parsing iTXt trovato e
+corretto durante lo sviluppo dei test.
 
-## FASE 9 — PROMPT ENGINE — ⬜
-Astrazione provider traduzione (locale/cloud), campi IT/EN, cronologia, preset, prompt
-strutturato per Prompt-da-Immagine (Fase 8/9 si intrecciano: l'estrazione prompt da
-immagine via VLM condivide l'astrazione provider con la traduzione).
+Non ancora consegnato in questa fase: import di workflow JSON standalone (non
+incorporato in un'immagine), lettura metadata WebP (solo PNG per ora).
+
+## FASE 9 — PROMPT ENGINE — 🟨 (Prompt da Immagine consegnato, portato avanti su richiesta esplicita)
+Consegnato: **Prompt da Immagine** — tabella `ai_providers` cifrata a riposo (Fernet,
+chiave locale mai committata — `bridge/ai_providers/crypto.py`), CRUD provider
+(`POST/GET/DELETE /ai-providers`, la chiave non è mai restituita in chiaro né
+mascherata), client vision reali per Anthropic e OpenAI (`bridge/ai_providers/vision.py`,
+chiamate HTTP vere — verificate in questa sessione anche contro l'API reale di
+Anthropic, che ha correttamente rifiutato una chiave finta con un vero errore 401,
+prova che l'integrazione end-to-end funziona), schema prompt strutturato (§9: soggetto,
+identità, capelli, volto, corpo/abbigliamento, posa/azione, ambiente, camera, luce,
+stile, dettagli, prompt finale EN) con istruzioni esplicite per evitare deduzioni
+sensibili non necessarie, endpoint `POST /prompt-from-image/analyze`, pannello
+frontend (gestione provider + upload/analisi). Modalità "locale" (VLM sul PC
+dell'utente) prevista nello schema ma dichiarata esplicitamente non implementata
+(errore onesto invece di un risultato finto).
+
+Non ancora consegnato in questa fase: traduzione IT→EN indipendente per il prompt
+scritto manualmente dall'utente (Prompt Engine "proprio", campi IT/EN editabili,
+cronologia, preset, blocco traduzione) — questa resta la parte di Fase 9 ancora da
+costruire, insieme al Workflow Builder (Fase 5) che la userà.
 
 ## FASE 10 — AI ASSISTANT — ⬜
-Chat, astrazione provider (locale/OpenAI/Anthropic), AI Tool Layer (§21) con
-preview/applica/annulla, mai editing diretto non validato (§22).
+Chat, AI Tool Layer (§21) con preview/applica/annulla, mai editing diretto non
+validato (§22). L'astrazione provider (`ai_providers`, cifratura, CRUD) è già stata
+costruita in Fase 9 per "Prompt da Immagine" e verrà riusata qui, non ricostruita.
 
 ## FASE 11 — HARDENING — ⬜
 Diagnostica avanzata con export report, backup/versioning completi, migrazioni Alembic
