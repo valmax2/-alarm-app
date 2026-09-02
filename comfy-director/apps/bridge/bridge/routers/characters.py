@@ -4,20 +4,31 @@ Nessun collegamento al Workflow Builder / "Coerenza Personaggio" in questa conse
 quel flusso dipende dal Workflow Intelligence Engine (Fase 5 completa, non ancora
 costruito): un personaggio qui è solo dati (nome, tag, immagini), non ancora
 utilizzabile per guidare una generazione. Dichiarato esplicitamente, mai finto.
+
+Fase 7 v2 aggiunge export/import Character Pack (`bridge/characters/pack.py`): un
+personaggio si può scaricare come archivio ZIP autonomo e reimportare — sempre come
+riga NUOVA (mai riusando gli ID originali, che potrebbero già esistere
+sull'installazione di destinazione).
 """
 
 from __future__ import annotations
 
 import json
 import mimetypes
+import re
+import unicodedata
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bridge.characters import (
+    CharacterPackError,
+    SourceImage,
+    build_character_pack,
     delete_character_directory,
     delete_character_image,
+    parse_character_pack,
     save_character_image,
 )
 from bridge.config import Settings
@@ -32,6 +43,14 @@ from bridge.schemas import (
 )
 
 router = APIRouter(prefix="/characters", tags=["characters"])
+
+
+def _safe_filename_slug(name: str) -> str:
+    """Nome file sicuro per il Content-Disposition dell'export — mai il nome utente
+    (potenzialmente non-ASCII o con caratteri problematici) usato alla lettera."""
+    normalized = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^A-Za-z0-9_-]+", "-", normalized).strip("-").lower()
+    return slug or "personaggio"
 
 
 def _image_out(record: CharacterImageRecord) -> CharacterImageOut:
@@ -51,6 +70,18 @@ async def _summary(session: AsyncSession, record: CharacterRecord) -> CharacterS
     )
 
 
+async def _detail(session: AsyncSession, record: CharacterRecord) -> CharacterDetailOut:
+    images = (
+        await session.execute(
+            select(CharacterImageRecord)
+            .where(CharacterImageRecord.character_id == record.id)
+            .order_by(CharacterImageRecord.order_index)
+        )
+    ).scalars().all()
+    summary = await _summary(session, record)
+    return CharacterDetailOut(**summary.model_dump(), notes=record.notes, images=[_image_out(i) for i in images])
+
+
 @router.post("", response_model=CharacterSummaryOut)
 async def create_character(
     payload: CharacterCreateRequest, session: AsyncSession = Depends(get_db_session)
@@ -64,6 +95,46 @@ async def create_character(
     return await _summary(session, record)
 
 
+@router.post("/import", response_model=CharacterDetailOut)
+async def import_character_pack(
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+) -> CharacterDetailOut:
+    """Importa un Character Pack (Fase 7 v2): crea SEMPRE un personaggio nuovo (nuovo
+    id, mai un tentativo di 'aggiornare' un personaggio esistente) — un pack può
+    provenire da un'altra installazione, i cui ID non hanno alcun significato qui."""
+    data = await file.read()
+    try:
+        pack = parse_character_pack(data)
+    except CharacterPackError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    record = CharacterRecord(
+        name=pack.name, description=pack.description, tags=json.dumps(pack.tags),
+        notes=pack.notes, is_private=pack.is_private,
+    )
+    session.add(record)
+    await session.flush()
+
+    main_image_id: str | None = None
+    for pack_image in sorted(pack.images, key=lambda i: i.order_index):
+        relative_path = save_character_image(settings.storage_dir, record.id, pack_image.data, pack_image.filename, None)
+        image = CharacterImageRecord(
+            character_id=record.id, storage_path=relative_path, role=pack_image.role,
+            order_index=pack_image.order_index, source=pack_image.source,
+            width=pack_image.width, height=pack_image.height,
+        )
+        session.add(image)
+        await session.flush()
+        if pack_image.role == "main" or main_image_id is None:
+            main_image_id = image.id
+    record.main_image_id = main_image_id
+    await session.flush()
+
+    return await _detail(session, record)
+
+
 @router.get("", response_model=list[CharacterSummaryOut])
 async def list_characters(session: AsyncSession = Depends(get_db_session)) -> list[CharacterSummaryOut]:
     rows = (await session.execute(select(CharacterRecord).order_by(CharacterRecord.updated_at.desc()))).scalars().all()
@@ -75,15 +146,7 @@ async def get_character(character_id: str, session: AsyncSession = Depends(get_d
     record = await session.get(CharacterRecord, character_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Personaggio non trovato")
-    images = (
-        await session.execute(
-            select(CharacterImageRecord)
-            .where(CharacterImageRecord.character_id == character_id)
-            .order_by(CharacterImageRecord.order_index)
-        )
-    ).scalars().all()
-    summary = await _summary(session, record)
-    return CharacterDetailOut(**summary.model_dump(), notes=record.notes, images=[_image_out(i) for i in images])
+    return await _detail(session, record)
 
 
 @router.put("/{character_id}", response_model=CharacterSummaryOut)
@@ -172,6 +235,50 @@ async def delete_character_image_endpoint(
         character.main_image_id = None
     await session.flush()
     delete_character_image(settings.storage_dir, relative_path)
+
+
+@router.get("/{character_id}/export")
+async def export_character_pack(
+    character_id: str, session: AsyncSession = Depends(get_db_session), settings: Settings = Depends(get_settings)
+) -> Response:
+    """Esporta il personaggio come Character Pack ZIP (Fase 7 v2) — fallisce con un
+    errore chiaro (mai un pack silenziosamente incompleto) se un'immagine referenziata
+    a DB manca sul disco: uno stato inconsistente che l'utente deve poter vedere."""
+    character = await session.get(CharacterRecord, character_id)
+    if character is None:
+        raise HTTPException(status_code=404, detail="Personaggio non trovato")
+    images = (
+        await session.execute(
+            select(CharacterImageRecord)
+            .where(CharacterImageRecord.character_id == character_id)
+            .order_by(CharacterImageRecord.order_index)
+        )
+    ).scalars().all()
+
+    source_images: list[SourceImage] = []
+    for image in images:
+        path = settings.storage_dir / image.storage_path
+        if not path.exists():
+            raise HTTPException(
+                status_code=500,
+                detail=f"Impossibile esportare: l'immagine '{image.storage_path}' è referenziata a DB ma manca su disco.",
+            )
+        source_images.append(
+            SourceImage(
+                data=path.read_bytes(), original_filename=path.name, role=image.role,
+                order_index=image.order_index, source=image.source, width=image.width, height=image.height,
+            )
+        )
+
+    zip_bytes = build_character_pack(
+        name=character.name, description=character.description, tags=json.loads(character.tags),
+        notes=character.notes, is_private=character.is_private, images=source_images,
+    )
+    filename = f"{_safe_filename_slug(character.name)}.character-pack.zip"
+    return Response(
+        content=zip_bytes, media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/{character_id}/images/{image_id}/file")

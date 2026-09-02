@@ -16,6 +16,8 @@ export function CharactersPanel() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<CharacterDetailOut | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
 
   function refreshList() {
     bridgeClient
@@ -83,6 +85,23 @@ export function CharactersPanel() {
     refreshList();
   }
 
+  async function handleImportPack(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setImportError(null);
+    setImporting(true);
+    try {
+      const imported = await bridgeClient.importCharacterPack(file);
+      refreshList();
+      setSelectedId(imported.id);
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setImporting(false);
+    }
+  }
+
   if (detail) {
     return (
       <section aria-label="Dettaglio personaggio">
@@ -90,6 +109,9 @@ export function CharactersPanel() {
           ← Torna alla libreria
         </button>
         <h2>{detail.name}</h2>
+        <a href={bridgeClient.characterExportUrl(detail.id)} download>
+          Esporta Character Pack (.zip)
+        </a>
         <label>
           <input type="checkbox" checked={detail.is_private} onChange={() => void handleTogglePrivate()} /> Privato
           (offusca l'anteprima in UI)
@@ -136,7 +158,8 @@ export function CharactersPanel() {
       <h2>Personaggi</h2>
       <p className="settings-panel__hint">
         Libreria dati e immagini. Non ancora collegata alla generazione ("Coerenza Personaggio" arriva con il Workflow
-        Builder completo, Fase 5).
+        Builder completo, Fase 5). Esporta/importa un personaggio come Character Pack (.zip) per condividerlo o farne
+        il backup — apri un personaggio per esportarlo.
       </p>
 
       <form onSubmit={handleCreate}>
@@ -146,6 +169,20 @@ export function CharactersPanel() {
           Crea
         </button>
       </form>
+
+      <label htmlFor="import-character-pack">Oppure importa un Character Pack (.zip)</label>
+      <input
+        id="import-character-pack"
+        type="file"
+        accept=".zip,application/zip"
+        disabled={importing}
+        onChange={(e) => void handleImportPack(e)}
+      />
+      {importError && (
+        <p role="alert" className="settings-panel__feedback--error">
+          {importError}
+        </p>
+      )}
 
       {error && (
         <p role="alert" className="settings-panel__feedback--error">

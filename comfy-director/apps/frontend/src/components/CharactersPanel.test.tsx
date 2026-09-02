@@ -79,5 +79,58 @@ describe("CharactersPanel", () => {
       const img = screen.getByRole("img") as HTMLImageElement;
       expect(img.className).toContain("characters-panel__thumb--blurred");
     });
+
+    expect(screen.getByText(/Esporta Character Pack/)).toBeInTheDocument();
+  });
+
+  it("importa un Character Pack e apre il personaggio appena creato", async () => {
+    const importedDetail = {
+      id: "imported-1", name: "Aria", description: null, tags: ["fantasy"], is_private: false,
+      image_count: 1, main_image_id: "img1", notes: null,
+      images: [{ id: "img1", character_id: "imported-1", role: "main", order_index: 0, source: "upload", width: null, height: null, created_at: "2026-01-01T00:00:00Z" }],
+      created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init?: RequestInit) => {
+        if (url.endsWith("/characters/import") && init?.method === "POST") return jsonResponse(importedDetail);
+        if (url.endsWith("/characters/imported-1")) return jsonResponse(importedDetail);
+        if (url.endsWith("/characters")) return jsonResponse([]);
+        return jsonResponse({});
+      }),
+    );
+
+    render(<CharactersPanel />);
+    await waitFor(() => expect(screen.getByText(/Nessun personaggio ancora creato/)).toBeInTheDocument());
+
+    const file = new File(["zip-bytes"], "pack.zip", { type: "application/zip" });
+    fireEvent.change(screen.getByLabelText(/importa un Character Pack/i), { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Aria" })).toBeInTheDocument();
+    });
+  });
+
+  it("mostra l'errore reale se l'import di un pack non valido fallisce", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init?: RequestInit) => {
+        if (url.endsWith("/characters/import") && init?.method === "POST") {
+          return jsonResponse({ detail: "Il file non è un archivio ZIP valido." }, 422);
+        }
+        if (url.endsWith("/characters")) return jsonResponse([]);
+        return jsonResponse({});
+      }),
+    );
+
+    render(<CharactersPanel />);
+    await waitFor(() => expect(screen.getByText(/Nessun personaggio ancora creato/)).toBeInTheDocument());
+
+    const file = new File(["not a zip"], "bad.zip", { type: "application/zip" });
+    fireEvent.change(screen.getByLabelText(/importa un Character Pack/i), { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/non è un archivio ZIP valido/)).toBeInTheDocument();
+    });
   });
 });

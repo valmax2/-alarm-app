@@ -143,7 +143,11 @@ Regole versionate + osservazioni. Vedi `docs/compatibility-engine.md` per semant
 | note | text, nullable | |
 | created_at | datetime | |
 
-## `characters` — [Fase 7, consegnata v1: libreria + immagini, nessun collegamento alla generazione]
+## `characters` — [Fase 7, consegnata v2: libreria + immagini + export/import Character Pack, nessun collegamento alla generazione]
+Export/import (Fase 7 v2, `bridge/characters/pack.py`): un personaggio si esporta come
+archivio ZIP autonomo (`character.json` + `images/`, mai i path di storage interni del
+Bridge) e si reimporta SEMPRE come riga nuova con un nuovo `id` — un pack può venire da
+un'altra installazione, i cui ID non hanno alcun significato qui.
 | campo | tipo | note |
 |---|---|---|
 | id | str, PK | |

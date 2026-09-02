@@ -78,7 +78,12 @@ Bridge, verificare manualmente contro un'istanza ComfyUI reale:
     comparire davvero su disco in `data/storage/characters/<id>/` (byte identici a
     quelli caricati, verificabile leggendo il file), e `GET /characters/{id}` deve
     riportare `image_count: 1`. Eliminare il personaggio → la sua intera cartella
-    deve sparire dal disco, non solo la riga a DB. Già verificato in sviluppo.
+    deve sparire dal disco, non solo la riga a DB. "Esporta Character Pack" deve
+    avviare un download reale del .zip; reimportarlo (input di import nella
+    libreria) deve creare un personaggio NUOVO e indipendente (stessi dati,
+    immagine identica, ID diverso) — mai un tentativo di "aggiornare" l'originale.
+    Già verificato in sviluppo, incluso dal vivo nel browser con Playwright
+    (download reale intercettato e reimportato).
 11. Aprire "Prompt Engine", scrivere un prompt in italiano, tradurlo → deve arrivare
     una traduzione reale (non un placeholder). Con una chiave non valida, l'errore
     reale del provider deve comparire in UI. Salvare in cronologia (con negative
@@ -132,7 +137,8 @@ bridge/
                                             # translate_to_english; Fase 10: chat
                                             # (send_chat_message — stesso trasporto
                                             # HTTP condiviso con la traduzione)
-  characters/                               # Fase 7: storage filesystem immagini
+  characters/                               # Fase 7: storage filesystem immagini;
+                                             # Fase 7 v2: pack.py — export/import ZIP
   diagnostics.py                            # Fase 11: cattura eccezioni non gestite
                                              # (exception handler globale in main.py)
   routers/                                  # health, comfy, settings, inventory,

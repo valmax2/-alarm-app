@@ -498,6 +498,15 @@ export const bridgeClient = {
     }),
   characterImageUrl: (characterId: string, imageId: string) =>
     `${BRIDGE_BASE_URL}/characters/${encodeURIComponent(characterId)}/images/${encodeURIComponent(imageId)}/file`,
+  // Fase 7 v2: export/import Character Pack. L'URL di export è usato direttamente in
+  // un <a href download> (come generationOutputUrl) — non passa da request<T>, è il
+  // browser a scaricare i byte del ZIP che il Bridge produce.
+  characterExportUrl: (characterId: string) => `${BRIDGE_BASE_URL}/characters/${encodeURIComponent(characterId)}/export`,
+  importCharacterPack: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return requestMultipart<CharacterDetailOut>("/characters/import", form);
+  },
 
   translatePrompt: (textIt: string, providerId: string) =>
     request<{ text_en: string }>("/prompts/translate", {

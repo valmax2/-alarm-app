@@ -257,7 +257,7 @@ confermato sia a schermo (screenshot) sia con endpoint chiamati direttamente. La
 verifica contro un ComfyUI reale (non simulato) resta a carico dell'utente — checklist
 in `docs/test-plan.md` e in `apps/bridge/README.md`.
 
-## FASE 7 — PERSONAGGI — 🟨 (v1: libreria + immagini, nessun collegamento alla generazione)
+## FASE 7 — PERSONAGGI — 🟨 (v2: + export/import Character Pack, nessun collegamento alla generazione)
 - ✅ Tabelle `characters`/`character_images` (migrazione `0007`) — `character_images.
   storage_path` è sempre relativo a `Settings.storage_dir`, mai base64 in DB.
   `characters.main_image_id` non è una vera FK a livello DB (evita un riferimento
@@ -279,15 +279,26 @@ in `docs/test-plan.md` e in `apps/bridge/README.md`.
   personaggio, upload/eliminazione immagini reali, verificato caricando un PNG
   reale (bytes confermati identici su disco via lettura diretta del file, non solo
   a schermo) e verificando che la cancellazione rimuova davvero la cartella.
+- ✅ **Fase 7 v2 — export/import Character Pack** (colma la lacuna v1 sopra):
+  `bridge/characters/pack.py` — un personaggio si esporta come archivio ZIP
+  autonomo (`character.json` + `images/`) e si reimporta, sempre come riga NUOVA
+  (mai riusando gli ID originali, che potrebbero già esistere sull'installazione
+  di destinazione). Validazione eager e completa (manifest + ogni immagine
+  referenziata) PRIMA di creare qualunque riga a DB — un pack malformato è
+  rifiutato per intero con un messaggio chiaro (`CharacterPackError`), mai un
+  import parziale. `GET /characters/{id}/export`, `POST /characters/import`.
+  Frontend: link "Esporta Character Pack" nel dettaglio, input di import nella
+  libreria. Verificato dal vivo nel browser: download reale del .zip
+  (intercettato da Playwright), reimportato, personaggio duplicato indipendente
+  confermato (due righe distinte, stessi dati, immagine identica byte-per-byte).
 - 🟨 **Deferito esplicitamente, dichiarato** (mai finto): **nessun collegamento al
   Workflow Builder / "Coerenza Personaggio"** — un personaggio qui è solo dati
   (nome, tag, immagini), non ancora utilizzabile per guidare una generazione;
   quel flusso dipende dal Workflow Intelligence Engine (Fase 5 completa, non
-  ancora costruito). Nessun drag&drop nella canvas, nessun export/import
-  Character Pack, nessuna riordinabilità delle immagini (`order_index` è
-  assegnato in ordine di caricamento), nessuna dimensione (`width`/`height`)
-  derivata automaticamente dall'immagine (nessuna dipendenza Pillow aggiunta per
-  questo — dichiarato, non un dato inventato).
+  ancora costruito). Nessun drag&drop nella canvas, nessuna riordinabilità delle
+  immagini (`order_index` è assegnato in ordine di caricamento), nessuna
+  dimensione (`width`/`height`) derivata automaticamente dall'immagine (nessuna
+  dipendenza Pillow aggiunta per questo — dichiarato, non un dato inventato).
 
 ## FASE 8 — IMPORT — 🟨 (Workflow da Immagine consegnato, portato avanti su richiesta esplicita)
 Consegnato: **Workflow da Immagine** — lettura reale dei chunk PNG `tEXt`/`zTXt`/`iTXt`

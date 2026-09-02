@@ -1,5 +1,42 @@
 # CHANGELOG — Comfy Director
 
+## [Non rilasciato] — Fase 7 v2: export/import Character Pack (2026-09-02)
+
+Colma la lacuna dichiarata esplicitamente in Fase 7 v1 ("nessun export/import
+Character Pack").
+
+### Backend
+- `bridge/characters/pack.py`: `build_character_pack()` produce un archivio ZIP
+  (`character.json` + `images/`); `parse_character_pack()` valida TUTTA la
+  struttura (manifest + ogni immagine referenziata davvero presente nell'archivio)
+  prima di ritornare — un pack malformato è rifiutato per intero
+  (`CharacterPackError`, mai un import parziale/indovinato).
+- `GET /characters/{id}/export`: fallisce con un errore chiaro (mai un pack
+  silenziosamente incompleto) se un'immagine referenziata a DB manca sul disco.
+- `POST /characters/import`: crea SEMPRE un personaggio nuovo (nuovo id) — un pack
+  può provenire da un'altra installazione, i cui ID non hanno alcun significato
+  qui.
+
+### Frontend
+- Link "Esporta Character Pack (.zip)" nel dettaglio del personaggio (download
+  reale via `<a href download>`, come `generationOutputUrl`).
+- Input di import nella libreria — apre il personaggio appena creato al termine.
+
+### Test
+- Backend: +17 test (`test_character_pack.py`, `test_character_pack_endpoints.py`)
+  — 236 totali, tutti verdi.
+- Frontend: +2 test (`CharactersPanel.test.tsx`) — 51 totali, tutti verdi.
+- **Verificato dal vivo nel browser (Playwright), senza mock**: creato un
+  personaggio con un'immagine PNG reale, esportato (download reale intercettato),
+  reimportato lo stesso file — confermato un personaggio DUPLICATO e indipendente
+  (due righe distinte, stessi dati, immagine identica byte-per-byte).
+
+### Dichiarato esplicitamente come non ancora implementato (mai finto)
+- Nessun collegamento al Workflow Builder / "Coerenza Personaggio" (dipende dal
+  Workflow Intelligence Engine, Fase 5 completa).
+- Nessun drag&drop nella canvas, nessuna riordinabilità delle immagini, nessuna
+  dimensione derivata automaticamente dall'immagine.
+
 ## [Non rilasciato] — Fase 6 v2: relay WebSocket per il progresso generazione live (2026-09-02)
 
 Colma la limitazione dichiarata esplicitamente in Fase 6 v1 ("nessuna relay

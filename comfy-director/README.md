@@ -9,8 +9,9 @@ il ragionamento e la roadmap.
 **Stato attuale: Fase 1 (Fondazione) + Fase 2 (Inventario reale) + Fase 3 (Canvas
 reale) + Fase 4 v1 (filtro per famiglia) + Fase 5 v1 (scelta famiglia + import
 workflow JSON) + Fase 6 v2 (generazione reale via ComfyUI, con relay WebSocket per il
-progresso live) + Fase 7 v1 (libreria Personaggi) + Fase 8 parziale (Workflow da
-Immagine) + Fase 9 (Prompt da Immagine + Prompt Engine con traduzione IT→EN) + Fase
+progresso live) + Fase 7 v2 (libreria Personaggi + export/import Character Pack) +
+Fase 8 parziale (Workflow da Immagine) + Fase 9 (Prompt da Immagine + Prompt Engine
+con traduzione IT→EN) + Fase
 10 v1 (chat reale con l'Assistente AI) + Fase 11 v1 (diagnostica reale: errori non
 gestiti persistiti + report).**
 Bridge FastAPI reale (health/status/settings/sync/inventory/workflows/workflow-import/
@@ -28,7 +29,8 @@ reale — più una relay WebSocket per il progresso live: nodo in esecuzione evi
 sulla canvas, percentuale reale, con degradazione automatica al solo polling se il WS
 non è disponibile), **chat reale con l'Assistente AI** (stesso provider configurato,
 senza ancora poter leggere/modificare il workflow), **libreria Personaggi** (CRUD +
-immagini reali su filesystem, non ancora collegata alla generazione),
+immagini reali su filesystem, export/import come Character Pack .zip, non ancora
+collegata alla generazione),
 **diagnostica reale** (ogni eccezione non gestita nel Bridge viene catturata da un
 exception handler globale, persistita con messaggio/contesto redatti — mai in
 chiaro — e consultabile/esportabile dalla UI, invece di sparire in un 500 anonimo).
@@ -44,8 +46,8 @@ cosa è deliberatamente semplificato (es. Fase 3: undo/redo snapshot-based, nien
 auto-layout; Fase 5: la famiglia è per ora solo un'etichetta, nessuna generazione
 automatica di nodi; Fase 6: la relay WebSocket copre solo nodo-in-esecuzione e
 percentuale (v2), nessuna live-preview delle immagini durante il sampling;
-Fase 7: personaggi non ancora collegati alla generazione, nessun export/import
-Character Pack; Fase 9: i prompt salvati non sono ancora collegati a un workflow
+Fase 7: personaggi non ancora collegati alla generazione, nessun drag&drop nella
+canvas; Fase 9: i prompt salvati non sono ancora collegati a un workflow
 specifico; Fase 10: nessun AI Tool Layer, l'assistente non legge né modifica il
 workflow; Fase 11: la diagnostica v1 cattura solo le eccezioni non gestite, non un
 log strutturato di ogni richiesta né alert/metriche — backup/versioning completi,
