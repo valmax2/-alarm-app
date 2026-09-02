@@ -15,7 +15,7 @@ file), `docs/data-model.md`, `docs/module-boundaries.md`, `docs/comfyui-api.md`,
 `docs/compatibility-engine.md`, `docs/workflow-intelligence-engine.md`,
 `docs/test-plan.md`. Nessuna feature falsa dichiarata.
 
-## FASE 1 — FONDAZIONE — 🟨 (questa consegna)
+## FASE 1 — FONDAZIONE — ✅
 Deliverable:
 - repository monorepo (`apps/bridge`, `apps/frontend`, `packages/shared-types`, `data/`,
   `docs/`, `scripts/`, `tests/`)
@@ -54,25 +54,48 @@ Verifica concreta in questa sessione:
   passo NON è verificabile in questa sessione (nessuna istanza ComfyUI disponibile) ed è
   dichiarato come tale (vedi AUDIT.md §2).
 
-## FASE 2 — INVENTARIO REALE — ⬜
-- Client `/object_info` (schema completo di ogni nodo registrato: input types, required/
-  optional, min/max/default/enum)
-- Scansione directory modelli configurabili (checkpoints, diffusion_models, loras, vae,
-  clip, controlnet, ipadapter, instantid, upscale_models, embeddings — tramite
-  `/object_info` per scoprire dinamicamente quali cartelle/estensioni ComfyUI espone,
-  invece di hardcodare i path)
-- Estrazione metadata: header `.safetensors` (JSON leggibile senza caricare i tensori),
-  hash (sha256 troncato o `blake3` se disponibile, per deduplicare e per il cache di
-  compatibilità), family/architecture detection euristica versionata (vedi
-  `docs/compatibility-engine.md`)
-- Persistenza in `models`, `model_metadata`, `nodes`, `node_schemas`
-- Endpoint `POST /comfy/sync`, `GET /inventory/models`, `GET /inventory/nodes` con
-  filtri/paginazione (vedi `docs/data-model.md` per indici)
-- Sync incrementale (per `mtime`/hash, evitare rilettura completa a ogni sync)
+## FASE 2 — INVENTARIO REALE — ✅ (v1)
+Consegnato, con due fonti indipendenti (una sync riesce se almeno una produce dati —
+vedi `bridge/inventory/sync.py`):
+- Client `/object_info` reale (`ComfyClient.get_object_info`): schema completo di ogni
+  nodo registrato, normalizzato in `input_summary`/`output_summary` (required/optional,
+  min/max/default/step/enum) — persistito in `nodes`/`node_schemas`.
+- Estrazione modelli dagli enum dei loader noti (`node_registry.py`: checkpoint, LoRA,
+  VAE, ControlNet, CLIP, UNET/diffusion_model, upscale, e alcuni loader community molto
+  diffusi come IPAdapter/InstantID se il nodo è realmente presente) — mai un elenco
+  statico, sempre letto dal vero `/object_info`.
+- **Scansione filesystem diretta** (`filesystem_scanner.py`), su richiesta esplicita
+  dell'utente durante lo sviluppo: se configurato un percorso ComfyUI (root o cartella
+  `models`), legge davvero i file sul disco (dimensione reale, header `.safetensors` per
+  la family detection, fonte `metadata`) — **funziona anche a ComfyUI spento**, non solo
+  come arricchimento di quanto riportato da `/object_info`.
+- Family detection v1 (`family_detection.py`): euristica su header `.safetensors`
+  (fonte `metadata`, confidenza alta) con fallback su euristica sul nome file (fonte
+  `internal_rule`, confidenza bassa, mai spacciata per certa) — vedi
+  `docs/compatibility-engine.md`.
+- Persistenza in `nodes`, `node_schemas`, `models` (`model_metadata` esiste nello
+  schema ma non è ancora popolata: gli header letti restano solo in memoria per la
+  detection, non salvati grezzi — rimandato a quando servirà davvero ispezionarli dalla
+  UI).
+- Endpoint `POST /comfy/sync` (report reale: nodi/custom node/modelli per tipo, mai
+  numeri inventati — fallisce con errore esplicito solo se NESSUNA fonte produce dati),
+  `GET /inventory/models` (filtri `model_type`, `family`, `q`, `include_incompatible`),
+  `GET /inventory/nodes` (filtri `is_custom_node`, `q`).
 
-**DoD:** "ciò che appare deriva dall'ambiente reale" — verificato collegando un ComfyUI
-reale (a carico dell'utente in locale) e controllando che i numeri mostrati corrispondano
-esattamente ai file/nodi realmente presenti.
+**Deviazioni dal piano originale, dichiarate esplicitamente:** nessun calcolo hash
+sha256 (rimandato: costoso su file grandi, non ancora necessario senza un caso d'uso di
+deduplicazione reale); nessuna sync incrementale per `mtime` (ogni sync rilegge tutto —
+accettabile alla scala attuale, ottimizzazione esplicitamente Fase 11 per le
+performance, spec §35); nessuna paginazione reale sulle liste (limite fisso alto).
+
+**DoD verificato in questa sessione:** con un `/object_info` di fixture (mock HTTP) e
+una cartella modelli di fixture reale su disco (non finta: file `.safetensors` nel vero
+formato binario, letti byte per byte), i numeri riportati da `/comfy/sync` e
+`/inventory/models|nodes` corrispondono esattamente a ciò che le fixture contengono —
+incluso un bug reale trovato e corretto durante la verifica (un file `.safetensors`
+malformato causava un `MemoryError` invece di un errore gestito). La verifica contro
+un'installazione ComfyUI/cartella modelli reale dell'utente resta a suo carico (nessuna
+istanza disponibile in questa sessione, vedi AUDIT.md).
 
 ## FASE 3 — CANVAS REALE — ⬜
 - Modello interno del workflow (grafo diretto tipizzato: nodi con `type`, `id`,
@@ -90,14 +113,28 @@ esattamente ai file/nodi realmente presenti.
 collegamento in canvas e verificare che il modello serializzato cambi coerentemente, e
 viceversa (modificare il modello e vedere la canvas aggiornarsi).
 
-## FASE 4 — COMPATIBILITY ENGINE V1 — ⬜
-Vedi `docs/compatibility-engine.md` per il design completo. Deliverable: family
-detection v1, tabella `compatibility_rules` popolata da regole versionate + risultati
-osservati, query `POST /compatibility/query`, filtraggio pannelli Modelli/Nodi in base al
-contesto (tipo flusso + famiglia) corrente.
+## FASE 4 — COMPATIBILITY ENGINE V1 — ✅ (v1 ridotto: filtro per famiglia)
+Vedi `docs/compatibility-engine.md` per il design completo. Consegnato:
+`bridge/compatibility/resolve.py` — algoritmo di combinazione fonti puro e testato
+(`resolve()`: comfy_reported/node_schema vincono, poi soglie di confidenza per
+compatible/incompatible, altrimenti warning o unknown — MAI compatible di default),
+`explain()`, e `filter_models_by_family()` usato da `GET /inventory/models?family=...`
+per annotare ogni modello con `compatibility` + `compatibility_reason` (mai
+un'esclusione silenziosa: di default nasconde solo gli `incompatible` ad alta
+confidenza, un mismatch a bassa confidenza resta `warning` visibile).
 
-**DoD:** "l'app non propone indiscriminatamente componenti incompatibili" — verificato con
-scenari misti (checkpoint SDXL + LoRA FLUX → warning/incompatible, non silenzio).
+**Deviazione dal piano originale, dichiarata esplicitamente:** le regole sono
+attualmente codice Python versionato (`family_detection.py`), non righe nella tabella
+`compatibility_rules` (che esiste nello schema ma non è ancora popolata/letta) — una
+UI per curare/estendere le regole senza toccare il codice, e l'endpoint generico
+`POST /compatibility/query`, sono rimandati a quando servirà davvero gestire regole
+oltre alla sola famiglia (es. Fase 5, compatibilità nodo↔nodo per il Workflow Builder).
+
+**DoD verificato in questa sessione:** con dati di fixture (un checkpoint FLUX con
+header reale, uno SDXL con header reale, uno senza famiglia rilevabile), il filtro per
+famiglia produce esattamente `compatible`/`incompatible`/`unknown` coerenti con la
+fonte e la confidenza — mai un'esclusione senza motivo visibile. La verifica con un
+inventario reale dell'utente resta a suo carico.
 
 ## FASE 5 — WORKFLOW BUILDER — ⬜
 Vedi `docs/workflow-intelligence-engine.md`. Deliverable: catalogo intenti → capability

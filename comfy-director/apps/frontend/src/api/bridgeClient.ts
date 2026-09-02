@@ -30,6 +30,57 @@ export interface ComfyStatusResponse {
 
 export interface SettingsResponse {
   comfy_base_url: string;
+  comfy_root_path: string | null;
+}
+
+export interface SyncResponse {
+  comfy_status: "online" | "offline";
+  comfy_version: string | null;
+  node_count: number;
+  custom_node_count: number;
+  model_count: number;
+  model_counts_by_type: Record<string, number>;
+  filesystem_scan_used: boolean;
+  synced_at: string;
+}
+
+export type Compatibility = "compatible" | "incompatible" | "unknown" | "warning";
+
+export interface ModelOut {
+  id: string;
+  name: string;
+  path: string;
+  model_type: string;
+  extension: string;
+  size_bytes: number | null;
+  family: string | null;
+  detection_confidence: number;
+  detection_source: string;
+  last_seen: string;
+  compatibility: Compatibility | null;
+  compatibility_reason: string | null;
+}
+
+export interface NodeOut {
+  class_type: string;
+  display_name: string;
+  category: string;
+  is_custom_node: boolean;
+  last_seen: string;
+}
+
+export interface ModelsQuery {
+  [key: string]: string | number | boolean | undefined;
+  model_type?: string;
+  family?: string;
+  include_incompatible?: boolean;
+  q?: string;
+}
+
+export interface NodesQuery {
+  [key: string]: string | number | boolean | undefined;
+  is_custom_node?: boolean;
+  q?: string;
 }
 
 /** Errore sollevato quando il Bridge stesso non risponde (processo spento/URL errato) —
@@ -40,6 +91,26 @@ export class BridgeUnreachableError extends Error {
     super("Bridge non raggiungibile");
     this.cause = cause;
   }
+}
+
+/** Errore applicativo con il messaggio reale restituito dal Bridge (es. "ComfyUI non
+ * raggiungibile su http://..."), non un generico "Bridge ha risposto 503". */
+export class BridgeRequestError extends Error {
+  constructor(
+    public status: number,
+    detail: string,
+  ) {
+    super(detail);
+  }
+}
+
+function buildQuery(params: Record<string, string | number | boolean | undefined>): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) search.set(key, String(value));
+  }
+  const qs = search.toString();
+  return qs ? `?${qs}` : "";
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -54,7 +125,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (!response.ok) {
     const body = await response.text();
-    throw new Error(`Bridge ha risposto ${response.status}: ${body}`);
+    let detail = body;
+    try {
+      const parsed = JSON.parse(body) as { detail?: string };
+      if (parsed.detail) detail = parsed.detail;
+    } catch {
+      // corpo non JSON (es. 500 "Internal Server Error" in testo semplice): usa il testo grezzo
+    }
+    throw new BridgeRequestError(response.status, detail || `Errore ${response.status}`);
   }
   return (await response.json()) as T;
 }
@@ -63,9 +141,12 @@ export const bridgeClient = {
   getHealth: () => request<HealthResponse>("/health"),
   getComfyStatus: () => request<ComfyStatusResponse>("/comfy/status"),
   getSettings: () => request<SettingsResponse>("/settings"),
-  updateSettings: (comfyBaseUrl: string) =>
+  updateSettings: (comfyBaseUrl: string, comfyRootPath: string | null) =>
     request<SettingsResponse>("/settings", {
       method: "PUT",
-      body: JSON.stringify({ comfy_base_url: comfyBaseUrl }),
+      body: JSON.stringify({ comfy_base_url: comfyBaseUrl, comfy_root_path: comfyRootPath || null }),
     }),
+  syncComfy: () => request<SyncResponse>("/comfy/sync", { method: "POST" }),
+  getModels: (query: ModelsQuery = {}) => request<ModelOut[]>(`/inventory/models${buildQuery(query)}`),
+  getNodes: (query: NodesQuery = {}) => request<NodeOut[]>(`/inventory/nodes${buildQuery(query)}`),
 };

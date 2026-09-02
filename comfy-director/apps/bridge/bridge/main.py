@@ -24,7 +24,7 @@ from bridge import __version__
 from bridge.config import Settings, get_settings
 from bridge.db import make_engine, make_session_factory
 from bridge.logging_config import configure_logging
-from bridge.routers import comfy, health
+from bridge.routers import comfy, health, inventory
 from bridge.routers import settings as settings_router
 
 logger = logging.getLogger(__name__)
@@ -93,6 +93,7 @@ def build_app(settings: Settings, engine: AsyncEngine, session_factory: async_se
     app.include_router(health.router)
     app.include_router(comfy.router)
     app.include_router(settings_router.router)
+    app.include_router(inventory.router)
 
     # In produzione, se il frontend è stato buildato (apps/frontend/dist), il Bridge lo
     # serve direttamente così l'utente apre un solo URL/processo (coerente con "avviare

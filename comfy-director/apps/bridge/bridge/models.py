@@ -1,8 +1,9 @@
 """Modelli ORM (SQLAlchemy 2.0).
 
-Fase 1: solo le tabelle usate dalla fondazione (`settings`, `comfy_instances`,
-`errors`). Le restanti tabelle di docs/data-model.md vengono aggiunte nelle fasi che le
-usano, ciascuna con la propria migrazione Alembic — niente schema morto non testato.
+Fase 1: `settings`, `comfy_instances`, `errors`.
+Fase 2: `nodes`, `node_schemas`, `models`, `model_metadata` (Inventory Engine).
+Le restanti tabelle di docs/data-model.md vengono aggiunte nelle fasi che le usano,
+ciascuna con la propria migrazione Alembic — niente schema morto non testato.
 """
 
 from __future__ import annotations
@@ -10,7 +11,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -67,3 +68,69 @@ class ErrorLogRecord(Base):
     message: Mapped[str] = mapped_column(Text)
     context_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class NodeRecord(Base):
+    """Nodo realmente registrato nell'istanza ComfyUI collegata (docs/data-model.md #nodes)."""
+
+    __tablename__ = "nodes"
+
+    id: Mapped[str] = mapped_column(String(600), primary_key=True)  # f"{instance_id}:{class_type}"
+    comfy_instance_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("comfy_instances.id", ondelete="CASCADE")
+    )
+    class_type: Mapped[str] = mapped_column(String(255))
+    display_name: Mapped[str] = mapped_column(String(255))
+    category: Mapped[str] = mapped_column(String(255))
+    is_custom_node: Mapped[bool] = mapped_column(Boolean, default=False)
+    source_extension: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class NodeSchemaRecord(Base):
+    """Schema /object_info grezzo + normalizzato per un nodo (docs/data-model.md #node_schemas)."""
+
+    __tablename__ = "node_schemas"
+
+    node_id: Mapped[str] = mapped_column(
+        String(600), ForeignKey("nodes.id", ondelete="CASCADE"), primary_key=True
+    )
+    raw_schema: Mapped[str] = mapped_column(Text)  # JSON: risposta grezza /object_info/{class_type}
+    input_summary: Mapped[str] = mapped_column(Text)  # JSON normalizzato (vedi inventory/sync.py)
+    output_summary: Mapped[str] = mapped_column(Text)  # JSON normalizzato
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class ModelRecord(Base):
+    """Elemento di inventario: checkpoint, LoRA, VAE, ControlNet, ecc. (docs/data-model.md #models)."""
+
+    __tablename__ = "models"
+
+    id: Mapped[str] = mapped_column(String(600), primary_key=True)
+    comfy_instance_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("comfy_instances.id", ondelete="CASCADE")
+    )
+    name: Mapped[str] = mapped_column(String(500))
+    path: Mapped[str] = mapped_column(String(1000))  # path/nome così come riportato da ComfyUI
+    model_type: Mapped[str] = mapped_column(String(64))
+    extension: Mapped[str] = mapped_column(String(32))
+    size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    family: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    architecture: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    detection_confidence: Mapped[float] = mapped_column(Float, default=0.0)
+    detection_source: Mapped[str] = mapped_column(String(64), default="internal_rule")
+    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class ModelMetadataRecord(Base):
+    """Metadata grezzi estratti per un modello, quando disponibili (docs/data-model.md #model_metadata)."""
+
+    __tablename__ = "model_metadata"
+
+    model_id: Mapped[str] = mapped_column(
+        String(600), ForeignKey("models.id", ondelete="CASCADE"), primary_key=True
+    )
+    raw_header: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON header .safetensors
+    extra: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON

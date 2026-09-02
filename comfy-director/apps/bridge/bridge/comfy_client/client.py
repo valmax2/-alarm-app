@@ -1,11 +1,11 @@
 """Client HTTP verso ComfyUI.
 
-Fase 1: implementa solo `get_system_stats`, l'unica chiamata necessaria per il
-Bridge-status reale (§3 della spec). Gli altri endpoint documentati in
-`docs/comfyui-api.md` (`/object_info`, `/queue`, `/history`, `/prompt`, `/interrupt`,
-`/view`, WebSocket) vengono aggiunti nelle fasi che li usano (2 e 6) — aggiungerli ora
-senza un chiamante reale e senza test significativi violerebbe la regola "non fingere
-funzionalità implementate".
+Fase 1: `get_system_stats` (Bridge-status reale, §3 della spec).
+Fase 2: `get_object_info` (schema completo di tutti i nodi registrati — fonte
+dell'inventario nodi/modelli, §11 e Fase 2 del piano). Gli altri endpoint documentati
+in `docs/comfyui-api.md` (`/queue`, `/history`, `/prompt`, `/interrupt`, `/view`,
+WebSocket) vengono aggiunti in Fase 6 — aggiungerli ora senza un chiamante reale e senza
+test significativi violerebbe la regola "non fingere funzionalità implementate".
 
 Nessun altro modulo deve aprire connessioni dirette a ComfyUI: questo è l'unico punto di
 contatto (vedi docs/module-boundaries.md).
@@ -14,6 +14,7 @@ contatto (vedi docs/module-boundaries.md).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import httpx
 
@@ -46,16 +47,15 @@ class ComfyClient:
         self._base_url = base_url.rstrip("/")
         self._timeout_seconds = timeout_seconds
 
-    async def get_system_stats(self) -> ComfySystemStats:
-        """Chiama GET /system_stats.
+    async def _get_json(self, path: str, timeout_seconds: float | None = None) -> Any:
+        """GET generico con la gestione errori condivisa da tutte le chiamate.
 
         Solleva `ComfyUnreachable`, `ComfyTimeout`, `ComfyHTTPError` o
-        `ComfyProtocolError` — mai un'eccezione generica. Il chiamante (router
-        `/comfy/status`) decide come tradurre ciascuna in uno stato UI.
+        `ComfyProtocolError` — mai un'eccezione generica (spec §26, §34).
         """
-        url = f"{self._base_url}/system_stats"
+        url = f"{self._base_url}{path}"
         try:
-            async with httpx.AsyncClient(timeout=self._timeout_seconds) as client:
+            async with httpx.AsyncClient(timeout=timeout_seconds or self._timeout_seconds) as client:
                 response = await client.get(url)
         except httpx.TimeoutException as exc:
             raise ComfyTimeout(f"Timeout contattando {url}") from exc
@@ -70,12 +70,15 @@ class ComfyClient:
             raise ComfyHTTPError(response.status_code, response.text)
 
         try:
-            data = response.json()
+            return response.json()
         except ValueError as exc:
             raise ComfyProtocolError(f"Risposta non JSON da {url}") from exc
 
+    async def get_system_stats(self) -> ComfySystemStats:
+        """Chiama GET /system_stats."""
+        data = await self._get_json("/system_stats")
         if not isinstance(data, dict):
-            raise ComfyProtocolError(f"Risposta JSON inattesa da {url}: non è un oggetto")
+            raise ComfyProtocolError("Risposta JSON inattesa da /system_stats: non è un oggetto")
 
         system = data.get("system") if isinstance(data.get("system"), dict) else {}
         return ComfySystemStats(
@@ -85,3 +88,21 @@ class ComfyClient:
             pytorch_version=system.get("pytorch_version"),
             raw=data,
         )
+
+    async def get_object_info(self) -> dict[str, dict]:
+        """Chiama GET /object_info: schema completo di TUTTI i nodi registrati
+        (core + custom node installati), fonte primaria dell'Inventory Engine
+        (docs/comfyui-api.md). Ritorna il dict grezzo {class_type: schema} così com'è
+        — la normalizzazione (input_summary/output_summary, widget hint) è
+        responsabilità di `bridge.inventory` (docs/module-boundaries.md), non del
+        client di trasporto.
+        """
+        data = await self._get_json("/object_info", timeout_seconds=self._object_info_timeout())
+        if not isinstance(data, dict):
+            raise ComfyProtocolError("Risposta JSON inattesa da /object_info: non è un oggetto")
+        return data
+
+    def _object_info_timeout(self) -> float:
+        # /object_info può essere pesante con molti custom node installati: un timeout
+        # più lungo del default usato per /system_stats (docs/comfyui-api.md).
+        return max(self._timeout_seconds, 20.0)

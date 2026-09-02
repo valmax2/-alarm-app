@@ -6,10 +6,14 @@ mantenendo ComfyUI come motore di esecuzione. Vedi `docs/COMFY_DIRECTOR_SPEC.md`
 specifica completa, `AUDIT.md`/`ARCHITECTURE_DECISION.md`/`IMPLEMENTATION_PLAN.md` per
 il ragionamento e la roadmap.
 
-**Stato attuale: Fase 1 — Fondazione.** Bridge FastAPI reale (health/status/settings),
-frontend React scheletro con stato Bridge/ComfyUI reale. Tutto il resto (canvas,
-inventario, compatibilità, personaggi, generazione, AI assistant, ...) è dichiarato
-esplicitamente come non ancora disponibile nella UI stessa — vedi
+**Stato attuale: Fase 1 (Fondazione) + Fase 2 (Inventario reale) + Fase 4 v1 (filtro
+per famiglia).** Bridge FastAPI reale (health/status/settings/sync/inventory), lettura
+reale di nodi e modelli da ComfyUI (`/object_info`) e/o direttamente dal filesystem
+(percorso ComfyUI configurabile, funziona anche a ComfyUI spento), filtro modelli per
+famiglia con motivo di compatibilità sempre visibile. Frontend React con pannelli
+Bridge/Modelli/Nodi reali (pulsanti dei flussi sulla barra destra). Tutto il resto
+(canvas, workflow intelligence, personaggi, generazione, AI assistant, ...) è
+dichiarato esplicitamente come non ancora disponibile nella UI stessa — vedi
 `IMPLEMENTATION_PLAN.md` per le fasi successive.
 
 ## Avvio rapido

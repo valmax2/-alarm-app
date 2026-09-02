@@ -1,9 +1,13 @@
 # MODELLO DATI — Comfy Director
 
 Entità da spec §24, con campi concreti. Implementate come tabelle SQLite via SQLAlchemy;
-migrazioni gestite da Alembic. Le tabelle marcate **[Fase N]** non esistono ancora nello
-schema Fase 1 — vengono aggiunte quando il modulo corrispondente viene costruito, per
-evitare schema morto non testato (regola 1: non fingere funzionalità).
+migrazioni gestite da Alembic. Le tabelle marcate **[Fase N]** sono state (o saranno)
+introdotte in quella fase — vengono aggiunte quando il modulo corrispondente viene
+costruito, per evitare schema morto non testato (regola 1: non fingere funzionalità).
+Stato aggiornato: `settings`, `comfy_instances`, `errors` (Fase 1), `nodes`,
+`node_schemas`, `models` (Fase 2) esistono e sono popolate da dati reali;
+`model_metadata` esiste nello schema ma non è ancora scritta (vedi nota nella sua
+sezione); le altre restano da costruire nelle fasi indicate.
 
 Convenzioni comuni: `id` (UUID stringa, PK), `created_at`/`updated_at` (UTC, ISO8601),
 foreign key con `ON DELETE` esplicito indicato tra parentesi.
@@ -84,9 +88,12 @@ Elementi di inventario (checkpoint, LoRA, VAE, ControlNet, ecc.).
 | last_seen | datetime | |
 | created_at | datetime | |
 
-## `model_metadata` — [Fase 2]
+## `model_metadata` — [Fase 2, schema presente ma non ancora scritto]
 Metadata grezzi estratti (header safetensors, ecc.) — separata da `models` per non
-appesantire le query di lista con blob JSON.
+appesantire le query di lista con blob JSON. La tabella esiste (migrazione
+`0002_inventory`) ma la sync Fase 2 v1 usa l'header letto solo in memoria per la family
+detection senza persisterlo qui: verrà scritta quando servirà davvero ispezionare
+l'header grezzo dalla UI (es. diagnostica di un modello specifico).
 
 | campo | tipo | note |
 |---|---|---|

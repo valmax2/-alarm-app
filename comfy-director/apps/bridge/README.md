@@ -36,6 +36,11 @@ Bridge, verificare manualmente contro un'istanza ComfyUI reale:
    la versione reale di ComfyUI.
 4. Spegnere ComfyUI, ripetere la chiamata → deve tornare `"status": "offline"` con un
    `reason` leggibile, senza che il Bridge stesso vada in errore.
+5. `curl -X POST http://127.0.0.1:8787/comfy/sync` con ComfyUI acceso → deve riportare
+   conteggi nodi/modelli che corrispondono esattamente a quelli reali. Impostando anche
+   `comfy_root_path` (via `PUT /settings`) verso la cartella ComfyUI/models reale, la
+   sync deve arricchire i modelli `.safetensors` con family detection da header
+   (`detection_source: "metadata"`) e funzionare anche a ComfyUI spento.
 
 ## Migrazioni
 
@@ -48,15 +53,20 @@ alembic upgrade head
 
 ```
 bridge/
-  main.py             # entry point FastAPI (vedi build_app/create_app)
-  config.py             # Settings (pydantic-settings, .env)
-  logging_config.py      # log JSON strutturato + redazione segreti
-  db.py                   # engine SQLAlchemy async
-  models.py                # ORM (Fase 1: settings, comfy_instances, errors)
-  schemas.py                 # contratti API (Pydantic)
-  deps.py                     # dependency injection FastAPI
-  comfy_client/                 # unico punto di contatto HTTP con ComfyUI
-  routers/                       # health, comfy, settings (adattatori HTTP sottili)
-migrations/                        # Alembic
-tests/                              # pytest (mock respx, nessuna rete reale)
+  main.py               # entry point FastAPI (vedi build_app/create_app)
+  config.py               # Settings (pydantic-settings, .env)
+  logging_config.py        # log JSON strutturato + redazione segreti
+  db.py                     # engine SQLAlchemy async
+  models.py                  # ORM (settings, comfy_instances, errors, nodes,
+                              # node_schemas, models, model_metadata)
+  schemas.py                   # contratti API (Pydantic)
+  deps.py                       # dependency injection FastAPI
+  comfy_instance.py               # gestione riga "default" di comfy_instances
+  comfy_client/                     # unico punto di contatto HTTP con ComfyUI
+  inventory/                         # Fase 2: sync (/object_info + filesystem),
+                                      # family detection, node_registry, safetensors
+  compatibility/                       # Fase 4 v1: resolve() + filter_models_by_family
+  routers/                               # health, comfy, settings, inventory
+migrations/                                # Alembic
+tests/                                      # pytest (mock respx, nessuna rete reale)
 ```
