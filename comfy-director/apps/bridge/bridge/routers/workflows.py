@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bridge.deps import get_db_session
+from bridge.inventory.family_detection import KNOWN_FAMILIES
 from bridge.inventory.sync import DEFAULT_INSTANCE_ID
 from bridge.models import NodeRecord, NodeSchemaRecord, WorkflowRecord, WorkflowVersionRecord
 from bridge.schemas import (
@@ -14,10 +15,13 @@ from bridge.schemas import (
     WorkflowCreateRequest,
     WorkflowDetailOut,
     WorkflowGraphIn,
+    WorkflowImportJsonRequest,
+    WorkflowImportJsonResponse,
     WorkflowSaveRequest,
     WorkflowSummaryOut,
 )
 from bridge.workflow import NodeSchemaInfo, WorkflowGraph, validate_structure
+from bridge.workflow_import import WorkflowJsonImportError, import_workflow_json
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
@@ -41,11 +45,20 @@ def _empty_graph_json() -> str:
     return WorkflowGraph().model_dump_json()
 
 
+@router.get("/known-families", response_model=list[str])
+async def get_known_families() -> list[str]:
+    """Famiglie note "di esempio" (spec §4/§14) per il selettore di creazione workflow.
+    Elenco esplicitamente non chiuso (bridge.inventory.family_detection) — l'utente può
+    comunque lasciare il campo vuoto o, in futuro, digitarne una libera."""
+    return list(KNOWN_FAMILIES)
+
+
 @router.post("", response_model=WorkflowSummaryOut)
 async def create_workflow(
     payload: WorkflowCreateRequest, session: AsyncSession = Depends(get_db_session)
 ) -> WorkflowSummaryOut:
-    workflow = WorkflowRecord(name=payload.name, source="user_created")
+    family = payload.family.strip() if payload.family and payload.family.strip() else None
+    workflow = WorkflowRecord(name=payload.name, family=family, source="user_created")
     session.add(workflow)
     await session.flush()
 
@@ -61,6 +74,42 @@ async def create_workflow(
     return WorkflowSummaryOut(
         id=workflow.id, name=workflow.name, intent=workflow.intent, family=workflow.family,
         source=workflow.source, node_count=0, edge_count=0, updated_at=workflow.updated_at,
+    )
+
+
+@router.post("/import-json", response_model=WorkflowImportJsonResponse)
+async def import_workflow_from_json(
+    payload: WorkflowImportJsonRequest, session: AsyncSession = Depends(get_db_session)
+) -> WorkflowImportJsonResponse:
+    """Importa un workflow ComfyUI da un file .json standalone (non da immagine — vedi
+    /workflow-import/from-image per quello), riconoscendo sia il formato API sia
+    quello UI (bridge.workflow_import.from_json). Crea subito un nuovo workflow
+    apribile in canvas, con il grafo reale ricostruito."""
+    schemas = await _known_node_schemas(session)
+    try:
+        result = import_workflow_json(payload.raw_json, schemas)
+    except WorkflowJsonImportError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    workflow = WorkflowRecord(name=payload.name, source="imported_json")
+    session.add(workflow)
+    await session.flush()
+
+    version = WorkflowVersionRecord(workflow_id=workflow.id, version_number=1, graph_json=result.graph.model_dump_json())
+    session.add(version)
+    await session.flush()
+
+    workflow.current_version_id = version.id
+    await session.flush()
+
+    return WorkflowImportJsonResponse(
+        workflow=WorkflowSummaryOut(
+            id=workflow.id, name=workflow.name, intent=workflow.intent, family=workflow.family,
+            source=workflow.source, node_count=result.node_count, edge_count=result.edge_count,
+            updated_at=workflow.updated_at,
+        ),
+        source=result.source,
+        unmapped_widget_node_types=result.unmapped_widget_node_types,
     )
 
 

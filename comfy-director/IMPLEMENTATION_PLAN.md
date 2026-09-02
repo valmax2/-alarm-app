@@ -158,12 +158,36 @@ famiglia produce esattamente `compatible`/`incompatible`/`unknown` coerenti con 
 fonte e la confidenza — mai un'esclusione senza motivo visibile. La verifica con un
 inventario reale dell'utente resta a suo carico.
 
-## FASE 5 — WORKFLOW BUILDER — ⬜
-Vedi `docs/workflow-intelligence-engine.md`. Deliverable: catalogo intenti → capability
-richieste, mapping capability → nodi reali disponibili, generazione candidate workflow,
-validazione, priorità assoluta al flusso **Coerenza Personaggio** con multiple strategie
-derivate da capability realmente installate (mai nomi di strategia inventati se la
-capability sottostante non esiste nell'installazione).
+## FASE 5 — WORKFLOW BUILDER — 🟨 (v1 minimo: scelta famiglia + import JSON)
+Vedi `docs/workflow-intelligence-engine.md` per la visione completa (non ancora
+consegnata): catalogo intenti → capability richieste, mapping capability → nodi reali
+disponibili, generazione candidate workflow, validazione, priorità assoluta al flusso
+**Coerenza Personaggio** con multiple strategie derivate da capability realmente
+installate (mai nomi di strategia inventati se la capability sottostante non esiste
+nell'installazione). Nessuna generazione automatica di nodi in questa consegna: sarebbe
+stato prematuro senza il motore intenti→capability sopra, e avrebbe rischiato di violare
+la regola "mai inventare compatibilità".
+
+Consegnato ora, su richiesta esplicita ("come creo un nuovo flusso scegliendo tra i vari
+WAN/Qwen/...", "come faccio a importare un flusso?"):
+- ✅ Scelta della famiglia (elenco noto da `bridge.inventory.family_detection`, via
+  `GET /workflows/known-families`) alla creazione di un workflow — per ora solo
+  un'etichetta salvata (`WorkflowRecord.family`), mostrata in lista e sul workflow;
+  dichiarato onestamente in UI che non genera ancora nodi né filtra automaticamente i
+  modelli (quel filtro nel pannello Modelli resta una scelta manuale separata, Fase 4).
+- ✅ Import di un workflow ComfyUI da file `.json` standalone (non da immagine — quello
+  è Fase 8): `bridge/workflow_import/from_json.py` riconosce sia il formato API
+  ("Save (API Format)": `{node_id: {class_type, inputs}}`, struttura non ambigua) sia
+  il formato UI ("Save": `{nodes, links}`, struttura ricostruita dai nomi di
+  porta dichiarati su ciascun nodo — non serve lo schema sincronizzato). I valori dei
+  widget del formato UI (array posizionale `widgets_values`) vengono assegnati SOLO
+  quando il tipo di nodo è nell'ultimo inventario sincronizzato (stesso meccanismo con
+  cui il frontend genera i widget in canvas); altrimenti il nodo entra comunque in
+  canvas — posizione e collegamenti reali — con i parametri vuoti e il tipo elencato
+  onestamente in `unmapped_widget_node_types` (mai un valore inventato). Verificato
+  end-to-end con Bridge reale + ComfyUI simulato: import di un file con 2 nodi e 1
+  collegamento → canvas con nodi/porte/widget corretti → confermato con una lettura
+  API indipendente dalla UI.
 
 ## FASE 6 — GENERAZIONE — ⬜
 Compilazione modello interno → payload API ComfyUI (`POST /prompt`), tracking

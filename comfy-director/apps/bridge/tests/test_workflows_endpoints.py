@@ -120,3 +120,26 @@ async def test_node_schema_endpoint(client: AsyncClient) -> None:
 async def test_node_schema_endpoint_unknown_class_is_404(client: AsyncClient) -> None:
     response = await client.get("/inventory/nodes/DoesNotExist/schema")
     assert response.status_code == 404
+
+
+async def test_known_families_endpoint_returns_non_empty_list(client: AsyncClient) -> None:
+    response = await client.get("/workflows/known-families")
+    assert response.status_code == 200
+    families = response.json()
+    assert "sdxl" in families and "flux" in families
+
+
+async def test_create_workflow_with_family_persists_and_lists_it(client: AsyncClient) -> None:
+    created = await client.post("/workflows", json={"name": "Flusso WAN", "family": "wan"})
+    assert created.status_code == 200
+    assert created.json()["family"] == "wan"
+
+    listed = await client.get("/workflows")
+    matching = next(w for w in listed.json() if w["id"] == created.json()["id"])
+    assert matching["family"] == "wan"
+
+
+async def test_create_workflow_with_blank_family_is_treated_as_unset(client: AsyncClient) -> None:
+    created = await client.post("/workflows", json={"name": "Senza famiglia", "family": "   "})
+    assert created.status_code == 200
+    assert created.json()["family"] is None

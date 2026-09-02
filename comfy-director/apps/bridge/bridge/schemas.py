@@ -200,8 +200,26 @@ class WorkflowDetailOut(BaseModel):
 
 class WorkflowCreateRequest(BaseModel):
     name: str
+    # Famiglia dichiarata dall'utente alla creazione (spec: "creo un nuovo flusso
+    # scegliendo tra i vari WAN/Qwen/..."). Stringa libera perché KNOWN_FAMILIES
+    # (bridge.inventory.family_detection) è esplicitamente un elenco non chiuso — la UI
+    # propone quelle note più "altro", ma qui non forziamo un enum rigido.
+    family: str | None = None
 
 
 class WorkflowSaveRequest(BaseModel):
     graph: WorkflowGraphIn
     note: str | None = None
+
+
+class WorkflowImportJsonRequest(BaseModel):
+    name: str
+    raw_json: str  # contenuto testuale del file .json così com'è, non ancora parsato
+
+
+class WorkflowImportJsonResponse(BaseModel):
+    workflow: WorkflowSummaryOut
+    source: Literal["prompt", "workflow"]
+    # Tipi di nodo per cui non è stato possibile assegnare i valori widget (schema non
+    # nell'ultimo inventario sincronizzato) — dichiarato in UI, mai nascosto.
+    unmapped_widget_node_types: list[str]

@@ -175,6 +175,12 @@ export interface WorkflowDetailOut {
   updated_at: string;
 }
 
+export interface WorkflowImportJsonResponse {
+  workflow: WorkflowSummaryOut;
+  source: "prompt" | "workflow";
+  unmapped_widget_node_types: string[];
+}
+
 export type AIProviderKind = "anthropic" | "openai" | "local";
 
 export interface AIProviderOut {
@@ -303,8 +309,17 @@ export const bridgeClient = {
     request<NodeSchemaOut>(`/inventory/nodes/${encodeURIComponent(classType)}/schema`),
 
   listWorkflows: () => request<WorkflowSummaryOut[]>("/workflows"),
-  createWorkflow: (name: string) =>
-    request<WorkflowSummaryOut>("/workflows", { method: "POST", body: JSON.stringify({ name }) }),
+  getKnownFamilies: () => request<string[]>("/workflows/known-families"),
+  createWorkflow: (name: string, family?: string | null) =>
+    request<WorkflowSummaryOut>("/workflows", {
+      method: "POST",
+      body: JSON.stringify({ name, family: family || null }),
+    }),
+  importWorkflowJson: (name: string, rawJson: string) =>
+    request<WorkflowImportJsonResponse>("/workflows/import-json", {
+      method: "POST",
+      body: JSON.stringify({ name, raw_json: rawJson }),
+    }),
   getWorkflow: (id: string) => request<WorkflowDetailOut>(`/workflows/${encodeURIComponent(id)}`),
   saveWorkflow: (id: string, graph: WorkflowGraphData, note?: string) =>
     request<WorkflowDetailOut>(`/workflows/${encodeURIComponent(id)}`, {

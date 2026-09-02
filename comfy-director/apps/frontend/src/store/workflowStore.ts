@@ -82,7 +82,8 @@ interface WorkflowState {
   past: Snapshot[];
   future: Snapshot[];
 
-  newWorkflow: (name: string) => Promise<void>;
+  newWorkflow: (name: string, family?: string | null) => Promise<void>;
+  importWorkflowJson: (name: string, rawJson: string) => Promise<{ source: "prompt" | "workflow"; unmappedWidgetNodeTypes: string[] } | null>;
   openWorkflow: (id: string) => Promise<void>;
   closeWorkflow: () => void;
   save: () => Promise<void>;
@@ -119,13 +120,25 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   past: [],
   future: [],
 
-  newWorkflow: async (name: string) => {
+  newWorkflow: async (name: string, family?: string | null) => {
     set({ loading: true, error: null });
     try {
-      const summary = await bridgeClient.createWorkflow(name);
+      const summary = await bridgeClient.createWorkflow(name, family);
       await get().openWorkflow(summary.id);
     } catch (err) {
       set({ loading: false, error: err instanceof Error ? err.message : String(err) });
+    }
+  },
+
+  importWorkflowJson: async (name: string, rawJson: string) => {
+    set({ loading: true, error: null });
+    try {
+      const result = await bridgeClient.importWorkflowJson(name, rawJson);
+      await get().openWorkflow(result.workflow.id);
+      return { source: result.source, unmappedWidgetNodeTypes: result.unmapped_widget_node_types };
+    } catch (err) {
+      set({ loading: false, error: err instanceof Error ? err.message : String(err) });
+      return null;
     }
   },
 

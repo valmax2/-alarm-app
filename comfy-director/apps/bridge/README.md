@@ -82,7 +82,8 @@ bridge/
   compatibility/                       # Fase 4 v1: resolve() + filter_models_by_family
   workflow/                             # Fase 3: modello grafo + validate_structure()
   media/                                 # Fase 8: parser chunk PNG (tEXt/zTXt/iTXt)
-  workflow_import/                        # Fase 8: workflow da immagine
+  workflow_import/                        # Fase 8: workflow da immagine; Fase 5:
+                                           # workflow da file .json standalone
   ai_providers/                            # Fase 9: CRUD provider, cifratura, vision
   routers/                                  # health, comfy, settings, inventory,
                                              # workflows, workflow_import, ai_providers,

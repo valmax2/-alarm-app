@@ -1,5 +1,38 @@
 # CHANGELOG — Comfy Director
 
+## [Non rilasciato] — Fase 5 v1: scelta famiglia + import workflow JSON (2026-09-02)
+
+Richiesto esplicitamente dall'utente ("come creo un nuovo flusso scegliendo tra i vari
+WAN/Qwen/...", "come faccio a importare un flusso?"), portato avanti ora che la canvas
+(Fase 3) rende questi due flussi realmente utilizzabili.
+
+### Scelta famiglia alla creazione
+- `GET /workflows/known-families`: espone `bridge.inventory.family_detection.KNOWN_FAMILIES`
+  (mai duplicato a mano nel frontend).
+- `POST /workflows` accetta ora `family` (opzionale, stringa vuota/blank trattata come
+  non impostata) e lo salva su `WorkflowRecord.family` (campo già esistente dal modello
+  Fase 3).
+- Frontend: dropdown famiglia nel form di creazione in `WorkflowsPanel.tsx`, mostrata
+  nella lista workflow. Dichiarato onestamente: per ora è solo un'etichetta, non genera
+  ancora nodi né collega il filtro modelli per famiglia (resta manuale, Fase 4).
+
+### Import workflow da file .json standalone
+- `bridge/workflow_import/from_json.py`: ricostruisce un `WorkflowGraph` reale (non un
+  riassunto di sola lettura) sia dal formato API ComfyUI ("Save (API Format)") sia dal
+  formato UI ("Save"). Struttura del grafo ricostruita dai nomi di porta che ComfyUI
+  stesso incorpora nel file — non richiede lo schema sincronizzato. I valori widget del
+  formato UI (posizionali) vengono mappati solo quando il tipo di nodo è nell'ultimo
+  inventario sincronizzato; altrimenti dichiarati onestamente in
+  `unmapped_widget_node_types`, mai un valore inventato.
+- `POST /workflows/import-json`: crea un nuovo workflow subito apribile in canvas.
+- Frontend: input file `.json` in `WorkflowsPanel.tsx`, apre il workflow importato in
+  automatico e mostra un avviso se dei widget non sono stati mappati.
+- Test: +9 backend (funzioni pure + endpoint), +1 frontend (import end-to-end nel
+  componente) — 129 backend / 27 frontend totali, tutti verdi. Verificato anche
+  manualmente con Bridge reale + ComfyUI simulato: import di un file con 2 nodi e 1
+  collegamento, valori widget e connessione ricostruiti correttamente, confermato con
+  una lettura API indipendente dalla UI.
+
 ## [Non rilasciato] — Fase 3: Canvas reale (2026-09-02)
 
 Richiesto esplicitamente dall'utente: "Canvas (Fase 3) prima di tutto", come
