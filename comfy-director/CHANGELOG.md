@@ -1,5 +1,42 @@
 # CHANGELOG — Comfy Director
 
+## [Non rilasciato] — Fase 9: completato il Prompt Engine (2026-09-02)
+
+Completa la parte di Fase 9 rimasta dopo "Prompt da Immagine": traduzione IT→EN reale
+per un prompt scritto a mano dall'utente.
+
+### Backend
+- `bridge/ai_providers/chat.py` refattorizzato: trasporto HTTP condiviso
+  (`_send_with_system_prompt`) tra la chat (Fase 10) e la nuova
+  `translate_to_english()` — stesso codice verso Anthropic/OpenAI, solo il system
+  prompt cambia. Mai due implementazioni HTTP duplicate per lo stesso provider.
+- Tabella `prompts` (migrazione `0008`).
+- `routers/prompts.py`: `POST /prompts/translate` (traduzione reale, non persiste
+  nulla — è un'utility), `POST/GET/PUT/DELETE /prompts` (cronologia).
+
+### Frontend
+- Sezione "Prompt Engine" abilitata: campi IT/EN editabili, negative prompt, blocco
+  traduzione (`translation_locked`), cronologia con "Riusa"/"Elimina".
+- Corretto durante la verifica: i campi non erano avvolti in un `<form>`, quindi non
+  ricevevano lo stile flex-column condiviso dagli altri pannelli — risultato:
+  etichette e caselle di testo compresse/in linea invece che impilate verticalmente.
+  Trovato guardando lo screenshot della verifica dal vivo, non dai test (jsdom non
+  rende il layout CSS), corretto avvolgendo i campi in un `<form>`.
+
+### Test
+- Backend: +12 test (`test_translate.py`, `test_prompts_endpoints.py`) — 188 totali,
+  tutti verdi.
+- Frontend: +3 test (`PromptEnginePanel.test.tsx`) — 42 totali, tutti verdi.
+- Verificato con una chiamata REALE (non mockata) verso `api.anthropic.com` con una
+  chiave non valida — stesso esito onesto delle altre integrazioni AI (errore reale
+  propagato). Verificato anche il salvataggio manuale IT/EN/negative in cronologia,
+  confermato via lettura diretta di `GET /prompts` indipendente dalla UI.
+
+### Dichiarato esplicitamente come non ancora implementato (mai finto)
+- Nessun preset di prompt con categorie/tag.
+- Nessun collegamento a un workflow/generazione specifico (`generation_id` resta
+  sempre `null` — dipende dal Workflow Builder completo, Fase 5).
+
 ## [Non rilasciato] — Fase 7 v1: libreria Personaggi (2026-09-02)
 
 Consegnata come libreria dati + immagini reali — nessun collegamento ancora al

@@ -74,6 +74,12 @@ Bridge, verificare manualmente contro un'istanza ComfyUI reale:
     quelli caricati, verificabile leggendo il file), e `GET /characters/{id}` deve
     riportare `image_count: 1`. Eliminare il personaggio → la sua intera cartella
     deve sparire dal disco, non solo la riga a DB. Già verificato in sviluppo.
+11. Aprire "Prompt Engine", scrivere un prompt in italiano, tradurlo → deve arrivare
+    una traduzione reale (non un placeholder). Con una chiave non valida, l'errore
+    reale del provider deve comparire in UI. Salvare in cronologia (con negative
+    prompt e blocco traduzione) → `GET /prompts` deve riportare esattamente gli
+    stessi valori, indipendentemente dalla UI. Già verificato in sviluppo con una
+    chiamata reale (non mockata) verso `api.anthropic.com`.
 
 ## Migrazioni
 
@@ -93,7 +99,7 @@ bridge/
   models.py                  # ORM (settings, comfy_instances, errors, nodes,
                               # node_schemas, models, model_metadata, ai_providers,
                               # workflows, workflow_versions, generations, chat_messages,
-                              # characters, character_images)
+                              # characters, character_images, prompts)
   schemas.py                   # contratti API (Pydantic)
   deps.py                       # dependency injection FastAPI
   comfy_instance.py               # gestione riga "default" di comfy_instances
@@ -108,13 +114,15 @@ bridge/
   media/                                 # Fase 8: parser chunk PNG (tEXt/zTXt/iTXt)
   workflow_import/                        # Fase 8: workflow da immagine; Fase 5:
                                            # workflow da file .json standalone
-  ai_providers/                            # Fase 9: CRUD provider, cifratura, vision;
-                                            # Fase 10: chat (send_chat_message)
+  ai_providers/                            # Fase 9: CRUD provider, cifratura, vision,
+                                            # translate_to_english; Fase 10: chat
+                                            # (send_chat_message — stesso trasporto
+                                            # HTTP condiviso con la traduzione)
   characters/                               # Fase 7: storage filesystem immagini
   routers/                                  # health, comfy, settings, inventory,
                                              # workflows, workflow_import, ai_providers,
-                                             # prompt_from_image, generations, chat,
-                                             # characters
+                                             # prompt_from_image, prompts, generations,
+                                             # chat, characters
 migrations/                                  # Alembic
 tests/                                        # pytest (mock respx, nessuna rete reale
                                                # verso ComfyUI; alcune verifiche manuali

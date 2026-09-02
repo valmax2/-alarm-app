@@ -287,7 +287,7 @@ corretto durante lo sviluppo dei test.
 Non ancora consegnato in questa fase: import di workflow JSON standalone (non
 incorporato in un'immagine), lettura metadata WebP (solo PNG per ora).
 
-## FASE 9 — PROMPT ENGINE — 🟨 (Prompt da Immagine consegnato, portato avanti su richiesta esplicita)
+## FASE 9 — PROMPT ENGINE — 🟨 (Prompt da Immagine + traduzione IT→EN consegnati)
 Consegnato: **Prompt da Immagine** — tabella `ai_providers` cifrata a riposo (Fernet,
 chiave locale mai committata — `bridge/ai_providers/crypto.py`), CRUD provider
 (`POST/GET/DELETE /ai-providers`, la chiave non è mai restituita in chiaro né
@@ -302,10 +302,23 @@ frontend (gestione provider + upload/analisi). Modalità "locale" (VLM sul PC
 dell'utente) prevista nello schema ma dichiarata esplicitamente non implementata
 (errore onesto invece di un risultato finto).
 
-Non ancora consegnato in questa fase: traduzione IT→EN indipendente per il prompt
-scritto manualmente dall'utente (Prompt Engine "proprio", campi IT/EN editabili,
-cronologia, preset, blocco traduzione) — questa resta la parte di Fase 9 ancora da
-costruire, insieme al Workflow Builder (Fase 5) che la userà.
+Consegnato ora — **Prompt Engine "proprio"**: `bridge/ai_providers/chat.py` è stato
+refattorizzato per condividere il trasporto HTTP tra la chat (Fase 10) e
+`translate_to_english()` (system prompt diverso, stesso codice HTTP verso Anthropic/
+OpenAI — mai due implementazioni duplicate per lo stesso provider). Tabella `prompts`
+(migrazione `0008`), `POST /prompts/translate` (traduzione reale, non persiste nulla —
+è un'utility), `POST/GET/PUT/DELETE /prompts` (cronologia). Pannello frontend "Prompt
+Engine": campi IT/EN editabili, negative prompt, blocco traduzione
+(`translation_locked`, impedisce che una nuova traduzione sovrascriva un testo inglese
+già rifinito a mano), cronologia con "Riusa"/"Elimina". Verificato con una chiamata
+reale (non mockata) verso `api.anthropic.com` con una chiave non valida — stesso esito
+onesto delle altre integrazioni AI di questa app (errore reale propagato, mai un
+risultato finto).
+
+Non ancora consegnato: preset di prompt riutilizzabili con categorie/tag, e — più
+significativo — nessun collegamento a un workflow/generazione specifico
+(`prompts.generation_id` resta sempre `null`): questo dipende dal Workflow Builder
+completo (Fase 5, non ancora costruito), dichiarato esplicitamente.
 
 ## FASE 10 — AI ASSISTANT — 🟨 (v1: solo chat, nessun Tool Layer)
 - ✅ `bridge/ai_providers/chat.py`: chiamata REALE (non simulata) ad Anthropic

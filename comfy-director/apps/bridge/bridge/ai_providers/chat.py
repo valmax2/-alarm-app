@@ -1,11 +1,13 @@
-"""Chat testuale con l'Assistente AI (Fase 10 v1, spec §21).
+"""Testo generato da provider AI: chat con l'Assistente AI (Fase 10 v1, spec §21) e
+traduzione IT→EN per il Prompt Engine (Fase 9, `translate_to_english`) — stesso
+trasporto HTTP condiviso (`_send_with_system_prompt`), solo il system prompt cambia.
 
 Chiamate HTTP REALI verso i provider cloud configurati dall'utente (stessa astrazione
 `AIProvider`/cifratura della Fase 9, riusata qui come previsto da
 docs/module-boundaries.md: "possono condividere la stessa astrazione AIProvider sotto
 il cofano"). Nessun provider nostro nascosto, nessuna chiave hardcoded.
 
-Questa è SOLO conversazione testuale: l'AI Tool Layer completo (§21 — `add_node`,
+La chat è SOLO conversazione testuale: l'AI Tool Layer completo (§21 — `add_node`,
 `connect_nodes`, `set_node_parameter`, preview/applica/annulla su una proposta prima di
 mutare il workflow davvero) NON è implementato in questa consegna. Aggiungerlo ora,
 senza un meccanismo di preview/conferma reale, violerebbe la regola "mai modifiche non
@@ -88,15 +90,15 @@ async def _post_json(url: str, headers: dict, json_body: dict, timeout_seconds: 
         raise ChatProtocolError(f"Risposta non JSON da {url}") from exc
 
 
-async def _chat_with_anthropic(
-    api_key: str, history: list[ChatMessageIn], model: str, timeout_seconds: float,
+async def _send_with_anthropic(
+    api_key: str, system_prompt: str, history: list[ChatMessageIn], model: str, timeout_seconds: float,
 ) -> str:
     url = "https://api.anthropic.com/v1/messages"
     headers = {"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"}
     body = {
         "model": model,
         "max_tokens": 1024,
-        "system": _SYSTEM_PROMPT,
+        "system": system_prompt,
         "messages": [{"role": m.role, "content": m.text} for m in history],
     }
     data = await _post_json(url, headers, body, timeout_seconds)
@@ -110,15 +112,15 @@ async def _chat_with_anthropic(
     return reply
 
 
-async def _chat_with_openai(
-    api_key: str, history: list[ChatMessageIn], model: str, base_url: str | None, timeout_seconds: float,
+async def _send_with_openai(
+    api_key: str, system_prompt: str, history: list[ChatMessageIn], model: str, base_url: str | None, timeout_seconds: float,
 ) -> str:
     url = f"{(base_url or 'https://api.openai.com').rstrip('/')}/v1/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     body = {
         "model": model,
         "max_tokens": 1024,
-        "messages": [{"role": "system", "content": _SYSTEM_PROMPT}] + [
+        "messages": [{"role": "system", "content": system_prompt}] + [
             {"role": m.role, "content": m.text} for m in history
         ],
     }
@@ -133,6 +135,24 @@ async def _chat_with_openai(
     return text
 
 
+async def _send_with_system_prompt(
+    kind: str, api_key: str, system_prompt: str, history: list[ChatMessageIn],
+    base_url: str | None, model: str | None, timeout_seconds: float,
+) -> str:
+    """Punto d'ingresso condiviso da `send_chat_message` (Fase 10) e
+    `translate_to_english` (Fase 9): stesso trasporto HTTP verso i due provider, solo
+    il system prompt e la history cambiano in base allo scopo — mai due
+    implementazioni HTTP duplicate per lo stesso provider."""
+    if kind == "anthropic":
+        return await _send_with_anthropic(api_key, system_prompt, history, model or DEFAULT_MODELS["anthropic"], timeout_seconds)
+    if kind == "openai":
+        return await _send_with_openai(api_key, system_prompt, history, model or DEFAULT_MODELS["openai"], base_url, timeout_seconds)
+    raise UnsupportedProviderKindError(
+        f"Provider di tipo '{kind}' non supportato in questa fase (solo 'anthropic'/'openai'; "
+        "'local' non ancora implementato)"
+    )
+
+
 async def send_chat_message(
     kind: str, api_key: str, history: list[ChatMessageIn],
     base_url: str | None = None, model: str | None = None, timeout_seconds: float = 30.0,
@@ -140,11 +160,26 @@ async def send_chat_message(
     """`history` include già il nuovo messaggio dell'utente come ultimo elemento —
     restituisce SOLO il testo della risposta dell'assistente (la persistenza dei due
     messaggi è responsabilità del router, non di questo modulo di trasporto)."""
-    if kind == "anthropic":
-        return await _chat_with_anthropic(api_key, history, model or DEFAULT_MODELS["anthropic"], timeout_seconds)
-    if kind == "openai":
-        return await _chat_with_openai(api_key, history, model or DEFAULT_MODELS["openai"], base_url, timeout_seconds)
-    raise UnsupportedProviderKindError(
-        f"Provider di tipo '{kind}' non supportato per la chat in questa fase (solo 'anthropic'/'openai'; "
-        "'local' non ancora implementato)"
+    return await _send_with_system_prompt(kind, api_key, _SYSTEM_PROMPT, history, base_url, model, timeout_seconds)
+
+
+_TRANSLATION_SYSTEM_PROMPT = (
+    "Sei un traduttore professionista italiano→inglese specializzato in prompt per "
+    "generazione di immagini AI. Traduci il testo dell'utente in inglese, mantenendo "
+    "intatto ogni termine tecnico (nomi di modelli, stili, tag). Rispondi SOLO con il "
+    "testo tradotto, senza commenti, spiegazioni, virgolette o prefissi."
+)
+
+
+async def translate_to_english(
+    kind: str, api_key: str, text_it: str,
+    base_url: str | None = None, model: str | None = None, timeout_seconds: float = 30.0,
+) -> str:
+    """Traduzione reale IT→EN (Fase 9, "Prompt Engine") — stesso trasporto di
+    `send_chat_message`, system prompt dedicato alla traduzione invece che alla
+    conversazione con l'Assistente AI."""
+    reply = await _send_with_system_prompt(
+        kind, api_key, _TRANSLATION_SYSTEM_PROMPT, [ChatMessageIn(role="user", text=text_it)],
+        base_url, model, timeout_seconds,
     )
+    return reply.strip()

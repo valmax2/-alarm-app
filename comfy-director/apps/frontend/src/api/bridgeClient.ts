@@ -242,6 +242,16 @@ export interface ChatMessageOut {
   created_at: string;
 }
 
+export interface PromptOut {
+  id: string;
+  generation_id: string | null;
+  text_it: string | null;
+  text_en: string;
+  negative_text_en: string | null;
+  translation_locked: boolean;
+  created_at: string;
+}
+
 export interface CharacterImageOut {
   id: string;
   character_id: string;
@@ -455,4 +465,18 @@ export const bridgeClient = {
     }),
   characterImageUrl: (characterId: string, imageId: string) =>
     `${BRIDGE_BASE_URL}/characters/${encodeURIComponent(characterId)}/images/${encodeURIComponent(imageId)}/file`,
+
+  translatePrompt: (textIt: string, providerId: string) =>
+    request<{ text_en: string }>("/prompts/translate", {
+      method: "POST",
+      body: JSON.stringify({ text_it: textIt, provider_id: providerId }),
+    }),
+  listPrompts: () => request<PromptOut[]>("/prompts"),
+  createPrompt: (input: { text_it?: string | null; text_en: string; negative_text_en?: string | null; translation_locked?: boolean }) =>
+    request<PromptOut>("/prompts", { method: "POST", body: JSON.stringify(input) }),
+  updatePrompt: (
+    id: string,
+    input: Partial<{ text_it: string | null; text_en: string; negative_text_en: string | null; translation_locked: boolean }>,
+  ) => request<PromptOut>(`/prompts/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(input) }),
+  deletePrompt: (id: string) => request<void>(`/prompts/${encodeURIComponent(id)}`, { method: "DELETE" }),
 };

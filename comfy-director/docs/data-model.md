@@ -183,16 +183,16 @@ Regole versionate + osservazioni. Vedi `docs/compatibility-engine.md` per semant
 | error_message | text, nullable | |
 | created_at / started_at / finished_at | datetime, nullable (tranne created_at) | |
 
-## `prompts` — [Fase 9]
+## `prompts` — [Fase 9, consegnata v1: cronologia autonoma, nessun collegamento a una generazione]
 | campo | tipo | note |
 |---|---|---|
 | id | str, PK | |
-| generation_id | FK → generations.id, nullable | |
+| generation_id | FK → generations.id (SET NULL), nullable | resta SEMPRE `null` in questa consegna — nessun collegamento a una generazione/workflow specifico esiste ancora (dipende dal Workflow Builder completo, Fase 5); la colonna esiste già per quando arriverà |
 | text_it | text, nullable | |
 | text_en | text | |
 | negative_text_en | text, nullable | |
-| translation_locked | bool | se true, `text_en` non viene sovrascritto da nuove traduzioni automatiche |
-| structured_json | text (JSON), nullable | campi strutturati (§9: soggetto, capelli, volto, ...) quando prodotti da Prompt-da-Immagine |
+| translation_locked | bool | se true, `text_en` non viene sovrascritto da una nuova traduzione (applicato lato frontend: la UI non richiama la traduzione se il flag è attivo) |
+| structured_json | text (JSON), nullable | previsto per collegare in futuro l'output di "Prompt da Immagine" (§9) a questa cronologia — non ancora popolato: quel flusso restituisce lo `StructuredPromptOut` direttamente alla UI senza persisterlo qui, dichiarato esplicitamente come miglioramento futuro |
 | created_at | datetime | |
 
 ## `chat_messages` — [Fase 10, consegnata v1: solo chat, nessun Tool Layer]

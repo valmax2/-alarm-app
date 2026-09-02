@@ -278,3 +278,27 @@ class CharacterImageRecord(Base):
     width: Mapped[int | None] = mapped_column(Integer, nullable=True)
     height: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class PromptRecord(Base):
+    """Prompt Engine (docs/data-model.md #prompts, Fase 9): un prompt scritto/tradotto
+    dall'utente, indipendente da "Prompt da Immagine" (quello produce uno
+    `StructuredPromptOut` restituito direttamente alla UI, non ancora persistito qui —
+    collegarlo resta un miglioramento futuro, non fatto ora per non forzare uno schema
+    che non è ancora stato richiesto).
+
+    `generation_id` resta SEMPRE null in questa consegna: nessun collegamento a una
+    generazione/workflow specifico ancora esiste (dipende dal Workflow Builder
+    completo, Fase 5) — la colonna esiste già per quando arriverà, dichiarato
+    esplicitamente, mai un valore finto."""
+
+    __tablename__ = "prompts"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_new_id)
+    generation_id: Mapped[str | None] = mapped_column(String(32), ForeignKey("generations.id", ondelete="SET NULL"), nullable=True)
+    text_it: Mapped[str | None] = mapped_column(Text, nullable=True)
+    text_en: Mapped[str] = mapped_column(Text)
+    negative_text_en: Mapped[str | None] = mapped_column(Text, nullable=True)
+    translation_locked: Mapped[bool] = mapped_column(Boolean, default=False)
+    structured_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)

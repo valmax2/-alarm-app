@@ -213,6 +213,39 @@ class CharacterDetailOut(CharacterSummaryOut):
     images: list[CharacterImageOut]
 
 
+class TranslateRequest(BaseModel):
+    text_it: str
+    provider_id: str
+
+
+class TranslateResponse(BaseModel):
+    text_en: str
+
+
+class PromptOut(BaseModel):
+    id: str
+    generation_id: str | None
+    text_it: str | None
+    text_en: str
+    negative_text_en: str | None
+    translation_locked: bool
+    created_at: datetime
+
+
+class PromptCreateRequest(BaseModel):
+    text_it: str | None = None
+    text_en: str
+    negative_text_en: str | None = None
+    translation_locked: bool = False
+
+
+class PromptUpdateRequest(BaseModel):
+    text_it: str | None = None
+    text_en: str | None = None
+    negative_text_en: str | None = None
+    translation_locked: bool | None = None
+
+
 class NodeSchemaOut(BaseModel):
     class_type: str
     display_name: str

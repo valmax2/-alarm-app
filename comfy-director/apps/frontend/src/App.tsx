@@ -8,6 +8,7 @@ import { ChatPanel } from "./components/ChatPanel";
 import { GenerationStatusBar } from "./components/GenerationStatusBar";
 import { ModelsPanel } from "./components/ModelsPanel";
 import { NodesPanel } from "./components/NodesPanel";
+import { PromptEnginePanel } from "./components/PromptEnginePanel";
 import { PromptFromImagePanel } from "./components/PromptFromImagePanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { WorkflowFromImagePanel } from "./components/WorkflowFromImagePanel";
@@ -35,6 +36,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "workflows", label: "Workflow", availableFromPhase: null },
   { id: "workflow-from-image", label: "Workflow da Immagine", availableFromPhase: null },
   { id: "prompt-from-image", label: "Prompt da Immagine", availableFromPhase: null },
+  { id: "prompt-engine", label: "Prompt Engine", availableFromPhase: null },
   { id: "models", label: "Modelli", availableFromPhase: null },
   { id: "nodes", label: "Nodi", availableFromPhase: null },
   { id: "bridge", label: "Bridge ComfyUI", availableFromPhase: null },
@@ -42,7 +44,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 const SECTION_IDS = [
-  "bridge", "models", "nodes", "workflow-from-image", "prompt-from-image", "workflows", "ai-assistant", "characters",
+  "bridge", "models", "nodes", "workflow-from-image", "prompt-from-image", "prompt-engine", "workflows", "ai-assistant", "characters",
 ];
 
 export default function App() {
@@ -122,6 +124,7 @@ export default function App() {
                 {activePanel === "nodes" && <NodesPanel />}
                 {activePanel === "workflow-from-image" && <WorkflowFromImagePanel />}
                 {activePanel === "prompt-from-image" && <PromptFromImagePanel />}
+                {activePanel === "prompt-engine" && <PromptEnginePanel />}
                 {activePanel === "workflows" && <WorkflowsPanel />}
                 {activePanel === "ai-assistant" && <ChatPanel />}
                 {activePanel === "characters" && <CharactersPanel />}

@@ -6,6 +6,7 @@ from bridge.ai_providers.chat import (
     ChatTimeout,
     ChatUnreachable,
     send_chat_message,
+    translate_to_english,
 )
 from bridge.ai_providers.chat import (
     UnsupportedProviderKindError as UnsupportedChatProviderKindError,
@@ -48,4 +49,5 @@ __all__ = [
     "encrypt_secret",
     "load_or_create_master_key",
     "send_chat_message",
+    "translate_to_english",
 ]
