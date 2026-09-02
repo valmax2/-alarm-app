@@ -1,5 +1,52 @@
 # CHANGELOG — Comfy Director
 
+## [Non rilasciato] — Fase 11 v1: Diagnostica reale (2026-09-02)
+
+Prima fetta della Fase 11 (Hardening): cattura persistente delle eccezioni non
+gestite, dichiarata esplicitamente dal primo giorno nella spec (§25/§34) ma mai
+davvero implementata finora.
+
+### Bug sistemico trovato e corretto
+- La tabella `errors` (`ErrorLogRecord`) esisteva dalla migrazione `0001` ma nessun
+  path di codice l'aveva mai scritta (verificato con `grep -rln "ErrorLogRecord"`:
+  solo `models.py` la referenziava). Qualsiasi eccezione non gestita in un router
+  finiva quindi in un 500 anonimo, senza traccia recuperabile — esattamente il
+  contrario della regola "diagnostica dal primo giorno".
+
+### Backend
+- `bridge/diagnostics.py`: `record_error()` (scrive un `ErrorLogRecord`, con
+  messaggio e contesto redatti tramite lo stesso `redact()` dei log su file) e
+  `handle_unhandled_exception()`, agganciato come `@app.exception_handler(Exception)`
+  globale in `main.py`. Usa una sessione DB fresca (`app.state.session_factory`), mai
+  quella (possibilmente compromessa) della richiesta fallita. Il client riceve sempre
+  un messaggio generico ("Errore interno del Bridge. Vedi Diagnostica per i
+  dettagli."), mai un traceback grezzo.
+- `routers/diagnostics.py`: `GET /diagnostics/errors` (ultimi N, limite interno 200)
+  e `GET /diagnostics/report` (errori recenti + versione app + versione Python +
+  piattaforma).
+
+### Frontend
+- Sezione "Diagnostica" abilitata: lista errori reali, pulsante "Scarica report
+  diagnostico" (download reale via `Blob`/`URL.createObjectURL`).
+
+### Test
+- Backend: +4 test (`test_diagnostics.py`) — 192 totali, tutti verdi, incluso un test
+  che dimostra end-to-end che un'eccezione non gestita viene persistita, redatta, e
+  restituisce un 500 generico (richiede un `AsyncClient` dedicato con
+  `raise_app_exceptions=False`, dato che Starlette rilancia l'eccezione originale dopo
+  aver chiamato l'exception handler).
+- Frontend: +2 test (`DiagnosticsPanel.test.tsx`) — 44 totali, tutti verdi.
+- Verificato dal vivo con Playwright: stato vuoto della sezione Diagnostica
+  screenshottato, download reale del report intercettato e confrontato byte-per-byte
+  con la risposta API.
+
+### Dichiarato esplicitamente come non ancora implementato (mai finto)
+- Questa v1 cattura solo le eccezioni non gestite — non un log strutturato di ogni
+  richiesta, non alert/notifiche proattive, non un dashboard di metriche.
+- Il resto della Fase 11 resta da fare: backup/versioning completi, suite di test
+  estesa, ottimizzazioni performance (virtualizzazione liste, cache), valutazione/
+  implementazione packaging desktop (Tauri).
+
 ## [Non rilasciato] — Fase 9: completato il Prompt Engine (2026-09-02)
 
 Completa la parte di Fase 9 rimasta dopo "Prompt da Immagine": traduzione IT→EN reale

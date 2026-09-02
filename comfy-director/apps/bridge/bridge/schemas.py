@@ -246,6 +246,23 @@ class PromptUpdateRequest(BaseModel):
     translation_locked: bool | None = None
 
 
+class ErrorLogOut(BaseModel):
+    id: str
+    level: Literal["warning", "error", "critical"]
+    source: str
+    message: str
+    context: dict[str, Any] | None
+    created_at: datetime
+
+
+class DiagnosticsReportOut(BaseModel):
+    generated_at: str
+    app_version: str
+    python_version: str
+    platform: str
+    recent_errors: list[ErrorLogOut]
+
+
 class NodeSchemaOut(BaseModel):
     class_type: str
     display_name: str

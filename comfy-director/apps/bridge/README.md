@@ -80,6 +80,14 @@ Bridge, verificare manualmente contro un'istanza ComfyUI reale:
     prompt e blocco traduzione) → `GET /prompts` deve riportare esattamente gli
     stessi valori, indipendentemente dalla UI. Già verificato in sviluppo con una
     chiamata reale (non mockata) verso `api.anthropic.com`.
+12. Aprire "Diagnostica" → lista vuota su un'installazione pulita. Provocare
+    un'eccezione non gestita (es. un dependency override in test, o rompendo
+    temporaneamente una configurazione) → deve comparire in `GET /diagnostics/errors`
+    con messaggio/contesto redatti (nessuna chiave API in chiaro) e il client deve
+    ricevere un 500 generico, mai un traceback grezzo. "Scarica report diagnostico"
+    deve avviare un download reale del JSON del report. Già verificato in sviluppo
+    (stato vuoto dal vivo con Playwright + download intercettato; stato popolato
+    verificato end-to-end via test di integrazione ASGI).
 
 ## Migrazioni
 
@@ -119,10 +127,12 @@ bridge/
                                             # (send_chat_message — stesso trasporto
                                             # HTTP condiviso con la traduzione)
   characters/                               # Fase 7: storage filesystem immagini
+  diagnostics.py                            # Fase 11: cattura eccezioni non gestite
+                                             # (exception handler globale in main.py)
   routers/                                  # health, comfy, settings, inventory,
                                              # workflows, workflow_import, ai_providers,
                                              # prompt_from_image, prompts, generations,
-                                             # chat, characters
+                                             # chat, characters, diagnostics
 migrations/                                  # Alembic
 tests/                                        # pytest (mock respx, nessuna rete reale
                                                # verso ComfyUI; alcune verifiche manuali

@@ -346,10 +346,28 @@ completo (Fase 5, non ancora costruito), dichiarato esplicitamente.
   preview/conferma reale prima di mutare il workflow, avrebbe rischiato di violare
   proprio la regola che il Tool Layer è pensato per rispettare.
 
-## FASE 11 — HARDENING — ⬜
-Diagnostica avanzata con export report, backup/versioning completi, migrazioni Alembic
-consolidate, suite di test estesa, ottimizzazioni performance (virtualizzazione liste,
-cache), valutazione/implementazione packaging desktop (Tauri, vedi ADR §7).
+## FASE 11 — HARDENING — 🟨 (v1: diagnostica reale, il resto ancora da fare)
+- ✅ `bridge/diagnostics.py`: exception handler globale (`@app.exception_handler(Exception)`
+  in `main.py`) — nessuna eccezione non gestita spariva più in un 500 anonimo (bug
+  sistemico presente dal primo giorno: la tabella `errors`/`ErrorLogRecord` esisteva
+  dalla migrazione `0001` ma non veniva mai scritta da nessun path di codice, trovato
+  con un grep mirato). Ora ogni eccezione non gestita viene persistita (livello,
+  sorgente `METODO /path`, messaggio, traceback in `context`, redatti con lo stesso
+  `redact()` usato per i log — verificato con un test che una stringa "segreta" nel
+  messaggio d'eccezione non compare mai in chiaro nella riga salvata) usando una
+  sessione DB FRESCA (`app.state.session_factory`), mai quella della richiesta che ha
+  fallito. Il client riceve sempre un messaggio generico, mai un traceback grezzo.
+- ✅ `GET /diagnostics/errors` (ultimi N, limite interno 200), `GET /diagnostics/report`
+  (errori recenti + versione app + versione Python + piattaforma).
+- ✅ Sezione "Diagnostica" abilitata in UI: lista errori reali, pulsante "Scarica report
+  diagnostico" (download reale via `Blob`/`URL.createObjectURL`, verificato con un vero
+  download intercettato da Playwright).
+- 🟨 **Deferito esplicitamente, dichiarato** (mai finto): questa v1 cattura solo le
+  eccezioni non gestite — non un log strutturato di ogni richiesta, non alert/notifiche
+  proattive, non un dashboard di metriche. Il resto della Fase 11 (backup/versioning
+  completi, suite di test estesa, ottimizzazioni performance — virtualizzazione liste,
+  cache —, valutazione/implementazione packaging desktop Tauri, vedi ADR §7) resta da
+  fare.
 
 ---
 

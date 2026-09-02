@@ -242,6 +242,23 @@ export interface ChatMessageOut {
   created_at: string;
 }
 
+export interface ErrorLogOut {
+  id: string;
+  level: "warning" | "error" | "critical";
+  source: string;
+  message: string;
+  context: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface DiagnosticsReportOut {
+  generated_at: string;
+  app_version: string;
+  python_version: string;
+  platform: string;
+  recent_errors: ErrorLogOut[];
+}
+
 export interface PromptOut {
   id: string;
   generation_id: string | null;
@@ -479,4 +496,7 @@ export const bridgeClient = {
     input: Partial<{ text_it: string | null; text_en: string; negative_text_en: string | null; translation_locked: boolean }>,
   ) => request<PromptOut>(`/prompts/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(input) }),
   deletePrompt: (id: string) => request<void>(`/prompts/${encodeURIComponent(id)}`, { method: "DELETE" }),
+
+  listErrors: (limit = 50) => request<ErrorLogOut[]>(`/diagnostics/errors${buildQuery({ limit })}`),
+  getDiagnosticsReport: () => request<DiagnosticsReportOut>("/diagnostics/report"),
 };

@@ -209,8 +209,14 @@ consegnata prima del Tool Layer completo (§21).
 | error_message | text, nullable | popolato se la chiamata al provider è fallita (in quel caso non viene creata alcuna riga `assistant`, solo il messaggio `user` resta salvato) |
 | created_at | datetime | |
 
-## `errors` — [Fase 1, popolata progressivamente]
+## `errors` — [Fase 1: schema; Fase 11 v1: consegnata — finalmente scritta]
 Log applicativo strutturato persistito (oltre al file di log), per la Diagnostica (§25).
+Lo schema esisteva dalla migrazione `0001`, ma nessun path di codice la scriveva
+davvero fino alla Fase 11 (`bridge/diagnostics.py`, agganciata come exception
+handler globale in `main.py`): ogni eccezione non gestita in un router viene ora
+persistita qui (messaggio/contesto redatti con lo stesso `redact()` dei log su
+file), invece di sparire in un 500 anonimo. v1: solo eccezioni non gestite, non un
+log strutturato di ogni richiesta.
 
 | campo | tipo | note |
 |---|---|---|

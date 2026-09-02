@@ -5,6 +5,7 @@ import { NodePropertiesPanel } from "./components/canvas/NodePropertiesPanel";
 import { WorkflowCanvas } from "./components/canvas/WorkflowCanvas";
 import { CharactersPanel } from "./components/CharactersPanel";
 import { ChatPanel } from "./components/ChatPanel";
+import { DiagnosticsPanel } from "./components/DiagnosticsPanel";
 import { GenerationStatusBar } from "./components/GenerationStatusBar";
 import { ModelsPanel } from "./components/ModelsPanel";
 import { NodesPanel } from "./components/NodesPanel";
@@ -41,10 +42,11 @@ const NAV_ITEMS: NavItem[] = [
   { id: "nodes", label: "Nodi", availableFromPhase: null },
   { id: "bridge", label: "Bridge ComfyUI", availableFromPhase: null },
   { id: "ai-assistant", label: "Assistente AI", availableFromPhase: null },
+  { id: "diagnostics", label: "Diagnostica", availableFromPhase: null },
 ];
 
 const SECTION_IDS = [
-  "bridge", "models", "nodes", "workflow-from-image", "prompt-from-image", "prompt-engine", "workflows", "ai-assistant", "characters",
+  "bridge", "models", "nodes", "workflow-from-image", "prompt-from-image", "prompt-engine", "workflows", "ai-assistant", "characters", "diagnostics",
 ];
 
 export default function App() {
@@ -127,6 +129,7 @@ export default function App() {
                 {activePanel === "prompt-engine" && <PromptEnginePanel />}
                 {activePanel === "workflows" && <WorkflowsPanel />}
                 {activePanel === "ai-assistant" && <ChatPanel />}
+                {activePanel === "diagnostics" && <DiagnosticsPanel />}
                 {activePanel === "characters" && <CharactersPanel />}
                 {!SECTION_IDS.includes(activePanel) && <p>Seleziona una sezione dai pulsanti sopra.</p>}
               </>

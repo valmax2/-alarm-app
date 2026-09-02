@@ -23,12 +23,14 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from bridge import __version__
 from bridge.config import Settings, get_settings
 from bridge.db import make_engine, make_session_factory
+from bridge.diagnostics import handle_unhandled_exception
 from bridge.logging_config import configure_logging
 from bridge.routers import (
     ai_providers,
     characters,
     chat,
     comfy,
+    diagnostics,
     generations,
     health,
     inventory,
@@ -102,6 +104,12 @@ def build_app(settings: Settings, engine: AsyncEngine, session_factory: async_se
         allow_headers=["*"],
     )
 
+    # Diagnostica dal primo giorno (spec §25/§34): qualunque eccezione non gestita da
+    # un router viene persistita in `errors` invece di sparire in un 500 anonimo.
+    @app.exception_handler(Exception)
+    async def _on_unhandled_exception(request, exc: Exception):
+        return await handle_unhandled_exception(request, exc, session_factory)
+
     app.include_router(health.router)
     app.include_router(comfy.router)
     app.include_router(settings_router.router)
@@ -114,6 +122,7 @@ def build_app(settings: Settings, engine: AsyncEngine, session_factory: async_se
     app.include_router(chat.router)
     app.include_router(characters.router)
     app.include_router(prompts.router)
+    app.include_router(diagnostics.router)
 
     # In produzione, se il frontend è stato buildato (apps/frontend/dist), il Bridge lo
     # serve direttamente così l'utente apre un solo URL/processo (coerente con "avviare
