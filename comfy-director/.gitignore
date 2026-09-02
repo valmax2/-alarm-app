@@ -1,0 +1,22 @@
+# Runtime data (DB, storage, log) — mai committato, generato al primo avvio
+data/*
+!data/.gitkeep
+
+# Python (apps/bridge)
+apps/bridge/.venv/
+apps/bridge/**/__pycache__/
+apps/bridge/**/*.pyc
+apps/bridge/.pytest_cache/
+apps/bridge/.ruff_cache/
+apps/bridge/*.egg-info/
+apps/bridge/.env
+
+# Node / frontend (apps/frontend)
+apps/frontend/node_modules/
+apps/frontend/dist/
+apps/frontend/.vite/
+apps/frontend/*.local
+
+# Editor
+.vscode/
+.idea/
