@@ -21,6 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from bridge import __version__
+from bridge.comfy_client import WSRelayManager
 from bridge.config import Settings, get_settings
 from bridge.db import make_engine, make_session_factory
 from bridge.diagnostics import handle_unhandled_exception
@@ -85,6 +86,10 @@ def build_app(settings: Settings, engine: AsyncEngine, session_factory: async_se
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info("Bridge avviato", extra={"context": {"version": __version__}})
         yield
+        # Fase 6 v2: chiude le relay WS verso ComfyUI (se mai aperte) prima
+        # dell'engine, così nessun task in background prova ancora a scrivere a DB
+        # dopo che il pool di connessioni è stato smontato.
+        await app.state.ws_relay_manager.stop_all()
         await engine.dispose()
         logger.info("Bridge arrestato")
 
@@ -95,6 +100,7 @@ def build_app(settings: Settings, engine: AsyncEngine, session_factory: async_se
     )
     app.state.settings = settings
     app.state.session_factory = session_factory
+    app.state.ws_relay_manager = WSRelayManager()
 
     app.add_middleware(
         CORSMiddleware,

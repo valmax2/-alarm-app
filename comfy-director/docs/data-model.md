@@ -167,7 +167,7 @@ Regole versionate + osservazioni. Vedi `docs/compatibility-engine.md` per semant
 | width / height | int, nullable | non ancora derivati automaticamente dall'immagine in v1 (nessuna dipendenza Pillow aggiunta per questo — dichiarato, mai un valore inventato) |
 | created_at | datetime | |
 
-## `generations` — [Fase 6, consegnata v1]
+## `generations` — [Fase 6, consegnata v2]
 | campo | tipo | note |
 |---|---|---|
 | id | str, PK | |
@@ -181,6 +181,7 @@ Regole versionate + osservazioni. Vedi `docs/compatibility-engine.md` per semant
 | node_errors_json | str (JSON), nullable | errori di validazione riportati DA COMFYUI in risposta a `/prompt` — mai reinterpretati |
 | duration_ms | int, nullable | |
 | error_message | text, nullable | |
+| current_node_id / progress_value / progress_max | str/int, nullable | [Fase 6 v2, migrazione `0009`] aggiornati dal relay WS live (`GET /generations/{id}/live`) se mai connesso — restano `null` finché nessun evento WS è arrivato, mai un valore inventato; fallback per un client che fa solo polling REST |
 | created_at / started_at / finished_at | datetime, nullable (tranne created_at) | |
 
 ## `prompts` — [Fase 9, consegnata v1: cronologia autonoma, nessun collegamento a una generazione]

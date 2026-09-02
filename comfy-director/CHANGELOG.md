@@ -1,5 +1,63 @@
 # CHANGELOG — Comfy Director
 
+## [Non rilasciato] — Fase 6 v2: relay WebSocket per il progresso generazione live (2026-09-02)
+
+Colma la limitazione dichiarata esplicitamente in Fase 6 v1 ("nessuna relay
+WebSocket, nessuna evidenziazione del nodo in esecuzione, nessuna percentuale di
+progresso"): il polling REST resta la fonte di verità per lo stato finale/output, ma
+ora un canale WebSocket push aggiorna nodo-in-esecuzione e percentuale in tempo
+reale.
+
+### Backend
+- `bridge/comfy_client/ws_events.py`: parsing puro dei messaggi `/ws` di ComfyUI
+  (`ComfyWSEvent`/`parse_comfy_ws_message`) — mai un'eccezione su un messaggio
+  inatteso, un tipo non riconosciuto diventa `"unknown"` invece di essere scartato.
+- `bridge/comfy_client/ws_relay.py`: `ComfyWSRelay`, una connessione WS persistente
+  per istanza ComfyUI (`/ws?clientId=...`) con riconnessione automatica e pub/sub per
+  `prompt_id`.
+- `bridge/comfy_client/ws_manager.py`: `WSRelayManager` — una relay per base_url,
+  riusata da tutte le generazioni sulla stessa istanza (mai una connessione per
+  generazione).
+- `GET /generations/{id}/live` (nuovo endpoint WebSocket, `routers/generations.py`):
+  inoltra al client SOLO il progresso live, persistendolo anche a DB
+  (`current_node_id`/`progress_value`/`progress_max`, migrazione `0009`) così un
+  client che fa solo polling REST vede comunque un valore recente. Invia
+  `final_pending` e si chiude quando ComfyUI segnala che l'esecuzione del prompt è
+  terminata — mai lo stato finale/output, sempre autorevoli solo via REST.
+
+### Frontend
+- `generationStore.ts` apre il canale WS in parallelo al polling REST (che resta
+  sempre attivo, invariato); se il WS non si connette o si interrompe, degradazione
+  automatica e silenziosa a v1.
+- `ComfyNode.tsx` evidenzia con un bordo verde pulsante il nodo che ComfyUI sta
+  eseguendo ORA (l'id nodo del payload compilato è lo stesso id del nodo sulla
+  canvas, nessuna mappatura necessaria).
+- `GenerationStatusBar` mostra nodo in esecuzione + percentuale reali quando il WS ha
+  aggiornato lo stato (mai un valore inventato in loro assenza).
+
+### Test
+- Backend: +27 test (`test_ws_events.py`, `test_ws_relay.py`,
+  `test_generation_live_ws.py`) — 219 totali, tutti verdi. L'endpoint WebSocket è
+  testato chiamando la funzione direttamente con un oggetto `WebSocket` fittizio
+  "duck-typed" invece che tramite `starlette.testclient.TestClient`, per evitare un
+  problema noto di quest'ultimo (portal/event-loop separato) con un engine SQLAlchemy
+  async + aiosqlite — documentato nel docstring del file di test.
+- Frontend: +5 test (`generationStore.test.ts`, `GenerationStatusBar.test.tsx`) con un
+  `WebSocket` globale fittizio — 49 totali, tutti verdi.
+- **Verificato dal vivo end-to-end, senza alcun mock**: un fake ComfyUI HTTP+WS reale
+  (processo separato), il Bridge reale connesso ad esso con una vera connessione
+  `websockets`, e un client WS reale verso `/generations/{id}/live` — sequenza di
+  eventi (`executing`→`progress`→`progress`→`executing` con nodo `null`→
+  `final_pending`) ricevuta correttamente, stato finale REST coerente. Poi verificato
+  di nuovo nel BROWSER (Playwright): nodo evidenziato sulla canvas e percentuale live
+  nella barra di stato durante l'esecuzione, completamento con miniatura dell'output.
+
+### Dichiarato esplicitamente come non ancora implementato (mai finto)
+- Nessuna live-preview delle immagini durante il sampling (i frame binari di preview
+  sullo stesso canale WS sono ignorati, non decodificati).
+- Multi-istanza ComfyUI supportata solo in teoria (una relay per base_url) — non
+  verificabile con più istanze reali in questo ambiente.
+
 ## [Non rilasciato] — Fase 11 v1: Diagnostica reale (2026-09-02)
 
 Prima fetta della Fase 11 (Hardening): cattura persistente delle eccezioni non

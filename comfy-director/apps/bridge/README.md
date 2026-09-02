@@ -61,6 +61,11 @@ Bridge, verificare manualmente contro un'istanza ComfyUI reale:
    `GET /queue`) e marcare la generazione "Interrotta". Già verificato in sviluppo con
    un ComfyUI simulato (l'ambiente non ne ha uno reale, vedi sopra) — inclusi
    `POST /prompt`, `GET /queue`, `GET /history/{id}`, `POST /interrupt`, `GET /view`.
+   Durante l'esecuzione, se ComfyUI espone `/ws?clientId=...` (Fase 6 v2), il nodo in
+   esecuzione deve evidenziarsi sulla canvas (bordo verde pulsante) e la barra di stato
+   deve mostrare una percentuale reale — già verificato dal vivo end-to-end con un fake
+   ComfyUI HTTP+WS reale (connessioni WebSocket reali in entrambe le direzioni, nessun
+   mock) e con Playwright nel browser.
 9. Con un provider AI configurato, aprire "Assistente AI" e scrivere un messaggio →
    deve arrivare una risposta reale (non un placeholder) e la cronologia deve
    sopravvivere a un refresh (`GET /chat/messages`). Con una chiave non valida,
@@ -111,9 +116,10 @@ bridge/
   schemas.py                   # contratti API (Pydantic)
   deps.py                       # dependency injection FastAPI
   comfy_instance.py               # gestione riga "default" di comfy_instances
-  comfy_client/                     # unico punto di contatto HTTP con ComfyUI
+  comfy_client/                     # unico punto di contatto HTTP/WS con ComfyUI
                                      # (Fase 6: + queue_prompt/get_queue/get_history/
-                                     # interrupt/get_view_bytes)
+                                     # interrupt/get_view_bytes; Fase 6 v2: ws_relay.py/
+                                     # ws_manager.py/ws_events.py — relay WS live)
   inventory/                         # Fase 2: sync (/object_info + filesystem),
                                       # family detection, node_registry, safetensors
   compatibility/                       # Fase 4 v1: resolve() + filter_models_by_family

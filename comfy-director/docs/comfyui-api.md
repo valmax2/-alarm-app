@@ -108,6 +108,15 @@ Il Bridge mantiene un proprio `client_id` stabile per sessione e traduce questi 
 nel formato eventi interno esposto su `/ws/events` (vedi ARCHITECTURE_DECISION.md §5),
 aggiungendo eventi propri (`bridge_status_changed`) che ComfyUI non emette.
 
+**Implementato in Fase 6 v2** (`bridge/comfy_client/ws_relay.py`/`ws_manager.py`/
+`ws_events.py`): una relay WS persistente per istanza ComfyUI, con `client_id` stabile
+per tutta la vita del processo Bridge, riusata da tutte le generazioni sulla stessa
+istanza. Solo `status`/`progress`/`executing`/`execution_error`/`execution_cached`
+sono tradotti (un tipo non riconosciuto diventa `"unknown"`, mai scartato o
+bloccante); non ancora implementato un endpoint generico `/ws/events` con eventi
+propri del Bridge — quello che esiste è `GET /generations/{id}/live`, specifico per
+il progresso di UNA generazione, non un canale eventi generico per tutta l'app.
+
 ## Tolleranza/robustezza richiesta al client
 
 1. **Timeout configurabile** (default breve, es. 5s per `/system_stats` usato per health

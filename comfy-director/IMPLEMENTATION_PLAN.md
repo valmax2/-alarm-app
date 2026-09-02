@@ -189,7 +189,7 @@ WAN/Qwen/...", "come faccio a importare un flusso?"):
   collegamento → canvas con nodi/porte/widget corretti → confermato con una lettura
   API indipendente dalla UI.
 
-## FASE 6 — GENERAZIONE — 🟨 (v1: polling, non WebSocket)
+## FASE 6 — GENERAZIONE — 🟨 (v2: polling + relay WS per il progresso live)
 - ✅ `bridge/workflow/compile.py`: `compile_to_comfy_payload(graph, node_schemas)` —
   converte il grafo interno nel payload API ComfyUI (`{node_id: {class_type, inputs}}`),
   risolvendo ogni arco nel `[source_id, output_index]` reale tramite lo schema
@@ -215,13 +215,29 @@ WAN/Qwen/...", "come faccio a importare un flusso?"):
 - ✅ Frontend: bottoni GENERA/ABORT reali in barra superiore (era disattivati, Fase 6),
   `generationStore.ts` con polling (1.5s) finché lo stato non è terminale,
   `GenerationStatusBar` nel footer con stato reale e miniature degli output completati.
-- 🟨 **Deferito esplicitamente, dichiarato** (mai finto): nessuna relay WebSocket —
-  lo stato si aggiorna solo quando qualcuno lo richiede (polling), non c'è
-  evidenziazione del nodo in esecuzione sulla canvas, non c'è una percentuale di
-  progresso (ComfyUI la espone solo via WS `progress`, non via `/history`/`/queue`).
-  Semplificazione scelta per consegnare la generazione reale senza l'infrastruttura di
-  un canale realtime persistente (task in background, riconnessione, multiplexing
-  verso più client browser) — vedi `bridge/comfy_client/client.py` per il dettaglio.
+- ✅ **Fase 6 v2 — relay WebSocket per il progresso live** (colma la limitazione v1
+  sopra): `bridge/comfy_client/ws_relay.py` (`ComfyWSRelay`, una connessione WS
+  persistente per istanza ComfyUI verso `/ws?clientId=...`, con riconnessione
+  automatica) + `ws_manager.py` (`WSRelayManager`, una relay per base_url, riusata da
+  tutte le generazioni sulla stessa istanza) + `ws_events.py` (parsing puro dei
+  messaggi `/ws`, mai un'eccezione su un messaggio inatteso). Nuovo endpoint
+  `GET /generations/{id}/live` (WebSocket): inoltra al client SOLO il progresso live
+  (nodo in esecuzione, percentuale), persistendolo anche a DB (`current_node_id`,
+  `progress_value`, `progress_max`, migrazione `0009`) — mai una sostituzione del
+  polling REST, che resta l'unica fonte per lo stato finale/output. Se il WS non si
+  connette (o il browser non lo apre), la UI degrada automaticamente a v1: mai un
+  valore di progresso inventato in sua assenza. Frontend: `generationStore.ts` apre il
+  canale in parallelo al polling; `ComfyNode.tsx` evidenzia con un bordo verde
+  pulsante il nodo che ComfyUI sta eseguendo ORA; `GenerationStatusBar` mostra nodo +
+  percentuale reali quando disponibili. Verificato dal vivo end-to-end con un fake
+  ComfyUI HTTP+WS reale (non mockato: connessioni WebSocket reali in entrambe le
+  direzioni) e uno screenshot Playwright del nodo evidenziato + barra di progresso.
+- 🟨 **Deferito esplicitamente, dichiarato** (mai finto): nessuna live-preview delle
+  immagini durante il sampling (i frame binari di preview che ComfyUI invia sullo
+  stesso canale WS sono ignorati, non decodificati). Multi-istanza ComfyUI supportata
+  solo in teoria (una relay per base_url) — non verificato con più istanze reali
+  contemporaneamente (nessuna istanza ComfyUI reale raggiungibile in questo ambiente,
+  stessa limitazione già dichiarata per `comfy_client/client.py`).
 
 **Bug reale trovato e corretto durante la verifica dal vivo** (non dai test originali,
 che non lo intercettavano — vedi `test_generations_endpoints.py`, test di regressione

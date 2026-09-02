@@ -216,6 +216,14 @@ class GenerationRecord(Base):
     node_errors_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # errori di validazione da ComfyUI
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Fase 6 v2 (spec §18): aggiornati dal relay WS live (routers/generations.py,
+    # endpoint /generations/{id}/live) — nullable perché finché nessun evento WS è
+    # arrivato (o la relay non si è mai connessa) restano `None`, mai un valore
+    # inventato. Sono anche la fonte per un fallback via REST (GET /generations/{id})
+    # se il client non riesce/non vuole aprire il WebSocket.
+    current_node_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    progress_value: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    progress_max: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

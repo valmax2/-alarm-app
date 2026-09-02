@@ -200,10 +200,22 @@ export interface GenerationOut {
   node_errors: Record<string, unknown> | null;
   duration_ms: number | null;
   error_message: string | null;
+  // Fase 6 v2: aggiornati dal relay WS live se mai connesso (vedi generationStore.ts) —
+  // `null` finché nessun evento è arrivato, mai un valore inventato.
+  current_node_id: string | null;
+  progress_value: number | null;
+  progress_max: number | null;
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
 }
+
+/** Messaggi ricevuti su `/generations/{id}/live` (Fase 6 v2, spec §18). */
+export type GenerationLiveMessage =
+  | { type: "error"; message: string }
+  | { type: "final"; status: GenerationStatus }
+  | { type: "final_pending" }
+  | { type: "status" | "progress" | "executing" | "execution_error" | "execution_cached" | "unknown"; node_id: string | null; progress_value: number | null; progress_max: number | null };
 
 export type AIProviderKind = "anthropic" | "openai" | "local";
 
@@ -422,6 +434,10 @@ export const bridgeClient = {
   abortGeneration: (id: string) => request<GenerationOut>(`/generations/${encodeURIComponent(id)}/abort`, { method: "POST" }),
   listGenerations: (workflowId: string) =>
     request<GenerationOut[]>(`/generations${buildQuery({ workflow_id: workflowId })}`),
+  // URL del canale WebSocket di progresso live (Fase 6 v2) — non passa da `request<T>`,
+  // aperto direttamente da generationStore.ts con `new WebSocket(...)`.
+  generationLiveUrl: (id: string) =>
+    `${BRIDGE_BASE_URL.replace(/^http/, "ws") || `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}`}/generations/${encodeURIComponent(id)}/live`,
   // Non passa da `request<T>` (JSON): è l'URL diretto per un <img src=...> — il browser
   // scarica i byte via il Bridge (proxy verso GET /view di ComfyUI, mai un contatto
   // diretto frontend→ComfyUI, vedi docs/module-boundaries.md).

@@ -1,16 +1,21 @@
 """Generazione reale attraverso ComfyUI (Fase 6, spec §18/§26).
 
-Nessuna relay WebSocket in questa consegna (dichiarato esplicitamente in
-`comfy_client/client.py` e in IMPLEMENTATION_PLAN.md): lo stato di una generazione è
-aggiornato "a richiesta" — ogni `GET /generations/{id}` interroga live `/queue` e
-`/history` su ComfyUI e persiste quello che trova, invece di un canale push. Il
-frontend fa polling mentre una generazione non è in stato terminale. Semplificazione
-dichiarata, non un finto progresso: se nessuno chiede lo stato, semplicemente non si
-aggiorna finché non richiesto — mai un numero/percentuale inventata nel frattempo.
+Fase 6 v1: lo stato di una generazione è aggiornato "a richiesta" — ogni
+`GET /generations/{id}` interroga live `/queue` e `/history` su ComfyUI e persiste
+quello che trova, invece di un canale push. Resta così: è la fonte di verità per lo
+stato finale/output, anche in Fase 6 v2.
+
+Fase 6 v2 aggiunge `/generations/{id}/live` (WebSocket): un canale push per il SOLO
+progresso live (nodo in esecuzione, percentuale di avanzamento), tramite la relay WS
+persistente verso ComfyUI (`comfy_client/ws_relay.py`) — mai un sostituto del polling
+REST, solo un aggiornamento più reattivo mentre l'utente ha la UI aperta. Se la relay
+non si connette (o il client non apre affatto il WebSocket), il polling REST resta
+comunque disponibile e corretto: mai un numero/percentuale inventata in sua assenza.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import mimetypes
@@ -18,7 +23,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -121,6 +126,8 @@ def _to_out(record: GenerationRecord) -> GenerationOut:
         outputs=[GenerationOutputOut(**o) for o in json.loads(record.output_paths_json)],
         node_errors=json.loads(record.node_errors_json) if record.node_errors_json else None,
         duration_ms=record.duration_ms, error_message=record.error_message,
+        current_node_id=record.current_node_id, progress_value=record.progress_value,
+        progress_max=record.progress_max,
         created_at=_aware_utc(record.created_at), started_at=_aware_utc(record.started_at),
         finished_at=_aware_utc(record.finished_at),
     )
@@ -294,6 +301,92 @@ async def abort_generation(
     generation.finished_at = datetime.now(UTC)
     await session.flush()
     return _to_out(generation)
+
+
+@router.websocket("/generations/{generation_id}/live")
+async def generation_live(websocket: WebSocket, generation_id: str) -> None:
+    """Canale push per il progresso live di una generazione (Fase 6 v2, spec §18).
+
+    Invia un messaggio JSON per ogni evento di progresso/nodo-in-esecuzione ricevuto
+    dalla relay WS di ComfyUI e riguardante QUESTO prompt, aggiornando anche la riga
+    a DB (così un client che si riconnette o interroga solo via REST vede comunque un
+    valore recente). Non è mai la fonte dello stato finale: quando ComfyUI segnala che
+    l'esecuzione di questo prompt è terminata, invia un solo messaggio `final_pending`
+    e si chiude — il client deve rifare `GET /generations/{id}` per lo stato/output
+    definitivi (storico ComfyUI, mai anticipati qui).
+    """
+    await websocket.accept()
+    session_factory = websocket.app.state.session_factory
+    relay_manager = websocket.app.state.ws_relay_manager
+
+    async with session_factory() as session:
+        generation = await session.get(GenerationRecord, generation_id)
+        if generation is None:
+            await websocket.send_json({"type": "error", "message": "Generazione non trovata"})
+            await websocket.close(code=4404)
+            return
+        if generation.status in ("completed", "error", "aborted"):
+            await websocket.send_json({"type": "final", "status": generation.status})
+            await websocket.close(code=1000)
+            return
+        instance = (
+            await session.get(ComfyInstanceRecord, generation.comfy_instance_id)
+            if generation.comfy_instance_id
+            else None
+        )
+        prompt_id = generation.comfy_prompt_id
+
+    if instance is None or prompt_id is None:
+        await websocket.send_json(
+            {"type": "error", "message": "Generazione senza istanza/prompt ComfyUI associato"}
+        )
+        await websocket.close(code=4404)
+        return
+
+    relay = relay_manager.get_relay(instance.base_url)
+    queue = relay.subscribe(prompt_id)
+    try:
+        while True:
+            queue_get = asyncio.ensure_future(queue.get())
+            client_recv = asyncio.ensure_future(websocket.receive())
+            done, pending = await asyncio.wait({queue_get, client_recv}, return_when=asyncio.FIRST_COMPLETED)
+            for task in pending:
+                task.cancel()
+
+            if client_recv in done:
+                message = client_recv.result()
+                if message.get("type") == "websocket.disconnect":
+                    break
+                continue  # canale server->client: qualunque testo del client viene ignorato
+
+            event = queue_get.result()
+            async with session_factory() as session:
+                generation = await session.get(GenerationRecord, generation_id)
+                if generation is not None:
+                    if event.node_id is not None or event.type == "executing":
+                        generation.current_node_id = event.node_id
+                    if event.progress_value is not None:
+                        generation.progress_value = event.progress_value
+                        generation.progress_max = event.progress_max
+                    await session.commit()
+
+            await websocket.send_json(
+                {
+                    "type": event.type,
+                    "node_id": event.node_id,
+                    "progress_value": event.progress_value,
+                    "progress_max": event.progress_max,
+                }
+            )
+            if event.type == "executing" and event.node_id is None:
+                # ComfyUI segnala che l'esecuzione di QUESTO prompt_id è terminata —
+                # lo stato/output definitivi restano da recuperare via REST.
+                await websocket.send_json({"type": "final_pending"})
+                break
+    except WebSocketDisconnect:
+        pass
+    finally:
+        relay.unsubscribe(prompt_id, queue)
 
 
 @router.get("/generations/{generation_id}/outputs/{index}/file")

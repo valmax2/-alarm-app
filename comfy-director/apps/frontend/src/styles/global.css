@@ -182,6 +182,20 @@ body {
   border: 1px solid var(--border);
 }
 
+.generation-status-bar__live-node {
+  color: var(--ok);
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+
+.generation-status-bar__live-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
 button {
   background: #2a2a30;
   color: var(--text);
@@ -441,6 +455,18 @@ input {
 .comfy-node--selected {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* Fase 6 v2: nodo che ComfyUI sta eseguendo ORA (relay WS live, generationStore.ts) */
+.comfy-node--executing {
+  border-color: var(--ok);
+  box-shadow: 0 0 0 2px var(--ok), 0 0 12px var(--ok);
+  animation: comfy-node-executing-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes comfy-node-executing-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--ok), 0 0 6px var(--ok); }
+  50% { box-shadow: 0 0 0 2px var(--ok), 0 0 16px var(--ok); }
 }
 
 .comfy-node__title {

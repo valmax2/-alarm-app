@@ -352,6 +352,12 @@ class GenerationOut(BaseModel):
     node_errors: dict[str, Any] | None
     duration_ms: int | None
     error_message: str | None
+    # Fase 6 v2: aggiornati dal relay WS live (endpoint /generations/{id}/live) se mai
+    # connesso — fallback per un client che fa solo polling REST, non un valore
+    # inventato in assenza di eventi WS (restano `None`).
+    current_node_id: str | None
+    progress_value: int | None
+    progress_max: int | None
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None

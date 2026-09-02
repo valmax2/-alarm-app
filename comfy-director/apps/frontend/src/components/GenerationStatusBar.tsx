@@ -10,9 +10,10 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 /** Barra di stato della generazione (Fase 6) — sostituisce il placeholder statico del
- * footer. Stato aggiornato per polling (nessuna relay WS in questa consegna, vedi
- * generationStore.ts): mai una percentuale di progresso finta, solo lo stato reale
- * dell'ultima risposta del Bridge. */
+ * footer. Stato di base aggiornato per polling REST (fonte di verità); se il relay WS
+ * live (Fase 6 v2, generationStore.ts) è connesso, mostra anche il nodo in esecuzione
+ * e una percentuale di avanzamento reali — mai inventati: entrambi restano assenti
+ * finché nessun evento WS è arrivato (degradazione automatica a v1). */
 export function GenerationStatusBar() {
   const generation = useGenerationStore((s) => s.current);
   const error = useGenerationStore((s) => s.error);
@@ -21,11 +22,24 @@ export function GenerationStatusBar() {
     return <span>Nessuna generazione avviata. Prompt / Log restano non ancora implementati (Fasi 9, 11).</span>;
   }
 
+  const hasLiveProgress = generation.progress_value !== null && generation.progress_max !== null && generation.progress_max > 0;
+
   return (
     <div className="generation-status-bar">
       <span className={`generation-status-bar__label generation-status-bar__label--${generation.status}`}>
         Generazione: {STATUS_LABELS[generation.status] ?? generation.status}
       </span>
+      {(generation.status === "running" || generation.status === "queued") && generation.current_node_id && (
+        <span className="generation-status-bar__live-node" title="Nodo in esecuzione (relay WS live)">
+          nodo {generation.current_node_id}
+        </span>
+      )}
+      {(generation.status === "running" || generation.status === "queued") && hasLiveProgress && (
+        <span className="generation-status-bar__live-progress">
+          <progress value={generation.progress_value ?? 0} max={generation.progress_max ?? 1} />
+          {generation.progress_value}/{generation.progress_max}
+        </span>
+      )}
       {generation.status === "error" && generation.error_message && (
         <span className="settings-panel__feedback--error">{generation.error_message}</span>
       )}
