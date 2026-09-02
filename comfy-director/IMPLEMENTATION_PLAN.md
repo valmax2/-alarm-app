@@ -314,7 +314,7 @@ corretto durante lo sviluppo dei test.
 Non ancora consegnato in questa fase: import di workflow JSON standalone (non
 incorporato in un'immagine), lettura metadata WebP (solo PNG per ora).
 
-## FASE 9 — PROMPT ENGINE — 🟨 (Prompt da Immagine + traduzione IT→EN consegnati)
+## FASE 9 — PROMPT ENGINE — 🟨 (+ preset riutilizzabili con categorie/tag)
 Consegnato: **Prompt da Immagine** — tabella `ai_providers` cifrata a riposo (Fernet,
 chiave locale mai committata — `bridge/ai_providers/crypto.py`), CRUD provider
 (`POST/GET/DELETE /ai-providers`, la chiave non è mai restituita in chiaro né
@@ -342,10 +342,20 @@ reale (non mockata) verso `api.anthropic.com` con una chiave non valida — stes
 onesto delle altre integrazioni AI di questa app (errore reale propagato, mai un
 risultato finto).
 
-Non ancora consegnato: preset di prompt riutilizzabili con categorie/tag, e — più
-significativo — nessun collegamento a un workflow/generazione specifico
-(`prompts.generation_id` resta sempre `null`): questo dipende dal Workflow Builder
-completo (Fase 5, non ancora costruito), dichiarato esplicitamente.
+Consegnato ora — **preset di prompt riutilizzabili**: tabella `prompt_presets`
+(migrazione `0010`), distinta dalla cronologia (`prompts`, popolata automaticamente ad
+ogni salvataggio) — un preset è curato dall'utente: nome, categoria opzionale, tag.
+`POST/GET/PUT/DELETE /prompt-presets`, `GET /prompt-presets/tags` (tag distinti per
+popolare il filtro), filtro per categoria/tag/ricerca testuale sul nome. Pannello
+frontend: form "Salva come preset", lista con filtro per tag e ricerca, "Usa" ricarica
+il preset negli editor e blocca automaticamente la traduzione (protegge il testo
+inglese curato da un ritraduci accidentale). Verificato dal vivo nel browser con
+Playwright: preset salvato, filtrato per tag, ricaricato correttamente.
+
+Non ancora consegnato — più significativo: nessun collegamento a un
+workflow/generazione specifico (`prompts.generation_id` resta sempre `null`): questo
+dipende dal Workflow Builder completo (Fase 5, non ancora costruito), dichiarato
+esplicitamente.
 
 ## FASE 10 — AI ASSISTANT — 🟨 (v1: solo chat, nessun Tool Layer)
 - ✅ `bridge/ai_providers/chat.py`: chiamata REALE (non simulata) ad Anthropic

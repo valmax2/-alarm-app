@@ -36,6 +36,7 @@ from bridge.routers import (
     health,
     inventory,
     prompt_from_image,
+    prompt_presets,
     prompts,
     workflow_import,
     workflows,
@@ -128,6 +129,7 @@ def build_app(settings: Settings, engine: AsyncEngine, session_factory: async_se
     app.include_router(chat.router)
     app.include_router(characters.router)
     app.include_router(prompts.router)
+    app.include_router(prompt_presets.router)
     app.include_router(diagnostics.router)
 
     # In produzione, se il frontend è stato buildato (apps/frontend/dist), il Bridge lo

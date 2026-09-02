@@ -310,3 +310,26 @@ class PromptRecord(Base):
     translation_locked: Mapped[bool] = mapped_column(Boolean, default=False)
     structured_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class PromptPresetRecord(Base):
+    """Preset di prompt riutilizzabile (Fase 9 v2, colma la lacuna dichiarata
+    esplicitamente in Fase 9: "nessun preset di prompt con categorie/tag").
+
+    Distinto da `PromptRecord` (la cronologia, ogni salvataggio ne crea una riga
+    automaticamente): un preset è curato dall'utente — ha un nome, una categoria
+    opzionale e dei tag, pensato per essere richiamato rapidamente invece di
+    riscrivere/ritradurre un prompt da zero. Nessun collegamento a un
+    workflow/generazione: è un template di testo, non un evento storico."""
+
+    __tablename__ = "prompt_presets"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_new_id)
+    name: Mapped[str] = mapped_column(String(200))
+    category: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    tags: Mapped[str] = mapped_column(Text, default="[]")  # JSON list di str
+    text_it: Mapped[str | None] = mapped_column(Text, nullable=True)
+    text_en: Mapped[str] = mapped_column(Text)
+    negative_text_en: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)

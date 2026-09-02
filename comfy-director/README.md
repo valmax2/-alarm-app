@@ -11,7 +11,7 @@ reale) + Fase 4 v1 (filtro per famiglia) + Fase 5 v1 (scelta famiglia + import
 workflow JSON) + Fase 6 v2 (generazione reale via ComfyUI, con relay WebSocket per il
 progresso live) + Fase 7 v2 (libreria Personaggi + export/import Character Pack) +
 Fase 8 parziale (Workflow da Immagine) + Fase 9 (Prompt da Immagine + Prompt Engine
-con traduzione IT→EN) + Fase
+con traduzione IT→EN + preset riutilizzabili) + Fase
 10 v1 (chat reale con l'Assistente AI) + Fase 11 v1 (diagnostica reale: errori non
 gestiti persistiti + report).**
 Bridge FastAPI reale (health/status/settings/sync/inventory/workflows/workflow-import/

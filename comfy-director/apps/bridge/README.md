@@ -89,7 +89,10 @@ Bridge, verificare manualmente contro un'istanza ComfyUI reale:
     reale del provider deve comparire in UI. Salvare in cronologia (con negative
     prompt e blocco traduzione) → `GET /prompts` deve riportare esattamente gli
     stessi valori, indipendentemente dalla UI. Già verificato in sviluppo con una
-    chiamata reale (non mockata) verso `api.anthropic.com`.
+    chiamata reale (non mockata) verso `api.anthropic.com`. Salvare come preset (nome/
+    categoria/tag) → deve comparire nella lista preset, il filtro per tag deve
+    funzionare, "Usa" deve ricaricarlo negli editor con blocco traduzione attivato.
+    Già verificato dal vivo nel browser con Playwright.
 12. Aprire "Diagnostica" → lista vuota su un'installazione pulita. Provocare
     un'eccezione non gestita (es. un dependency override in test, o rompendo
     temporaneamente una configurazione) → deve comparire in `GET /diagnostics/errors`
@@ -143,8 +146,8 @@ bridge/
                                              # (exception handler globale in main.py)
   routers/                                  # health, comfy, settings, inventory,
                                              # workflows, workflow_import, ai_providers,
-                                             # prompt_from_image, prompts, generations,
-                                             # chat, characters, diagnostics
+                                             # prompt_from_image, prompts, prompt_presets,
+                                             # generations, chat, characters, diagnostics
 migrations/                                  # Alembic
 tests/                                        # pytest (mock respx, nessuna rete reale
                                                # verso ComfyUI; alcune verifiche manuali

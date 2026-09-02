@@ -200,6 +200,22 @@ un'altra installazione, i cui ID non hanno alcun significato qui.
 | structured_json | text (JSON), nullable | previsto per collegare in futuro l'output di "Prompt da Immagine" (§9) a questa cronologia — non ancora popolato: quel flusso restituisce lo `StructuredPromptOut` direttamente alla UI senza persisterlo qui, dichiarato esplicitamente come miglioramento futuro |
 | created_at | datetime | |
 
+## `prompt_presets` — [Fase 9 v2, consegnata: preset riutilizzabili con categorie/tag]
+Distinta da `prompts` (sopra, la cronologia — popolata automaticamente ad ogni
+salvataggio): un preset è curato dall'utente, pensato per essere richiamato
+rapidamente invece di riscrivere/ritradurre un prompt da zero.
+
+| campo | tipo | note |
+|---|---|---|
+| id | str, PK | |
+| name | str | |
+| category | str, nullable | etichetta libera (nessun enum chiuso, coerente con `workflows.family`) |
+| tags | str (JSON list) | |
+| text_it | text, nullable | |
+| text_en | text | |
+| negative_text_en | text, nullable | |
+| created_at / updated_at | datetime | |
+
 ## `chat_messages` — [Fase 10, consegnata v1: solo chat, nessun Tool Layer]
 Conversazione unica e continua con l'Assistente AI — non lo schizzo originale del
 piano (che non la specificava nel dettaglio), aggiunta quando la chat è stata

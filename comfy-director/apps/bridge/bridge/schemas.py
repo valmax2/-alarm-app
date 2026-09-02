@@ -246,6 +246,36 @@ class PromptUpdateRequest(BaseModel):
     translation_locked: bool | None = None
 
 
+class PromptPresetOut(BaseModel):
+    id: str
+    name: str
+    category: str | None
+    tags: list[str]
+    text_it: str | None
+    text_en: str
+    negative_text_en: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class PromptPresetCreateRequest(BaseModel):
+    name: str
+    category: str | None = None
+    tags: list[str] = []
+    text_it: str | None = None
+    text_en: str
+    negative_text_en: str | None = None
+
+
+class PromptPresetUpdateRequest(BaseModel):
+    name: str | None = None
+    category: str | None = None
+    tags: list[str] | None = None
+    text_it: str | None = None
+    text_en: str | None = None
+    negative_text_en: str | None = None
+
+
 class ErrorLogOut(BaseModel):
     id: str
     level: Literal["warning", "error", "critical"]

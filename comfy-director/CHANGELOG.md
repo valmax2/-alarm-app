@@ -1,5 +1,31 @@
 # CHANGELOG — Comfy Director
 
+## [Non rilasciato] — Fase 9 v2: preset di prompt riutilizzabili (2026-09-02)
+
+Colma la lacuna dichiarata esplicitamente in Fase 9 ("nessun preset di prompt con
+categorie/tag").
+
+### Backend
+- Tabella `prompt_presets` (migrazione `0010`) — distinta da `prompts` (la
+  cronologia, popolata automaticamente ad ogni salvataggio): un preset è curato
+  dall'utente, con nome, categoria opzionale e tag.
+- `routers/prompt_presets.py`: `POST/GET/PUT/DELETE /prompt-presets`,
+  `GET /prompt-presets/tags` (tag distinti, per popolare un filtro senza doverli
+  indovinare). Filtro per categoria/tag/ricerca testuale sul nome.
+
+### Frontend
+- Sezione "Preset" nel Prompt Engine: form "Salva come preset" (nome, categoria,
+  tag), lista con filtro per tag e ricerca per nome, "Usa" ricarica il preset negli
+  editor e blocca automaticamente la traduzione (protegge il testo inglese curato da
+  un ritraduci accidentale).
+
+### Test
+- Backend: +12 test (`test_prompt_presets_endpoints.py`) — 248 totali, tutti verdi.
+- Frontend: +2 test (`PromptEnginePanel.test.tsx`) — 53 totali, tutti verdi.
+- Verificato dal vivo nel browser con Playwright: preset salvato con nome/categoria/
+  tag, filtro per tag verificato, ricaricato negli editor con blocco traduzione
+  attivato automaticamente.
+
 ## [Non rilasciato] — Fase 7 v2: export/import Character Pack (2026-09-02)
 
 Colma la lacuna dichiarata esplicitamente in Fase 7 v1 ("nessun export/import

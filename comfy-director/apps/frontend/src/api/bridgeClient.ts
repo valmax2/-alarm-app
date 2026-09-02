@@ -281,6 +281,18 @@ export interface PromptOut {
   created_at: string;
 }
 
+export interface PromptPresetOut {
+  id: string;
+  name: string;
+  category: string | null;
+  tags: string[];
+  text_it: string | null;
+  text_en: string;
+  negative_text_en: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CharacterImageOut {
   id: string;
   character_id: string;
@@ -521,6 +533,18 @@ export const bridgeClient = {
     input: Partial<{ text_it: string | null; text_en: string; negative_text_en: string | null; translation_locked: boolean }>,
   ) => request<PromptOut>(`/prompts/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(input) }),
   deletePrompt: (id: string) => request<void>(`/prompts/${encodeURIComponent(id)}`, { method: "DELETE" }),
+
+  listPromptPresets: (filter?: { category?: string; tag?: string; q?: string }) =>
+    request<PromptPresetOut[]>(`/prompt-presets${buildQuery({ category: filter?.category, tag: filter?.tag, q: filter?.q })}`),
+  listPromptPresetTags: () => request<string[]>("/prompt-presets/tags"),
+  createPromptPreset: (input: {
+    name: string; category?: string | null; tags?: string[]; text_it?: string | null; text_en: string; negative_text_en?: string | null;
+  }) => request<PromptPresetOut>("/prompt-presets", { method: "POST", body: JSON.stringify(input) }),
+  updatePromptPreset: (
+    id: string,
+    input: Partial<{ name: string; category: string | null; tags: string[]; text_it: string | null; text_en: string; negative_text_en: string | null }>,
+  ) => request<PromptPresetOut>(`/prompt-presets/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(input) }),
+  deletePromptPreset: (id: string) => request<void>(`/prompt-presets/${encodeURIComponent(id)}`, { method: "DELETE" }),
 
   listErrors: (limit = 50) => request<ErrorLogOut[]>(`/diagnostics/errors${buildQuery({ limit })}`),
   getDiagnosticsReport: () => request<DiagnosticsReportOut>("/diagnostics/report"),
