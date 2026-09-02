@@ -6,20 +6,23 @@ mantenendo ComfyUI come motore di esecuzione. Vedi `docs/COMFY_DIRECTOR_SPEC.md`
 specifica completa, `AUDIT.md`/`ARCHITECTURE_DECISION.md`/`IMPLEMENTATION_PLAN.md` per
 il ragionamento e la roadmap.
 
-**Stato attuale: Fase 1 (Fondazione) + Fase 2 (Inventario reale) + Fase 4 v1 (filtro
-per famiglia) + Fase 8 parziale (Workflow da Immagine) + Fase 9 parziale (Prompt da
-Immagine).** Bridge FastAPI reale (health/status/settings/sync/inventory/workflow-import/
-ai-providers/prompt-from-image), lettura reale di nodi e modelli da ComfyUI
-(`/object_info`) e/o direttamente dal filesystem (percorso ComfyUI configurabile,
-funziona anche a ComfyUI spento), filtro modelli per famiglia con motivo di
-compatibilità sempre visibile, estrazione reale del workflow incorporato nelle immagini
-PNG di ComfyUI, analisi immagine→prompt strutturato tramite provider AI cloud
-(Anthropic/OpenAI, chiave dell'utente). Frontend React con pannelli
-Bridge/Modelli/Nodi/Workflow-da-Immagine/Prompt-da-Immagine reali (pulsanti dei flussi
-sulla barra sinistra). Tutto il resto (canvas, workflow intelligence, personaggi,
-generazione, AI assistant chat, ...) è dichiarato esplicitamente come non ancora
-disponibile nella UI stessa — vedi
-`IMPLEMENTATION_PLAN.md` per le fasi successive.
+**Stato attuale: Fase 1 (Fondazione) + Fase 2 (Inventario reale) + Fase 3 (Canvas
+reale) + Fase 4 v1 (filtro per famiglia) + Fase 8 parziale (Workflow da Immagine) +
+Fase 9 parziale (Prompt da Immagine).** Bridge FastAPI reale (health/status/settings/
+sync/inventory/workflows/workflow-import/ai-providers/prompt-from-image), lettura
+reale di nodi e modelli da ComfyUI (`/object_info`) e/o direttamente dal filesystem
+(percorso ComfyUI configurabile, funziona anche a ComfyUI spento), filtro modelli per
+famiglia con motivo di compatibilità sempre visibile, estrazione reale del workflow
+incorporato nelle immagini PNG di ComfyUI, analisi immagine→prompt strutturato tramite
+provider AI cloud (Anthropic/OpenAI, chiave dell'utente). Frontend React con canvas
+reale a nodi (React Flow: nodi/archi/widget/porte letti dallo schema reale ComfyUI,
+pannello proprietà, undo/redo, persistenza versionata sul Bridge) e pannelli
+Bridge/Modelli/Nodi/Workflow/Workflow-da-Immagine/Prompt-da-Immagine reali (pulsanti
+dei flussi sulla barra sinistra). Tutto il resto (workflow intelligence/compatibility
+engine completo, personaggi, generazione, AI assistant chat, ...) è dichiarato
+esplicitamente come non ancora disponibile nella UI stessa — vedi
+`IMPLEMENTATION_PLAN.md` per le fasi successive e per i dettagli su cosa della Fase 3
+è deliberatamente semplificato (es. undo/redo snapshot-based, niente auto-layout).
 
 ## Avvio rapido
 

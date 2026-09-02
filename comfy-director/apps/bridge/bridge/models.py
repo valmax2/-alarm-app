@@ -156,3 +156,38 @@ class AIProviderRecord(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+
+
+class WorkflowRecord(Base):
+    """Workflow gestito da Comfy Director (docs/data-model.md #workflows, Fase 3).
+
+    `current_version_id` punta alla versione mostrata di default (canvas, apertura
+    rapida) — la cronologia completa resta in `workflow_versions` (spec §28).
+    """
+
+    __tablename__ = "workflows"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_new_id)
+    name: Mapped[str] = mapped_column(String(255))
+    intent: Mapped[str | None] = mapped_column(String(64), nullable=True)  # popolato da Fase 5
+    family: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    tags: Mapped[str] = mapped_column(Text, default="[]")  # JSON list
+    source: Mapped[str] = mapped_column(String(32), default="user_created")
+    current_version_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+
+
+class WorkflowVersionRecord(Base):
+    """Una versione salvata del grafo di un workflow (docs/data-model.md #workflow_versions)."""
+
+    __tablename__ = "workflow_versions"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_new_id)
+    workflow_id: Mapped[str] = mapped_column(String(32), ForeignKey("workflows.id", ondelete="CASCADE"))
+    version_number: Mapped[int] = mapped_column(Integer)
+    graph_json: Mapped[str] = mapped_column(Text)  # WorkflowGraph serializzato
+    comfy_api_payload_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # popolato da Fase 6
+    validation_result_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # ultimo validate_structure
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)

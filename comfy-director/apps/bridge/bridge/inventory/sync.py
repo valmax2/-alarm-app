@@ -97,13 +97,19 @@ def normalize_input_summary(raw_input: dict) -> list[dict]:
 
 
 def normalize_output_summary(schema: dict) -> list[dict]:
+    """`name` è sempre valorizzato (mai `None`): quando ComfyUI non fornisce
+    `output_name` per una porta, si ripiega su `output_{indice}` — serve un
+    identificatore di porta stabile per gli handle degli archi sulla canvas (Fase 3)
+    e per la validazione strutturale, che devono poter contare su una chiave sempre
+    presente."""
     outputs = schema.get("output")
     names = schema.get("output_name")
     if not isinstance(outputs, list):
         return []
     result = []
     for i, out_type in enumerate(outputs):
-        name = names[i] if isinstance(names, list) and i < len(names) else None
+        raw_name = names[i] if isinstance(names, list) and i < len(names) else None
+        name = raw_name if isinstance(raw_name, str) and raw_name else f"output_{i}"
         result.append({"type": out_type, "name": name})
     return result
 

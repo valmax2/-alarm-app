@@ -97,21 +97,43 @@ malformato causava un `MemoryError` invece di un errore gestito). La verifica co
 un'installazione ComfyUI/cartella modelli reale dell'utente resta a suo carico (nessuna
 istanza disponibile in questa sessione, vedi AUDIT.md).
 
-## FASE 3 — CANVAS REALE — ⬜
-- Modello interno del workflow (grafo diretto tipizzato: nodi con `type`, `id`,
-  `params`, porte; archi con `from`, `to`, `type` di dato) come **unica source of truth**,
-  vive nello store frontend (Zustand) e viene serializzato verso il Bridge per
-  persistenza/validazione/compilazione
-- Integrazione React Flow: nodi custom che leggono lo schema reale (`/object_info` via
-  Bridge, cache Fase 2) e generano i widget dinamici (§11: INT/FLOAT/BOOLEAN/ENUM/
-  STRING/IMAGE/MODEL/FILE/COLOR)
-- Pannello proprietà contestuale collegato al nodo selezionato
-- Undo/redo (command pattern sulle mutazioni del grafo), copy/paste, multi-select,
-  delete, duplicate, auto-layout (es. dagre), fit-to-screen, ricerca nodo, minimap
+## FASE 3 — CANVAS REALE — ✅ (v1)
+- ✅ Modello interno del workflow (grafo diretto tipizzato: nodi con `id`, `class_type`,
+  `position`, `params`; archi con `source`/`source_handle`/`target`/`target_handle`)
+  persistito lato Bridge (`workflows` + `workflow_versions`, versionato ad ogni salvataggio)
+  con validazione strutturale reale (`bridge/workflow/graph.py`): nodi mancanti, cicli
+  (DFS), input required non collegati né valorizzati, tipi di porta incompatibili
+  (errori bloccanti in UI ma non ancora bloccanti sul salvataggio — il blocco duro
+  arriva in Fase 6 con la generazione), nodi non presenti nell'ultimo sync (warning)
+- ✅ Store frontend (Zustand, `workflowStore.ts`) come **unica source of truth** della
+  canvas: ogni mutazione (nodo, arco, parametro) passa da lì; `openWorkflow`/`save`
+  convertono da/verso il formato del Bridge nello stesso identico shape (provato dal
+  test `workflowStore.test.ts`, DoD di fase)
+- ✅ Integrazione React Flow (`@xyflow/react`): nodi custom (`ComfyNode`) che leggono lo
+  schema reale del nodo (`GET /inventory/nodes/{class_type}/schema`, cache Fase 2/3) e
+  generano gli handle di connessione reali (socket) e i widget (INT/FLOAT/STRING/
+  BOOLEAN/ENUM — §11). Un nodo non più presente nell'inventario sincronizzato è
+  segnalato in canvas, mai finto compatibile
+- ✅ Pannello proprietà contestuale (`NodePropertiesPanel`) collegato al nodo
+  selezionato: editor reale per ogni widget in base al tipo/schema, lista "ingressi
+  collegati/non collegati" per i socket (mai editabili come widget), eliminazione nodo
+- ✅ Ricerca/aggiunta nodo dall'inventario reale sincronizzato (`NodeSearchPalette`),
+  undo/redo, eliminazione nodo/arco, minimap, controlli zoom/pan, fit-to-screen
+- 🟨 **Deferito esplicitamente** (dichiarato, non finto): undo/redo è basato su
+  snapshot dell'intero grafo, non un vero command pattern per-mutazione (semplificazione
+  documentata, comportamento visibile identico all'utente); copy/paste e multi-select
+  non implementati; auto-layout automatico (es. dagre) non implementato — il
+  posizionamento dei nuovi nodi è a griglia manuale; nessun blocco "duro" al salvataggio
+  in presenza di errori di validazione (il grafo si salva comunque, gli errori sono
+  informativi — il blocco arriva con la Fase 6)
 
-**DoD:** "cambiare canvas modifica realmente il workflow model" — test: mutare un
-collegamento in canvas e verificare che il modello serializzato cambi coerentemente, e
-viceversa (modificare il modello e vedere la canvas aggiornarsi).
+**DoD:** "cambiare canvas modifica realmente il workflow model, e viceversa" —
+verificato (a) via test automatico (`workflowStore.test.ts`: `openWorkflow` carica il
+grafo dal Bridge, `save()` lo rimanda indietro nello stesso formato) e (b) via test E2E
+manuale con Bridge reale + ComfyUI simulato: modifica di un widget (`seed`) nel pannello
+proprietà si riflette subito sul nodo in canvas (stesso store), e il salvataggio
+incrementa la versione del workflow lato server con il valore persistito, confermato con
+una `GET /workflows/{id}` indipendente dalla UI.
 
 ## FASE 4 — COMPATIBILITY ENGINE V1 — ✅ (v1 ridotto: filtro per famiglia)
 Vedi `docs/compatibility-engine.md` per il design completo. Consegnato:

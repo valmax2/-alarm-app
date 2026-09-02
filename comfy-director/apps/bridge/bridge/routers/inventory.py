@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+import json
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bridge.compatibility import filter_models_by_family
 from bridge.deps import get_db_session
 from bridge.inventory.sync import DEFAULT_INSTANCE_ID
-from bridge.models import ModelRecord, NodeRecord
-from bridge.schemas import ModelOut, NodeOut
+from bridge.models import ModelRecord, NodeRecord, NodeSchemaRecord
+from bridge.schemas import ModelOut, NodeOut, NodeSchemaOut
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 
@@ -92,3 +94,22 @@ async def list_nodes(
         )
         for n in rows
     ]
+
+
+@router.get("/nodes/{class_type}/schema", response_model=NodeSchemaOut)
+async def get_node_schema(class_type: str, session: AsyncSession = Depends(get_db_session)) -> NodeSchemaOut:
+    """Schema completo (input/output normalizzati) di un singolo nodo — usato dalla
+    canvas (Fase 3) per generare i widget dinamici reali quando l'utente aggiunge quel
+    nodo al grafo (spec §11)."""
+    node_id = f"{DEFAULT_INSTANCE_ID}:{class_type}"
+    node = await session.get(NodeRecord, node_id)
+    if node is None:
+        raise HTTPException(status_code=404, detail=f"Nodo '{class_type}' non presente nell'ultimo inventario sincronizzato")
+    node_schema = await session.get(NodeSchemaRecord, node_id)
+    if node_schema is None:
+        raise HTTPException(status_code=404, detail=f"Schema per '{class_type}' non disponibile")
+    return NodeSchemaOut(
+        class_type=node.class_type, display_name=node.display_name, category=node.category,
+        is_custom_node=node.is_custom_node,
+        input_summary=json.loads(node_schema.input_summary), output_summary=json.loads(node_schema.output_summary),
+    )

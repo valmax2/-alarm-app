@@ -101,6 +101,80 @@ export interface WorkflowImportResponse {
   message: string;
 }
 
+export interface WidgetSpec {
+  name: string;
+  kind: "required" | "optional";
+  enum_values: string[] | null;
+  type: string | null;
+  default: unknown;
+  min: number | null;
+  max: number | null;
+  step: number | null;
+}
+
+export interface OutputSpec {
+  name: string;
+  type: string;
+}
+
+export interface NodeSchemaOut {
+  class_type: string;
+  display_name: string;
+  category: string;
+  is_custom_node: boolean;
+  input_summary: WidgetSpec[];
+  output_summary: OutputSpec[];
+}
+
+export interface GraphNode {
+  id: string;
+  class_type: string;
+  position: { x: number; y: number };
+  params: Record<string, unknown>;
+}
+
+export interface GraphEdgeData {
+  id: string;
+  source: string;
+  source_handle: string;
+  target: string;
+  target_handle: string;
+}
+
+export interface WorkflowGraphData {
+  nodes: GraphNode[];
+  edges: GraphEdgeData[];
+}
+
+export interface ValidationIssueOut {
+  severity: "error" | "warning";
+  node_id: string | null;
+  message: string;
+}
+
+export interface WorkflowSummaryOut {
+  id: string;
+  name: string;
+  intent: string | null;
+  family: string | null;
+  source: string;
+  node_count: number;
+  edge_count: number;
+  updated_at: string;
+}
+
+export interface WorkflowDetailOut {
+  id: string;
+  name: string;
+  intent: string | null;
+  family: string | null;
+  source: string;
+  version_number: number;
+  graph: WorkflowGraphData;
+  validation_issues: ValidationIssueOut[];
+  updated_at: string;
+}
+
 export type AIProviderKind = "anthropic" | "openai" | "local";
 
 export interface AIProviderOut {
@@ -225,6 +299,19 @@ export const bridgeClient = {
   syncComfy: () => request<SyncResponse>("/comfy/sync", { method: "POST" }),
   getModels: (query: ModelsQuery = {}) => request<ModelOut[]>(`/inventory/models${buildQuery(query)}`),
   getNodes: (query: NodesQuery = {}) => request<NodeOut[]>(`/inventory/nodes${buildQuery(query)}`),
+  getNodeSchema: (classType: string) =>
+    request<NodeSchemaOut>(`/inventory/nodes/${encodeURIComponent(classType)}/schema`),
+
+  listWorkflows: () => request<WorkflowSummaryOut[]>("/workflows"),
+  createWorkflow: (name: string) =>
+    request<WorkflowSummaryOut>("/workflows", { method: "POST", body: JSON.stringify({ name }) }),
+  getWorkflow: (id: string) => request<WorkflowDetailOut>(`/workflows/${encodeURIComponent(id)}`),
+  saveWorkflow: (id: string, graph: WorkflowGraphData, note?: string) =>
+    request<WorkflowDetailOut>(`/workflows/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      body: JSON.stringify({ graph, note }),
+    }),
+  deleteWorkflow: (id: string) => request<void>(`/workflows/${encodeURIComponent(id)}`, { method: "DELETE" }),
 
   workflowFromImage: (file: File) => {
     const form = new FormData();

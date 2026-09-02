@@ -48,6 +48,12 @@ Bridge, verificare manualmente contro un'istanza ComfyUI reale:
    `api.anthropic.com`/`api.openai.com` e che gli errori (es. chiave non valida) sono
    propagati correttamente — manca solo una chiave reale per la verifica positiva
    completa.
+7. Creare un workflow (`POST /workflows`), aprirlo nella canvas frontend, aggiungere
+   nodi reali via la ricerca (letti da `/inventory/nodes`), modificare un widget e
+   salvare (`PUT /workflows/{id}`) → la versione deve incrementare e
+   `GET /workflows/{id}` deve restituire il valore modificato, indipendentemente dalla
+   UI. Già verificato in sviluppo con un ComfyUI simulato (l'ambiente non ne ha uno
+   reale, vedi sopra).
 
 ## Migrazioni
 
@@ -65,7 +71,8 @@ bridge/
   logging_config.py        # log JSON strutturato + redazione segreti
   db.py                     # engine SQLAlchemy async
   models.py                  # ORM (settings, comfy_instances, errors, nodes,
-                              # node_schemas, models, model_metadata, ai_providers)
+                              # node_schemas, models, model_metadata, ai_providers,
+                              # workflows, workflow_versions)
   schemas.py                   # contratti API (Pydantic)
   deps.py                       # dependency injection FastAPI
   comfy_instance.py               # gestione riga "default" di comfy_instances
@@ -73,11 +80,12 @@ bridge/
   inventory/                         # Fase 2: sync (/object_info + filesystem),
                                       # family detection, node_registry, safetensors
   compatibility/                       # Fase 4 v1: resolve() + filter_models_by_family
+  workflow/                             # Fase 3: modello grafo + validate_structure()
   media/                                 # Fase 8: parser chunk PNG (tEXt/zTXt/iTXt)
   workflow_import/                        # Fase 8: workflow da immagine
   ai_providers/                            # Fase 9: CRUD provider, cifratura, vision
   routers/                                  # health, comfy, settings, inventory,
-                                             # workflow_import, ai_providers,
+                                             # workflows, workflow_import, ai_providers,
                                              # prompt_from_image
 migrations/                                  # Alembic
 tests/                                        # pytest (mock respx, nessuna rete reale

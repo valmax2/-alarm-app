@@ -1,11 +1,15 @@
 import { useState } from "react";
 
 import { BridgeStatus } from "./components/BridgeStatus";
+import { NodePropertiesPanel } from "./components/canvas/NodePropertiesPanel";
+import { WorkflowCanvas } from "./components/canvas/WorkflowCanvas";
 import { ModelsPanel } from "./components/ModelsPanel";
 import { NodesPanel } from "./components/NodesPanel";
 import { PromptFromImagePanel } from "./components/PromptFromImagePanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { WorkflowFromImagePanel } from "./components/WorkflowFromImagePanel";
+import { WorkflowsPanel } from "./components/WorkflowsPanel";
+import { useWorkflowStore } from "./store/workflowStore";
 
 interface NavItem {
   id: string;
@@ -24,7 +28,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "flow-type", label: "Tipo Flusso", availableFromPhase: 5 },
   { id: "ai-engine", label: "Motore AI", availableFromPhase: 5 },
   { id: "characters", label: "Personaggi", availableFromPhase: 7 },
-  { id: "workflows", label: "Workflow", availableFromPhase: 3 },
+  { id: "workflows", label: "Workflow", availableFromPhase: null },
   { id: "workflow-from-image", label: "Workflow da Immagine", availableFromPhase: null },
   { id: "prompt-from-image", label: "Prompt da Immagine", availableFromPhase: null },
   { id: "models", label: "Modelli", availableFromPhase: null },
@@ -33,14 +37,23 @@ const NAV_ITEMS: NavItem[] = [
   { id: "ai-assistant", label: "Assistente AI", availableFromPhase: 10 },
 ];
 
+const SECTION_IDS = [
+  "bridge", "models", "nodes", "workflow-from-image", "prompt-from-image", "workflows",
+];
+
 export default function App() {
-  const [activePanel, setActivePanel] = useState<string>("bridge");
+  const [activePanel, setActivePanel] = useState<string>("workflows");
+  const workflowName = useWorkflowStore((s) => s.workflowName);
+  const versionNumber = useWorkflowStore((s) => s.versionNumber);
+  const selectedNodeId = useWorkflowStore((s) => s.selectedNodeId);
 
   return (
     <div className="app-shell">
       <header className="app-shell__topbar">
         <span className="app-shell__title">COMFY DIRECTOR</span>
-        <span className="app-shell__workflow-name">Nessun workflow aperto</span>
+        <span className="app-shell__workflow-name">
+          {workflowName ? `${workflowName} (v${versionNumber})` : "Nessun workflow aperto"}
+        </span>
         <BridgeStatus />
         <button type="button" disabled title="Disponibile da Fase 6 (Generazione)">
           GENERA
@@ -75,25 +88,26 @@ export default function App() {
           </nav>
 
           <aside className="app-shell__side-panel" aria-label="Proprietà contestuali">
-            {activePanel === "bridge" && <SettingsPanel />}
-            {activePanel === "models" && <ModelsPanel />}
-            {activePanel === "nodes" && <NodesPanel />}
-            {activePanel === "workflow-from-image" && <WorkflowFromImagePanel />}
-            {activePanel === "prompt-from-image" && <PromptFromImagePanel />}
-            {![
-              "bridge", "models", "nodes", "workflow-from-image", "prompt-from-image",
-            ].includes(activePanel) && <p>Seleziona una sezione dai pulsanti sopra.</p>}
+            {/* Un nodo selezionato sulla canvas ha sempre priorità (spec §11): mostra le
+                sue proprietà reali indipendentemente dalla sezione attiva. */}
+            {selectedNodeId ? (
+              <NodePropertiesPanel />
+            ) : (
+              <>
+                {activePanel === "bridge" && <SettingsPanel />}
+                {activePanel === "models" && <ModelsPanel />}
+                {activePanel === "nodes" && <NodesPanel />}
+                {activePanel === "workflow-from-image" && <WorkflowFromImagePanel />}
+                {activePanel === "prompt-from-image" && <PromptFromImagePanel />}
+                {activePanel === "workflows" && <WorkflowsPanel />}
+                {!SECTION_IDS.includes(activePanel) && <p>Seleziona una sezione dai pulsanti sopra.</p>}
+              </>
+            )}
           </aside>
         </div>
 
         <main className="app-shell__canvas" aria-label="Canvas workflow">
-          <div className="app-shell__canvas-placeholder">
-            <p>Canvas del workflow — non ancora implementata.</p>
-            <p className="app-shell__canvas-placeholder-note">
-              Arriva in Fase 3 (vedi IMPLEMENTATION_PLAN.md). Qui apparirà il grafo reale
-              del workflow, sincronizzato bidirezionalmente col modello interno.
-            </p>
-          </div>
+          <WorkflowCanvas />
         </main>
       </div>
 

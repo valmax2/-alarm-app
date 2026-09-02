@@ -1,5 +1,55 @@
 # CHANGELOG — Comfy Director
 
+## [Non rilasciato] — Fase 3: Canvas reale (2026-09-02)
+
+Richiesto esplicitamente dall'utente: "Canvas (Fase 3) prima di tutto", come
+prerequisito per il vero workflow builder e la generazione.
+
+### Backend
+- `bridge/workflow/graph.py`: modello del grafo (nodi/archi) e `validate_structure()` —
+  nodi referenziati inesistenti (errore), cicli via DFS (errore), input required non
+  collegati né valorizzati (errore), tipo di porta incompatibile su un arco (errore,
+  solo quando lo schema di entrambi i nodi è noto), nodo di un tipo non presente
+  nell'ultimo sync (warning, non errore).
+- Nuove tabelle `workflows` / `workflow_versions` (migrazione `0004_workflows`):
+  ogni salvataggio crea una nuova versione, mai una sovrascrittura silenziosa.
+- `routers/workflows.py`: `POST/GET/PUT/DELETE /workflows`, `GET /workflows/{id}`
+  (con validazione live). Il salvataggio riporta gli errori di validazione ma non
+  blocca (blocco duro rimandato alla Fase 6, dichiarato in IMPLEMENTATION_PLAN.md).
+- `GET /inventory/nodes/{class_type}/schema`: schema di un nodo per i widget dinamici
+  della canvas.
+- Fix: `normalize_output_summary` ora garantisce sempre un `name` per ogni output
+  (fallback `output_{i}`), necessario per handle di porta stabili in React Flow.
+
+### Frontend
+- `store/workflowStore.ts` (Zustand): unica source of truth della canvas — nodi, archi,
+  parametri, undo/redo (snapshot-based), apertura/salvataggio verso il Bridge.
+- `components/canvas/`: `WorkflowCanvas` (React Flow reale, dark mode, minimap,
+  controlli), `ComfyNode` (nodo custom con handle di connessione reali letti dallo
+  schema), `NodeSearchPalette` (ricerca/aggiunta da inventario reale sincronizzato),
+  `NodePropertiesPanel` (editor widget reali + stato collegamento socket).
+- `components/WorkflowsPanel.tsx`: elenco/creazione/apertura/eliminazione workflow,
+  errori di validazione del workflow aperto.
+- Sezione "Workflow" abilitata in navigazione (era disattivata, Fase 3).
+
+### Test
+- Backend: +14 test (`test_workflow_graph.py`, `test_workflows_endpoints.py`) — 112
+  totali, tutti verdi.
+- Frontend: +12 test (`workflowStore.test.ts`, `WorkflowsPanel.test.tsx`,
+  `NodePropertiesPanel.test.tsx`) — 26 totali, tutti verdi. Il test più critico
+  (`workflowStore.test.ts`) prova il DoD di fase: `openWorkflow` carica il grafo dal
+  Bridge e `save()` lo rimanda indietro nello stesso identico formato.
+- Verifica E2E manuale con Bridge reale + ComfyUI simulato (screenshot): modifica di un
+  widget in canvas → salvataggio → nuova versione persistita lato server, confermata
+  con una lettura API indipendente dalla UI.
+
+### Dichiarato esplicitamente come non ancora implementato (mai finto)
+- Undo/redo è snapshot-based, non un vero command pattern per-mutazione.
+- Copy/paste e multi-select non implementati.
+- Auto-layout automatico (dagre) non implementato — posizionamento nuovi nodi a griglia.
+- Nessun blocco duro al salvataggio in presenza di errori di validazione (arriva in
+  Fase 6, insieme alla generazione).
+
 ## [Non rilasciato] — Fase 8 + Fase 9 parziali (2026-09-02)
 
 Richiesto esplicitamente: Workflow da Immagine e Prompt da Immagine, portati avanti

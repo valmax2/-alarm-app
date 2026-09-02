@@ -8,9 +8,11 @@ mantenere manualmente due copie dei contratti.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+
+from bridge.workflow import GraphEdge, GraphNode
 
 
 class HealthResponse(BaseModel):
@@ -151,3 +153,55 @@ class PromptFromImageResponse(BaseModel):
     provider_id: str
     provider_kind: str
     structured: StructuredPromptOut
+
+
+class NodeSchemaOut(BaseModel):
+    class_type: str
+    display_name: str
+    category: str
+    is_custom_node: bool
+    input_summary: list[dict[str, Any]]
+    output_summary: list[dict[str, Any]]
+
+
+class WorkflowGraphIn(BaseModel):
+    nodes: list[GraphNode] = Field(default_factory=list)
+    edges: list[GraphEdge] = Field(default_factory=list)
+
+
+class ValidationIssueOut(BaseModel):
+    severity: Literal["error", "warning"]
+    node_id: str | None
+    message: str
+
+
+class WorkflowSummaryOut(BaseModel):
+    id: str
+    name: str
+    intent: str | None
+    family: str | None
+    source: str
+    node_count: int
+    edge_count: int
+    updated_at: datetime
+
+
+class WorkflowDetailOut(BaseModel):
+    id: str
+    name: str
+    intent: str | None
+    family: str | None
+    source: str
+    version_number: int
+    graph: WorkflowGraphIn
+    validation_issues: list[ValidationIssueOut]
+    updated_at: datetime
+
+
+class WorkflowCreateRequest(BaseModel):
+    name: str
+
+
+class WorkflowSaveRequest(BaseModel):
+    graph: WorkflowGraphIn
+    note: str | None = None

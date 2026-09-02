@@ -111,19 +111,24 @@ body {
 
 .app-shell__canvas {
   background: var(--bg-canvas);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: relative;
+  overflow: hidden;
 }
 
-.app-shell__canvas-placeholder {
+.app-shell__canvas-empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   color: var(--text-dim);
-  max-width: 28rem;
+  gap: 0.5rem;
 }
 
 .app-shell__canvas-placeholder-note {
   font-size: 0.85rem;
+  max-width: 24rem;
 }
 
 .app-shell__side-panel {
@@ -328,4 +333,162 @@ input {
 
 .models-panel__compat--unknown {
   color: var(--text-dim);
+}
+
+/* Canvas / React Flow */
+
+.canvas-toolbar {
+  display: flex;
+  gap: 0.4rem;
+  align-items: flex-start;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.4rem;
+}
+
+.canvas-toolbar button {
+  font-size: 0.8rem;
+  padding: 0.35rem 0.6rem;
+  white-space: nowrap;
+}
+
+.node-search-palette {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 220px;
+}
+
+.node-search-palette input {
+  width: 100%;
+}
+
+.node-search-palette__results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  background: #16161a;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.node-search-palette__results li button {
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-size: 0.8rem;
+}
+
+.node-search-palette__results li button:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Nodo custom sulla canvas — aspetto ispirato a ComfyUI */
+
+.comfy-node {
+  background: #202024;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 180px;
+  font-size: 0.78rem;
+  overflow: hidden;
+}
+
+.comfy-node--selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.comfy-node__title {
+  background: #2a2a30;
+  padding: 0.4rem 0.6rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+
+.comfy-node__unknown {
+  color: var(--warning);
+  font-size: 0.7rem;
+  padding: 0.2rem 0.6rem;
+}
+
+.comfy-node__body {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.4rem 0;
+  gap: 0.5rem;
+}
+
+.comfy-node__inputs,
+.comfy-node__outputs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  flex: 1;
+}
+
+.comfy-node__port-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0 0.5rem;
+}
+
+.comfy-node__port-row--output {
+  justify-content: flex-end;
+}
+
+.comfy-node__port-label {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+}
+
+.comfy-node__handle {
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+}
+
+.comfy-node__widgets {
+  margin-top: 0.3rem;
+  padding: 0 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.comfy-node__widget-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
+  color: var(--text-dim);
+  font-size: 0.7rem;
+}
+
+.comfy-node__widget-value {
+  color: var(--text);
+  max-width: 8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-properties__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0.6rem 0;
+}
+
+.node-properties__field input,
+.node-properties__field select,
+.node-properties__field textarea {
+  width: 100%;
 }
