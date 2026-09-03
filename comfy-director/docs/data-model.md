@@ -169,6 +169,7 @@ un'altra installazione, i cui ID non hanno alcun significato qui.
 | order_index | int | assegnato in ordine di caricamento in v1 — nessuna riordinabilità esplicita ancora |
 | source | str | `upload`\|`drag_drop`\|`cloud_drive`\|`generated` — solo `upload` è realmente implementato in v1, gli altri valori sono previsti nello schema per fasi future |
 | width / height | int, nullable | non ancora derivati automaticamente dall'immagine in v1 (nessuna dipendenza Pillow aggiunta per questo — dichiarato, mai un valore inventato) |
+| is_hidden | bool | [migrazione `0011`] oscuramento per SINGOLA immagine, indipendente da `characters.is_private` (che oscura tutte le immagini insieme) — stesso limite: solo un controllo di visualizzazione (blur), non un vero controllo d'accesso |
 | created_at | datetime | |
 
 ## `generations` — [Fase 6, consegnata v2]

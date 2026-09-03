@@ -54,6 +54,7 @@ async def test_upload_image_persists_real_bytes_and_sets_main(client: AsyncClien
     assert response.status_code == 200
     image_id = response.json()["id"]
     assert response.json()["role"] == "main"
+    assert response.json()["is_hidden"] is False
 
     detail = await client.get(f"/characters/{character_id}")
     assert detail.json()["main_image_id"] == image_id
@@ -69,6 +70,44 @@ async def test_upload_image_persists_real_bytes_and_sets_main(client: AsyncClien
     assert file_response.status_code == 200
     assert file_response.content == _FAKE_PNG
     assert file_response.headers["content-type"] == "image/png"
+
+
+async def test_update_image_toggles_is_hidden_independently_of_character_privacy(client: AsyncClient) -> None:
+    created = await client.post("/characters", json={"name": "Elena"})
+    character_id = created.json()["id"]
+    uploaded = await client.post(
+        f"/characters/{character_id}/images", files={"file": ("x.png", _FAKE_PNG, "image/png")}
+    )
+    image_id = uploaded.json()["id"]
+
+    response = await client.put(f"/characters/{character_id}/images/{image_id}", json={"is_hidden": True})
+    assert response.status_code == 200
+    assert response.json()["is_hidden"] is True
+
+    # il personaggio stesso resta pubblico: is_hidden è per-immagine, non collegato a is_private
+    detail = await client.get(f"/characters/{character_id}")
+    assert detail.json()["is_private"] is False
+
+    # e si può anche togliere di nuovo
+    response = await client.put(f"/characters/{character_id}/images/{image_id}", json={"is_hidden": False})
+    assert response.json()["is_hidden"] is False
+
+
+async def test_update_image_missing_is_404(client: AsyncClient) -> None:
+    created = await client.post("/characters", json={"name": "Elena"})
+    character_id = created.json()["id"]
+    response = await client.put(f"/characters/{character_id}/images/does-not-exist", json={"is_hidden": True})
+    assert response.status_code == 404
+
+
+async def test_update_image_belonging_to_another_character_is_404(client: AsyncClient) -> None:
+    char_a = (await client.post("/characters", json={"name": "A"})).json()["id"]
+    char_b = (await client.post("/characters", json={"name": "B"})).json()["id"]
+    uploaded = await client.post(f"/characters/{char_a}/images", files={"file": ("x.png", _FAKE_PNG, "image/png")})
+    image_id = uploaded.json()["id"]
+
+    response = await client.put(f"/characters/{char_b}/images/{image_id}", json={"is_hidden": True})
+    assert response.status_code == 404
 
 
 async def test_upload_rejects_empty_file(client: AsyncClient) -> None:

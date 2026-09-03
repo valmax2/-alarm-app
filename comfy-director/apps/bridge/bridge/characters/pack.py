@@ -40,6 +40,7 @@ class PackImage:
     source: str
     width: int | None
     height: int | None
+    is_hidden: bool
     data: bytes
 
 
@@ -65,6 +66,7 @@ class SourceImage:
     source: str
     width: int | None
     height: int | None
+    is_hidden: bool
 
 
 def build_character_pack(
@@ -94,6 +96,7 @@ def build_character_pack(
                 {
                     "filename": archive_filename, "role": image.role, "order_index": image.order_index,
                     "source": image.source, "width": image.width, "height": image.height,
+                    "is_hidden": image.is_hidden,
                 }
             )
         archive.writestr(_MANIFEST_NAME, json.dumps(manifest, ensure_ascii=False, indent=2))
@@ -167,12 +170,20 @@ def parse_character_pack(zip_bytes: bytes) -> CharacterPack:
         width, height = raw.get("width"), raw.get("height")
         _require(width is None or isinstance(width, int), f"L'immagine '{filename}' ha una 'width' non valida.")
         _require(height is None or isinstance(height, int), f"L'immagine '{filename}' ha una 'height' non valida.")
+        # `False` di default: un pack esportato da una build precedente (senza questo
+        # campo, aggiunto dopo) resta importabile — mai un rifiuto per un campo che
+        # non esisteva ancora quando il pack è stato creato.
+        is_hidden = raw.get("is_hidden", False)
+        _require(isinstance(is_hidden, bool), f"L'immagine '{filename}' ha un 'is_hidden' non valido.")
 
         data = archive.read(archive_path)
         _require(len(data) > 0, f"Il file immagine '{filename}' nell'archivio è vuoto.")
 
         images.append(
-            PackImage(filename=filename, role=role, order_index=order_index, source=source, width=width, height=height, data=data)
+            PackImage(
+                filename=filename, role=role, order_index=order_index, source=source, width=width, height=height,
+                is_hidden=is_hidden, data=data,
+            )
         )
 
     return CharacterPack(name=name, description=description, tags=tags, notes=notes, is_private=is_private, images=images)

@@ -38,6 +38,7 @@ from bridge.schemas import (
     CharacterCreateRequest,
     CharacterDetailOut,
     CharacterImageOut,
+    CharacterImageUpdateRequest,
     CharacterSummaryOut,
     CharacterUpdateRequest,
 )
@@ -56,7 +57,8 @@ def _safe_filename_slug(name: str) -> str:
 def _image_out(record: CharacterImageRecord) -> CharacterImageOut:
     return CharacterImageOut(
         id=record.id, character_id=record.character_id, role=record.role, order_index=record.order_index,
-        source=record.source, width=record.width, height=record.height, created_at=record.created_at,
+        source=record.source, width=record.width, height=record.height, is_hidden=record.is_hidden,
+        created_at=record.created_at,
     )
 
 
@@ -123,7 +125,7 @@ async def import_character_pack(
         image = CharacterImageRecord(
             character_id=record.id, storage_path=relative_path, role=pack_image.role,
             order_index=pack_image.order_index, source=pack_image.source,
-            width=pack_image.width, height=pack_image.height,
+            width=pack_image.width, height=pack_image.height, is_hidden=pack_image.is_hidden,
         )
         session.add(image)
         await session.flush()
@@ -220,6 +222,20 @@ async def upload_character_image(
     return _image_out(image)
 
 
+@router.put("/{character_id}/images/{image_id}", response_model=CharacterImageOut)
+async def update_character_image(
+    character_id: str, image_id: str, payload: CharacterImageUpdateRequest, session: AsyncSession = Depends(get_db_session)
+) -> CharacterImageOut:
+    """Oscuramento per SINGOLA immagine (indipendente dal toggle `is_private` del
+    personaggio, che oscura tutte le immagini insieme) — richiesto esplicitamente."""
+    image = await session.get(CharacterImageRecord, image_id)
+    if image is None or image.character_id != character_id:
+        raise HTTPException(status_code=404, detail="Immagine non trovata")
+    image.is_hidden = payload.is_hidden
+    await session.flush()
+    return _image_out(image)
+
+
 @router.delete("/{character_id}/images/{image_id}", status_code=204)
 async def delete_character_image_endpoint(
     character_id: str, image_id: str, session: AsyncSession = Depends(get_db_session), settings: Settings = Depends(get_settings)
@@ -267,6 +283,7 @@ async def export_character_pack(
             SourceImage(
                 data=path.read_bytes(), original_filename=path.name, role=image.role,
                 order_index=image.order_index, source=image.source, width=image.width, height=image.height,
+                is_hidden=image.is_hidden,
             )
         )
 

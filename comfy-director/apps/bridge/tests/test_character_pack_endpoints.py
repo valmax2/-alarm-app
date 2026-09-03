@@ -85,3 +85,16 @@ async def test_export_then_import_round_trip_preserves_private_flag(client: Asyn
         "/characters/import", files={"file": ("pack.zip", exported.content, "application/zip")}
     )
     assert imported.json()["is_private"] is True
+
+
+async def test_export_then_import_round_trip_preserves_per_image_is_hidden(client: AsyncClient) -> None:
+    character_id = await _create_character_with_image(client)
+    detail = await client.get(f"/characters/{character_id}")
+    image_id = detail.json()["images"][0]["id"]
+    await client.put(f"/characters/{character_id}/images/{image_id}", json={"is_hidden": True})
+
+    exported = await client.get(f"/characters/{character_id}/export")
+    imported = await client.post(
+        "/characters/import", files={"file": ("pack.zip", exported.content, "application/zip")}
+    )
+    assert imported.json()["images"][0]["is_hidden"] is True

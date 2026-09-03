@@ -285,6 +285,11 @@ class CharacterImageRecord(Base):
     source: Mapped[str] = mapped_column(String(16), default="upload")  # "upload" | "drag_drop" | "cloud_drive" | "generated"
     width: Mapped[int | None] = mapped_column(Integer, nullable=True)
     height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Oscuramento per SINGOLA immagine (richiesto esplicitamente, oltre al toggle
+    # `characters.is_private` che oscura TUTTE le immagini del personaggio insieme):
+    # stesso limite già dichiarato per `is_private` — solo un controllo di
+    # visualizzazione (blur CSS), non un vero controllo d'accesso.
+    is_hidden: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
 

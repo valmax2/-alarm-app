@@ -58,7 +58,7 @@ describe("CharactersPanel", () => {
           return jsonResponse({
             id: "c1", name: "Elena", description: null, tags: [], is_private: true, image_count: 1,
             main_image_id: "img1", notes: null,
-            images: [{ id: "img1", character_id: "c1", role: "main", order_index: 0, source: "upload", width: null, height: null, created_at: "2026-01-01T00:00:00Z" }],
+            images: [{ id: "img1", character_id: "c1", role: "main", order_index: 0, source: "upload", width: null, height: null, is_hidden: false, created_at: "2026-01-01T00:00:00Z" }],
             created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z",
           });
         }
@@ -83,11 +83,56 @@ describe("CharactersPanel", () => {
     expect(screen.getByText(/Esporta Character Pack/)).toBeInTheDocument();
   });
 
+  it("nasconde una singola immagine indipendentemente dal toggle 'Privato' del personaggio", async () => {
+    let hidden = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init?: RequestInit) => {
+        if (url.endsWith("/characters/c1/images/img1") && init?.method === "PUT") {
+          const body = JSON.parse(init.body as string) as { is_hidden: boolean };
+          hidden = body.is_hidden;
+          return jsonResponse({
+            id: "img1", character_id: "c1", role: "main", order_index: 0, source: "upload",
+            width: null, height: null, is_hidden: hidden, created_at: "2026-01-01T00:00:00Z",
+          });
+        }
+        if (url.endsWith("/characters/c1")) {
+          return jsonResponse({
+            id: "c1", name: "Elena", description: null, tags: [], is_private: false, image_count: 1,
+            main_image_id: "img1", notes: null,
+            images: [{ id: "img1", character_id: "c1", role: "main", order_index: 0, source: "upload", width: null, height: null, is_hidden: hidden, created_at: "2026-01-01T00:00:00Z" }],
+            created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z",
+          });
+        }
+        if (url.endsWith("/characters")) {
+          return jsonResponse([
+            { id: "c1", name: "Elena", description: null, tags: [], is_private: false, image_count: 1, main_image_id: "img1", created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z" },
+          ]);
+        }
+        return jsonResponse({});
+      }),
+    );
+
+    render(<CharactersPanel />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /apri/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /apri/i }));
+
+    const img = await screen.findByRole("img");
+    expect(img.className).not.toContain("characters-panel__thumb--blurred");
+
+    fireEvent.click(await screen.findByRole("button", { name: /^nascondi$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("img").className).toContain("characters-panel__thumb--blurred");
+      expect(screen.getByRole("button", { name: /^mostra$/i })).toBeInTheDocument();
+    });
+  });
+
   it("importa un Character Pack e apre il personaggio appena creato", async () => {
     const importedDetail = {
       id: "imported-1", name: "Aria", description: null, tags: ["fantasy"], is_private: false,
       image_count: 1, main_image_id: "img1", notes: null,
-      images: [{ id: "img1", character_id: "imported-1", role: "main", order_index: 0, source: "upload", width: null, height: null, created_at: "2026-01-01T00:00:00Z" }],
+      images: [{ id: "img1", character_id: "imported-1", role: "main", order_index: 0, source: "upload", width: null, height: null, is_hidden: false, created_at: "2026-01-01T00:00:00Z" }],
       created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z",
     };
     vi.stubGlobal(

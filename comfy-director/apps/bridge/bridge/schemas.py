@@ -177,7 +177,15 @@ class CharacterImageOut(BaseModel):
     source: str
     width: int | None
     height: int | None
+    # Oscuramento per SINGOLA immagine, indipendente da `characters.is_private` (che
+    # oscura tutte le immagini del personaggio insieme) — stesso limite: solo un
+    # controllo di visualizzazione (blur), non un vero controllo d'accesso.
+    is_hidden: bool
     created_at: datetime
+
+
+class CharacterImageUpdateRequest(BaseModel):
+    is_hidden: bool
 
 
 class CharacterCreateRequest(BaseModel):

@@ -1,5 +1,27 @@
 # CHANGELOG — Comfy Director
 
+## [Non rilasciato] — Personaggi: oscuramento per singola immagine (2026-09-03)
+
+Richiesta esplicita dell'utente: il toggle "Privato" del personaggio oscura TUTTE le
+sue immagini insieme — mancava un oscuramento per singola immagine, indipendente.
+
+### Backend
+- `character_images.is_hidden` (migrazione `0011`).
+- `PUT /characters/{id}/images/{id}` per il toggle.
+- Preservato nell'export/import Character Pack — retrocompatibile: un pack esportato
+  prima di questa funzione (senza il campo nel manifest) resta importabile,
+  `is_hidden` di default `false`.
+
+### Frontend
+- Pulsante "Nascondi"/"Mostra" per ogni immagine nel dettaglio personaggio — il blur
+  si applica se il personaggio è privato OPPURE la singola immagine è nascosta.
+
+### Test
+- Backend: +5 test (253 totali).
+- Frontend: +1 test (54 totali).
+- Verificato con una chiamata HTTP reale end-to-end (upload → PUT is_hidden → rilettura
+  del dettaglio, valore persistito correttamente).
+
 ## [Non rilasciato] — Fase 9 v2: preset di prompt riutilizzabili (2026-09-02)
 
 Colma la lacuna dichiarata esplicitamente in Fase 9 ("nessun preset di prompt con

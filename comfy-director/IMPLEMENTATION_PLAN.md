@@ -275,6 +275,14 @@ in `docs/test-plan.md` e in `apps/bridge/README.md`.
   scaricabile via URL diretto se qualcuno lo conosce — nessuna autenticazione
   esiste in questa app locale, coerente con l'architettura "un solo utente sulla
   propria macchina").
+- ✅ **Oscuramento per SINGOLA immagine** (richiesto esplicitamente, oltre al
+  toggle `is_private` che oscura tutte le immagini del personaggio insieme):
+  colonna `character_images.is_hidden` (migrazione `0011`),
+  `PUT /characters/{id}/images/{id}`, pulsante "Nascondi"/"Mostra" per ogni
+  immagine — il blur si applica se il personaggio è privato OPPURE la singola
+  immagine è nascosta. Preservato anche nell'export/import Character Pack
+  (retrocompatibile: un pack esportato prima di questa funzione, senza il campo,
+  resta importabile — `is_hidden` è semplicemente `false` di default).
 - ✅ Sezione "Personaggi" abilitata in UI (era disattivata): libreria, dettaglio
   personaggio, upload/eliminazione immagini reali, verificato caricando un PNG
   reale (bytes confermati identici su disco via lettura diretta del file, non solo

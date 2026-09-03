@@ -23,6 +23,7 @@ def _source_image(**overrides) -> SourceImage:
         "source": "upload",
         "width": 512,
         "height": 512,
+        "is_hidden": False,
     }
     defaults.update(overrides)
     return SourceImage(**defaults)
@@ -31,7 +32,7 @@ def _source_image(**overrides) -> SourceImage:
 def test_round_trip_preserves_all_fields() -> None:
     zip_bytes = build_character_pack(
         name="Aria", description="Una protagonista", tags=["fantasy", "hero"], notes="note private",
-        is_private=True, images=[_source_image()],
+        is_private=True, images=[_source_image(is_hidden=True)],
     )
     pack = parse_character_pack(zip_bytes)
     assert pack.name == "Aria"
@@ -46,6 +47,7 @@ def test_round_trip_preserves_all_fields() -> None:
     assert image.source == "upload"
     assert image.width == 512
     assert image.height == 512
+    assert image.is_hidden is True
 
 
 def test_round_trip_with_no_images() -> None:
@@ -139,6 +141,26 @@ def test_rejects_invalid_role() -> None:
         )
     with pytest.raises(CharacterPackError, match="role"):
         parse_character_pack(buffer.getvalue())
+
+
+def test_pack_without_is_hidden_field_defaults_to_false() -> None:
+    """Compatibilità con un pack esportato da una build precedente a questa
+    funzione: 'is_hidden' non esisteva ancora nel manifest — deve restare
+    importabile, mai rifiutato per un campo che non c'era."""
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("images/a.png", b"data")
+        archive.writestr(
+            "character.json",
+            json.dumps(
+                {
+                    "format": "comfy-director-character-pack", "format_version": 1, "name": "X",
+                    "images": [{"filename": "a.png", "role": "main", "order_index": 0, "source": "upload"}],
+                }
+            ),
+        )
+    pack = parse_character_pack(buffer.getvalue())
+    assert pack.images[0].is_hidden is False
 
 
 def test_rejects_malformed_json_manifest() -> None:

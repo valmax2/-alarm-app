@@ -85,6 +85,12 @@ export function CharactersPanel() {
     refreshList();
   }
 
+  async function handleToggleImageHidden(imageId: string, currentlyHidden: boolean) {
+    if (!detail) return;
+    await bridgeClient.updateCharacterImage(detail.id, imageId, { is_hidden: !currentlyHidden });
+    refreshDetail(detail.id);
+  }
+
   async function handleImportPack(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -136,12 +142,16 @@ export function CharactersPanel() {
               <img
                 src={bridgeClient.characterImageUrl(detail.id, img.id)}
                 alt={`${detail.name} — ${img.role}`}
-                className={`characters-panel__thumb${detail.is_private ? " characters-panel__thumb--blurred" : ""}`}
+                className={`characters-panel__thumb${detail.is_private || img.is_hidden ? " characters-panel__thumb--blurred" : ""}`}
               />
               <span className="models-panel__meta">
                 {img.role === "main" ? "Principale" : "Riferimento"}
                 {img.id === detail.main_image_id ? " · copertina" : ""}
+                {img.is_hidden ? " · nascosta" : ""}
               </span>
+              <button type="button" onClick={() => void handleToggleImageHidden(img.id, img.is_hidden)}>
+                {img.is_hidden ? "Mostra" : "Nascondi"}
+              </button>
               <button type="button" onClick={() => void handleDeleteImage(img.id)}>
                 Elimina
               </button>

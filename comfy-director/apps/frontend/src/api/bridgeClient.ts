@@ -301,6 +301,9 @@ export interface CharacterImageOut {
   source: string;
   width: number | null;
   height: number | null;
+  // Oscuramento per SINGOLA immagine, indipendente da `is_private` del personaggio
+  // (che oscura tutte le immagini insieme).
+  is_hidden: boolean;
   created_at: string;
 }
 
@@ -507,6 +510,12 @@ export const bridgeClient = {
   deleteCharacterImage: (characterId: string, imageId: string) =>
     request<void>(`/characters/${encodeURIComponent(characterId)}/images/${encodeURIComponent(imageId)}`, {
       method: "DELETE",
+    }),
+  // Oscuramento per singola immagine, indipendente dal toggle "Privato" del personaggio.
+  updateCharacterImage: (characterId: string, imageId: string, input: { is_hidden: boolean }) =>
+    request<CharacterImageOut>(`/characters/${encodeURIComponent(characterId)}/images/${encodeURIComponent(imageId)}`, {
+      method: "PUT",
+      body: JSON.stringify(input),
     }),
   characterImageUrl: (characterId: string, imageId: string) =>
     `${BRIDGE_BASE_URL}/characters/${encodeURIComponent(characterId)}/images/${encodeURIComponent(imageId)}/file`,
