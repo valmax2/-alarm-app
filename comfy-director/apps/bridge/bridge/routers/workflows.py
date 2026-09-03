@@ -11,6 +11,9 @@ from bridge.inventory.family_detection import KNOWN_FAMILIES
 from bridge.inventory.sync import DEFAULT_INSTANCE_ID
 from bridge.models import NodeRecord, NodeSchemaRecord, WorkflowRecord, WorkflowVersionRecord
 from bridge.schemas import (
+    AppliedPromptTargetOut,
+    ApplyPromptRequest,
+    ApplyPromptResponse,
     ValidationIssueOut,
     WorkflowCreateRequest,
     WorkflowDetailOut,
@@ -20,7 +23,7 @@ from bridge.schemas import (
     WorkflowSaveRequest,
     WorkflowSummaryOut,
 )
-from bridge.workflow import NodeSchemaInfo, WorkflowGraph, validate_structure
+from bridge.workflow import NodeSchemaInfo, WorkflowGraph, find_prompt_targets, validate_structure
 from bridge.workflow_import import WorkflowJsonImportError, import_workflow_json
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
@@ -155,34 +158,27 @@ async def get_workflow(workflow_id: str, session: AsyncSession = Depends(get_db_
     )
 
 
-@router.put("/{workflow_id}", response_model=WorkflowDetailOut)
-async def save_workflow(
-    workflow_id: str, payload: WorkflowSaveRequest, session: AsyncSession = Depends(get_db_session)
+async def _persist_new_version(
+    session: AsyncSession, workflow: WorkflowRecord, graph: WorkflowGraph,
+    schemas: dict[str, NodeSchemaInfo], note: str | None,
 ) -> WorkflowDetailOut:
-    """Salva lo stato corrente del grafo come nuova versione (spec §28: ogni modifica
-    importante crea un checkpoint). Il salvataggio riesce anche in presenza di
-    problemi di validazione (sono informativi qui — il blocco rigido "prima di
-    GENERA" è Fase 6, §26): l'utente può salvare un lavoro a metà senza perderlo."""
-    workflow = await session.get(WorkflowRecord, workflow_id)
-    if workflow is None:
-        raise HTTPException(status_code=404, detail="Workflow non trovato")
-
-    graph = WorkflowGraph(nodes=payload.graph.nodes, edges=payload.graph.edges)
-    schemas = await _known_node_schemas(session)
+    """Crea una nuova `WorkflowVersionRecord` e la rende quella corrente (spec §28:
+    ogni modifica importante crea un checkpoint) — condiviso da `save_workflow` e
+    `apply_prompt_to_workflow`, mai duplicato tra i due endpoint."""
     issues = validate_structure(graph, schemas)
 
     last_version_number = (
         await session.execute(
             select(WorkflowVersionRecord.version_number)
-            .where(WorkflowVersionRecord.workflow_id == workflow_id)
+            .where(WorkflowVersionRecord.workflow_id == workflow.id)
             .order_by(WorkflowVersionRecord.version_number.desc())
             .limit(1)
         )
     ).scalar_one_or_none() or 0
 
     version = WorkflowVersionRecord(
-        workflow_id=workflow_id, version_number=last_version_number + 1, graph_json=graph.model_dump_json(),
-        validation_result_json=json.dumps([i.model_dump() for i in issues]), note=payload.note,
+        workflow_id=workflow.id, version_number=last_version_number + 1, graph_json=graph.model_dump_json(),
+        validation_result_json=json.dumps([i.model_dump() for i in issues]), note=note,
     )
     session.add(version)
     await session.flush()
@@ -197,6 +193,88 @@ async def save_workflow(
         validation_issues=[ValidationIssueOut(severity=i.severity, node_id=i.node_id, message=i.message) for i in issues],
         updated_at=workflow.updated_at,
     )
+
+
+@router.put("/{workflow_id}", response_model=WorkflowDetailOut)
+async def save_workflow(
+    workflow_id: str, payload: WorkflowSaveRequest, session: AsyncSession = Depends(get_db_session)
+) -> WorkflowDetailOut:
+    """Salva lo stato corrente del grafo come nuova versione. Il salvataggio riesce
+    anche in presenza di problemi di validazione (sono informativi qui — il blocco
+    rigido "prima di GENERA" è Fase 6, §26): l'utente può salvare un lavoro a metà
+    senza perderlo."""
+    workflow = await session.get(WorkflowRecord, workflow_id)
+    if workflow is None:
+        raise HTTPException(status_code=404, detail="Workflow non trovato")
+
+    graph = WorkflowGraph(nodes=payload.graph.nodes, edges=payload.graph.edges)
+    schemas = await _known_node_schemas(session)
+    return await _persist_new_version(session, workflow, graph, schemas, payload.note)
+
+
+@router.post("/{workflow_id}/apply-prompt", response_model=ApplyPromptResponse)
+async def apply_prompt_to_workflow(
+    workflow_id: str, payload: ApplyPromptRequest, session: AsyncSession = Depends(get_db_session)
+) -> ApplyPromptResponse:
+    """Chiude il divario Prompt Engine → generazione (Fase 9, dichiarato esplicitamente
+    come non ancora fatto in `IMPLEMENTATION_PLAN.md`): inserisce il prompt composto
+    direttamente nel nodo di testo libero collegato all'input 'positive' (e,
+    opzionalmente, 'negative') del workflow corrente — invece di richiedere
+    all'utente di ricopiarlo a mano sulla canvas.
+
+    Individuazione strutturale (`bridge.workflow.prompt_targets.find_prompt_targets`),
+    non basata sul nome della classe del nodo: se il grafo non ha un candidato
+    univoco per 'positive', la richiesta fallisce con 422 e il motivo esatto —
+    mai un abbinamento indovinato. Un 'negative' non risolto non blocca la
+    richiesta (è opzionale): il motivo finisce in `warnings`."""
+    workflow = await session.get(WorkflowRecord, workflow_id)
+    if workflow is None or workflow.current_version_id is None:
+        raise HTTPException(status_code=404, detail="Workflow non trovato")
+    version = await session.get(WorkflowVersionRecord, workflow.current_version_id)
+    if version is None:
+        raise HTTPException(status_code=404, detail="Workflow non trovato (versione mancante)")
+
+    graph = WorkflowGraph.model_validate_json(version.graph_json)
+    schemas = await _known_node_schemas(session)
+    targets = find_prompt_targets(graph, schemas)
+
+    if targets.positive is None:
+        reason = " ".join(targets.issues) if targets.issues else "Nessun campo di testo trovato per il prompt positivo."
+        raise HTTPException(status_code=422, detail=reason)
+
+    applied: list[AppliedPromptTargetOut] = []
+    warnings: list[str] = []
+
+    node_by_id = {n.id: n for n in graph.nodes}
+    positive_node = node_by_id[targets.positive.node_id]
+    positive_node.params[targets.positive.param_name] = payload.text_en
+    applied.append(
+        AppliedPromptTargetOut(
+            role="positive", node_id=targets.positive.node_id,
+            class_type=targets.positive.class_type, param_name=targets.positive.param_name,
+        )
+    )
+
+    if payload.negative_text_en is not None and payload.negative_text_en.strip():
+        if targets.negative is not None:
+            negative_node = node_by_id[targets.negative.node_id]
+            negative_node.params[targets.negative.param_name] = payload.negative_text_en
+            applied.append(
+                AppliedPromptTargetOut(
+                    role="negative", node_id=targets.negative.node_id,
+                    class_type=targets.negative.class_type, param_name=targets.negative.param_name,
+                )
+            )
+        else:
+            warnings.append(
+                "Negative prompt fornito ma nessun nodo di testo libero collegato a 'negative' è stato "
+                "individuato automaticamente nel workflow: non è stato inserito da nessuna parte."
+            )
+
+    detail = await _persist_new_version(
+        session, workflow, graph, schemas, note="Prompt inserito automaticamente dal Prompt Engine",
+    )
+    return ApplyPromptResponse(workflow=detail, applied=applied, warnings=warnings)
 
 
 @router.delete("/{workflow_id}", status_code=204)

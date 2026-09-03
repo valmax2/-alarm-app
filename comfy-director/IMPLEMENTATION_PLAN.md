@@ -393,12 +393,33 @@ Verificato dal vivo nel browser con Playwright: griglia con foto reali caricate,
 e colore selezionati (evidenziati), prompt composto contiene i relativi frammenti
 inglesi.
 
-Non ancora consegnato — più significativo: nessun collegamento a un
-workflow/generazione specifico (`prompts.generation_id` resta sempre `null`): questo
-dipende dal Workflow Builder completo (Fase 5, non ancora costruito), dichiarato
-esplicitamente. Anche dal porting di PromptStudio restano da fare: Body Director/
-Camera Director (editor guidati a step, UI grossa e a sé), provider Runware.ai
-alternativo.
+Consegnato ora — **"Invia al workflow"** (chiude il divario appena sopra dichiarato
+"nessun collegamento a un workflow specifico"): `bridge/workflow/prompt_targets.py`
+(`find_prompt_targets()`, puro e testabile — 7 test unitari dedicati) individua
+STRUTTURALMENTE, mai per nome di classe hardcodato, il nodo di testo libero collegato
+agli input `positive`/`negative` di un workflow — segue l'arco che porta a
+quell'handle (nome che viene dallo schema reale sincronizzato, stesso principio già
+usato in `workflow.compile`), poi tra gli input `STRING` non collegati del nodo
+sorgente cerca l'UNICO campo widget: se ce ne sono zero o più di uno, non indovina,
+dichiara il motivo esatto. `POST /workflows/{id}/apply-prompt` (5 test endpoint
+dedicati) scrive il prompt lì e salva una nuova versione del workflow — un `positive`
+non risolvibile fa fallire la richiesta con 422 e il motivo reale; un `negative`
+richiesto ma non risolvibile è un warning, non blocca l'invio del positivo. Frontend:
+sezione "Invia al workflow" nel Prompt Engine — scelta del workflow di destinazione,
+un pulsante, e il messaggio di conferma cita il vero nodo/classe/versione restituiti
+dal Bridge (mai un "fatto" generico). Verificato dal vivo nel browser con Playwright
+contro un Bridge reale (inventario sincronizzato da uno stub HTTP locale, non
+mockato a livello Python): prompt positivo+negativo scritti davvero nei due nodi
+`CLIPTextEncode` del workflow di test, confermato sia nella UI sia rileggendo il
+workflow dal Bridge.
+
+Non ancora consegnato — più significativo: il collegamento riguarda solo il grafo del
+workflow (il testo finisce nel nodo), non ancora `prompts.generation_id` (la
+cronologia prompt e la generazione restano tabelle distinte, mai collegate
+automaticamente) né un percorso "componi → invia → genera" in un solo click (bisogna
+comunque aprire il pannello Workflow e premere GENERA separatamente). Anche dal
+porting di PromptStudio restano da fare: Body Director/Camera Director (editor
+guidati a step, UI grossa e a sé), provider Runware.ai alternativo.
 
 ## FASE 10 — AI ASSISTANT — 🟨 (v1: solo chat, nessun Tool Layer)
 - ✅ `bridge/ai_providers/chat.py`: chiamata REALE (non simulata) ad Anthropic

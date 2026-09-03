@@ -171,4 +171,88 @@ describe("PromptEnginePanel", () => {
       expect(screen.getByLabelText(/blocca traduzione/i)).toBeChecked();
     });
   });
+
+  it("senza nessun workflow non mostra il selettore, solo l'avviso", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        if (url.endsWith("/ai-providers")) return jsonResponse([PROVIDER]);
+        if (url.endsWith("/prompts")) return jsonResponse([]);
+        if (url.includes("/prompt-presets")) return jsonResponse([]);
+        if (url.endsWith("/workflows")) return jsonResponse([]);
+        return jsonResponse({});
+      }),
+    );
+
+    render(<PromptEnginePanel />);
+    await waitFor(() => expect(screen.getByText(/Nessun workflow ancora creato/)).toBeInTheDocument());
+    expect(screen.queryByLabelText("Workflow di destinazione")).not.toBeInTheDocument();
+  });
+
+  it("invia il prompt corrente al workflow scelto e mostra dove è stato inserito davvero", async () => {
+    const WORKFLOWS = [
+      { id: "w1", name: "Ritratti SDXL", intent: null, family: "sdxl", source: "user_created", node_count: 3, edge_count: 2, updated_at: "2026-01-01T00:00:00Z" },
+    ];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init?: RequestInit) => {
+        if (url.endsWith("/ai-providers")) return jsonResponse([PROVIDER]);
+        if (url.endsWith("/prompts")) return jsonResponse([]);
+        if (url.includes("/prompt-presets")) return jsonResponse([]);
+        if (url.endsWith("/workflows")) return jsonResponse(WORKFLOWS);
+        if (url.endsWith("/workflows/w1/apply-prompt") && init?.method === "POST") {
+          const body = JSON.parse(init.body as string) as { text_en: string; negative_text_en: string | null };
+          expect(body.text_en).toBe("a fantasy portrait");
+          return jsonResponse({
+            workflow: { id: "w1", name: "Ritratti SDXL", intent: null, family: "sdxl", source: "user_created", version_number: 4, graph: { nodes: [], edges: [] }, validation_issues: [], updated_at: "2026-01-01T00:00:00Z" },
+            applied: [{ role: "positive", node_id: "n1", class_type: "CLIPTextEncode", param_name: "text" }],
+            warnings: [],
+          });
+        }
+        return jsonResponse({});
+      }),
+    );
+
+    render(<PromptEnginePanel />);
+    await waitFor(() => expect(screen.getByLabelText("Workflow di destinazione")).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText("Prompt (inglese) — editabile"), { target: { value: "a fantasy portrait" } });
+    fireEvent.click(screen.getByRole("button", { name: /invia il prompt a questo workflow/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Prompt inserito nel nodo "CLIPTextEncode"/)).toBeInTheDocument();
+      expect(screen.getByText(/versione 4 del workflow/)).toBeInTheDocument();
+    });
+  });
+
+  it("mostra l'errore reale del Bridge se nessun nodo positivo univoco è stato trovato", async () => {
+    const WORKFLOWS = [
+      { id: "w1", name: "Flusso incompleto", intent: null, family: null, source: "user_created", node_count: 0, edge_count: 0, updated_at: "2026-01-01T00:00:00Z" },
+    ];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init?: RequestInit) => {
+        if (url.endsWith("/ai-providers")) return jsonResponse([PROVIDER]);
+        if (url.endsWith("/prompts")) return jsonResponse([]);
+        if (url.includes("/prompt-presets")) return jsonResponse([]);
+        if (url.endsWith("/workflows")) return jsonResponse(WORKFLOWS);
+        if (url.endsWith("/workflows/w1/apply-prompt") && init?.method === "POST") {
+          return jsonResponse({ detail: "Nessun arco nel workflow porta a un input chiamato 'positive'." }, 422);
+        }
+        return jsonResponse({});
+      }),
+    );
+
+    render(<PromptEnginePanel />);
+    await waitFor(() => expect(screen.getByLabelText("Workflow di destinazione")).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText("Prompt (inglese) — editabile"), { target: { value: "qualcosa" } });
+    fireEvent.click(screen.getByRole("button", { name: /invia il prompt a questo workflow/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Nessun arco nel workflow porta a un input chiamato 'positive'/)).toBeInTheDocument();
+    });
+  });
 });

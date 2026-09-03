@@ -181,6 +181,19 @@ export interface WorkflowImportJsonResponse {
   unmapped_widget_node_types: string[];
 }
 
+export interface AppliedPromptTarget {
+  role: "positive" | "negative";
+  node_id: string;
+  class_type: string;
+  param_name: string;
+}
+
+export interface ApplyPromptResponse {
+  workflow: WorkflowDetailOut;
+  applied: AppliedPromptTarget[];
+  warnings: string[];
+}
+
 export interface GenerationOutput {
   filename: string;
   subfolder: string;
@@ -493,6 +506,11 @@ export const bridgeClient = {
       body: JSON.stringify({ graph, note }),
     }),
   deleteWorkflow: (id: string) => request<void>(`/workflows/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  applyPromptToWorkflow: (id: string, textEn: string, negativeTextEn?: string) =>
+    request<ApplyPromptResponse>(`/workflows/${encodeURIComponent(id)}/apply-prompt`, {
+      method: "POST",
+      body: JSON.stringify({ text_en: textEn, negative_text_en: negativeTextEn || null }),
+    }),
 
   generate: (workflowId: string) =>
     request<GenerationOut>(`/workflows/${encodeURIComponent(workflowId)}/generate`, { method: "POST" }),

@@ -435,6 +435,33 @@ class WorkflowImportJsonResponse(BaseModel):
     unmapped_widget_node_types: list[str]
 
 
+class ApplyPromptRequest(BaseModel):
+    """Chiude il divario Prompt Engine → workflow (bridge.workflow.prompt_targets):
+    inserisce il testo composto/tradotto direttamente nel nodo di testo libero
+    collegato a 'positive' (e, se presente e fornito, 'negative'), senza che
+    l'utente debba ricopiarlo a mano sulla canvas."""
+
+    text_en: str
+    negative_text_en: str | None = None
+
+
+class AppliedPromptTargetOut(BaseModel):
+    role: Literal["positive", "negative"]
+    node_id: str
+    class_type: str
+    param_name: str
+
+
+class ApplyPromptResponse(BaseModel):
+    workflow: WorkflowDetailOut
+    applied: list[AppliedPromptTargetOut]
+    # Motivo esatto per ogni ruolo richiesto ma non risolto automaticamente (mai un
+    # abbinamento indovinato) — 'positive' qui è già garantito assente da applied,
+    # quindi la richiesta fallisce con 422 prima di arrivare a costruire questo campo;
+    # 'negative' invece può restare non applicato senza bloccare la richiesta.
+    warnings: list[str]
+
+
 class GenerationOutputOut(BaseModel):
     filename: str
     subfolder: str

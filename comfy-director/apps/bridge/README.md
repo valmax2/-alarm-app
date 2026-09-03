@@ -106,6 +106,18 @@ Bridge, verificare manualmente contro un'istanza ComfyUI reale:
     deve avviare un download reale del JSON del report. Già verificato in sviluppo
     (stato vuoto dal vivo con Playwright + download intercettato; stato popolato
     verificato end-to-end via test di integrazione ASGI).
+14. Con un workflow reale i cui nodi `CLIPTextEncode` (o equivalenti) sono collegati
+    a `positive`/`negative` di un sampler, aprire "Prompt Engine", scrivere/comporre
+    un prompt, scegliere quel workflow in "Invia al workflow" e premere il pulsante →
+    il testo deve finire davvero nei nodi giusti (`GET /workflows/{id}` deve
+    riportarlo) come nuova versione, e il messaggio di conferma in UI deve citare il
+    `class_type`/la versione reali. Su un workflow senza un candidato `positive`
+    univoco (nessun arco, o un nodo con zero/più campi di testo libero), la richiesta
+    deve fallire con 422 e il motivo esatto in UI, mai un fallimento silenzioso. Già
+    verificato dal vivo nel browser con Playwright — inventario sincronizzato da uno
+    stub HTTP locale (`/system_stats`+`/object_info`) dato che l'ambiente di sviluppo
+    non ha un ComfyUI reale (vedi sopra), ma la sync stessa e la scrittura nel grafo
+    sono chiamate reali, non mockate.
 
 ## Migrazioni
 
@@ -137,7 +149,11 @@ bridge/
                                       # family detection, node_registry, safetensors
   compatibility/                       # Fase 4 v1: resolve() + filter_models_by_family
   workflow/                             # Fase 3: modello grafo + validate_structure();
-                                         # Fase 6: compile_to_comfy_payload()
+                                         # Fase 6: compile_to_comfy_payload(); Fase 9:
+                                         # prompt_targets.py — find_prompt_targets(),
+                                         # individuazione strutturale (mai per nome di
+                                         # classe) del nodo di testo libero collegato a
+                                         # positive/negative, per "Invia al workflow"
   media/                                 # Fase 8: parser chunk PNG (tEXt/zTXt/iTXt)
   workflow_import/                        # Fase 8: workflow da immagine; Fase 5:
                                            # workflow da file .json standalone
@@ -153,7 +169,8 @@ bridge/
   diagnostics.py                            # Fase 11: cattura eccezioni non gestite
                                              # (exception handler globale in main.py)
   routers/                                  # health, comfy, settings, inventory,
-                                             # workflows, workflow_import, ai_providers,
+                                             # workflows (+ apply-prompt, Fase 9),
+                                             # workflow_import, ai_providers,
                                              # prompt_from_image, prompts, prompt_presets,
                                              # prompt_engine, generations, chat,
                                              # characters, diagnostics

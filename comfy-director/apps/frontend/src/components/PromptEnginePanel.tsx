@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 
-import { bridgeClient, type AIProviderOut, type PromptOut, type PromptPresetOut } from "../api/bridgeClient";
+import {
+  bridgeClient,
+  type AIProviderOut,
+  type ApplyPromptResponse,
+  type PromptOut,
+  type PromptPresetOut,
+  type WorkflowSummaryOut,
+} from "../api/bridgeClient";
 import { StructuredPromptBuilder } from "./StructuredPromptBuilder";
 
 /**
@@ -17,8 +24,14 @@ import { StructuredPromptBuilder } from "./StructuredPromptBuilder";
  * dell'utente): compone il prompt inglese da menu guidati invece di scriverlo a
  * mano, riusando i Personaggi della libreria (Fase 7) per la coerenza d'identità.
  *
- * Non ancora collegato a un workflow/generazione specifico — dipende dal Workflow
- * Builder completo (Fase 5), dichiarato esplicitamente.
+ * "Invia al workflow" chiude il divario dichiarato in precedenza ("non ancora
+ * collegato a un workflow specifico"): individua strutturalmente (mai indovinato —
+ * bridge.workflow.prompt_targets) il nodo di testo libero collegato a
+ * 'positive'/'negative' nel workflow scelto e vi scrive il prompt corrente, senza
+ * che l'utente debba ricopiarlo a mano sulla canvas. Resta esplicitamente NON
+ * collegato: la generazione stessa (il pulsante GENERA vive nel pannello Workflow,
+ * non qui) e qualunque nodo che non abbia un candidato univoco (l'errore reale del
+ * Bridge spiega perché, mai un fallimento silenzioso).
  */
 export function PromptEnginePanel() {
   const [providers, setProviders] = useState<AIProviderOut[]>([]);
@@ -34,6 +47,12 @@ export function PromptEnginePanel() {
 
   const [history, setHistory] = useState<PromptOut[] | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
+
+  const [workflows, setWorkflows] = useState<WorkflowSummaryOut[]>([]);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState("");
+  const [applying, setApplying] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
+  const [applyResult, setApplyResult] = useState<ApplyPromptResponse | null>(null);
 
   const [presets, setPresets] = useState<PromptPresetOut[] | null>(null);
   const [presetsError, setPresetsError] = useState<string | null>(null);
@@ -77,8 +96,23 @@ export function PromptEnginePanel() {
     bridgeClient.listPromptPresetTags().then(setPresetTags).catch(() => undefined);
   }
 
+  function loadWorkflows() {
+    bridgeClient
+      .listWorkflows()
+      .then((list) => {
+        if (!Array.isArray(list)) return;
+        setWorkflows(list);
+        setSelectedWorkflowId((current) => current || (list[0]?.id ?? ""));
+      })
+      // Non bloccante: se il caricamento fallisce (es. Bridge appena avviato), la
+      // sezione "Invia al workflow" resta semplicemente senza opzioni — l'utente
+      // può comunque scrivere/tradurre/salvare il prompt normalmente.
+      .catch(() => undefined);
+  }
+
   useEffect(loadProviders, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(loadHistory, []);
+  useEffect(loadWorkflows, []);
   useEffect(loadPresets, [presetFilterTag, presetSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleTranslate() {
@@ -104,6 +138,21 @@ export function PromptEnginePanel() {
       translation_locked: translationLocked,
     });
     loadHistory();
+  }
+
+  async function handleApplyToWorkflow() {
+    if (!textEn.trim() || !selectedWorkflowId) return;
+    setApplying(true);
+    setApplyError(null);
+    setApplyResult(null);
+    try {
+      const result = await bridgeClient.applyPromptToWorkflow(selectedWorkflowId, textEn.trim(), negativeTextEn.trim() || undefined);
+      setApplyResult(result);
+    } catch (err) {
+      setApplyError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setApplying(false);
+    }
   }
 
   async function handleDeleteHistoryEntry(id: string) {
@@ -162,9 +211,8 @@ export function PromptEnginePanel() {
     <section aria-label="Prompt Engine">
       <h2>Prompt Engine</h2>
       <p className="settings-panel__hint">
-        Scrivi un prompt e traducilo in inglese con il provider AI configurato. Non ancora collegato a un workflow
-        specifico (arriva con il Workflow Builder completo, Fase 5) — sotto trovi i preset riutilizzabili e la
-        cronologia di tutti i prompt salvati.
+        Scrivi un prompt e traducilo in inglese con il provider AI configurato, poi invialo direttamente a un
+        workflow — sotto trovi anche i preset riutilizzabili e la cronologia di tutti i prompt salvati.
       </p>
 
       {providersError && (
@@ -221,6 +269,50 @@ export function PromptEnginePanel() {
           Salva nella cronologia
         </button>
       </form>
+
+      <div className="prompt-engine__apply-to-workflow">
+        <h3>Invia al workflow</h3>
+        {workflows.length === 0 ? (
+          <p className="settings-panel__hint">Nessun workflow ancora creato — crealo dal pannello Workflow per poterci inviare questo prompt.</p>
+        ) : (
+          <>
+            <label htmlFor="prompt-apply-workflow">Workflow di destinazione</label>
+            <select id="prompt-apply-workflow" value={selectedWorkflowId} onChange={(e) => setSelectedWorkflowId(e.target.value)}>
+              {workflows.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+            </select>
+            <button type="button" onClick={() => void handleApplyToWorkflow()} disabled={!textEn.trim() || !selectedWorkflowId || applying}>
+              {applying ? "Invio…" : "Invia il prompt a questo workflow"}
+            </button>
+            <p className="settings-panel__note">
+              Cerca nel workflow il nodo di testo libero collegato all'input "positive" (e, se presente,
+              "negative") e vi scrive il prompt qui sopra — nessuna copia-incolla manuale. Se il workflow non ha
+              un candidato univoco, l'errore reale spiega perché (mai un abbinamento indovinato).
+            </p>
+          </>
+        )}
+        {applyError && (
+          <p role="alert" className="settings-panel__feedback--error">
+            {applyError}
+          </p>
+        )}
+        {applyResult && (
+          <p className="settings-panel__feedback">
+            Prompt inserito nel nodo "{applyResult.applied.find((a) => a.role === "positive")?.class_type}"
+            {applyResult.applied.some((a) => a.role === "negative") ? " (positivo + negativo)" : " (positivo)"} —
+            nuova versione {applyResult.workflow.version_number} del workflow.
+            {applyResult.warnings.map((w) => (
+              <span key={w} className="settings-panel__note">
+                {" "}
+                {w}
+              </span>
+            ))}
+          </p>
+        )}
+      </div>
 
       <hr />
 

@@ -7,14 +7,18 @@ from bridge.workflow.graph import (
     WorkflowGraph,
     validate_structure,
 )
+from bridge.workflow.prompt_targets import PromptTargets, PromptTextTarget, find_prompt_targets
 
 __all__ = [
     "CompileError",
     "GraphEdge",
     "GraphNode",
     "NodeSchemaInfo",
+    "PromptTargets",
+    "PromptTextTarget",
     "StructuralIssue",
     "WorkflowGraph",
     "compile_to_comfy_payload",
+    "find_prompt_targets",
     "validate_structure",
 ]

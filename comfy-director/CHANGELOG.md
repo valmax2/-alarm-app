@@ -1,5 +1,45 @@
 # CHANGELOG — Comfy Director
 
+## [Non rilasciato] — Invia al workflow: chiude il divario Prompt Engine → grafo (2026-09-03)
+
+Chiude il divario dichiarato esplicitamente in Fase 9 ("nessun collegamento a un
+workflow/generazione specifico"): il prompt composto nel Prompt Engine può ora essere
+inserito direttamente nel nodo giusto del workflow, senza copia-incolla manuale.
+
+### Backend
+- `bridge/workflow/prompt_targets.py` (`find_prompt_targets()`): individuazione
+  strutturale — mai per nome di classe hardcodato — del nodo di testo libero
+  collegato agli input `positive`/`negative`, seguendo gli archi reali del grafo e lo
+  schema sincronizzato del nodo sorgente. Zero o più di un campo `STRING` candidato ⇒
+  nessun abbinamento indovinato, motivo dichiarato in `PromptTargets.issues`.
+  7 test unitari puri dedicati.
+- `POST /workflows/{id}/apply-prompt`: scrive il testo nei nodi individuati e salva
+  una nuova versione del workflow (stessa logica di checkpoint di `PUT
+  /workflows/{id}`, fattorizzata in `_persist_new_version`). 422 con il motivo reale
+  se `positive` non è risolvibile; un `negative` richiesto ma non risolvibile è un
+  warning, non blocca l'invio del positivo. 5 test endpoint dedicati.
+
+### Frontend
+- Prompt Engine: sezione "Invia al workflow" — selettore del workflow di
+  destinazione, pulsante di invio, messaggio di conferma che cita il vero
+  nodo/classe/versione restituiti dal Bridge (o l'errore reale, mai un fallimento
+  silenzioso).
+
+### Test
+- Backend: +12 test (`test_workflow_prompt_targets.py` ×7,
+  `test_workflow_apply_prompt_endpoint.py` ×5) — 295 totali, tutti verdi.
+- Frontend: +3 test (`PromptEnginePanel.test.tsx`) — 66 totali, tutti verdi.
+- Verificato dal vivo nel browser con Playwright contro un Bridge reale (inventario
+  sincronizzato da uno stub HTTP locale che imita `/system_stats`+`/object_info`, non
+  mockato a livello Python): prompt positivo+negativo scritti davvero nei due nodi
+  `CLIPTextEncode` di un workflow di test, confermato sia nella UI sia rileggendo il
+  workflow dal Bridge via API.
+
+### Dichiarato esplicitamente come non ancora implementato (mai finto)
+- Il collegamento riguarda solo il grafo del workflow (il testo finisce nel nodo),
+  non ancora `prompts.generation_id` (cronologia prompt e generazione restano tabelle
+  distinte) né un percorso "componi → invia → genera" in un solo click.
+
 ## [Non rilasciato] — Selettore acconciature con anteprime visive (2026-09-03)
 
 Porting da PromptStudio (v9.7.4-S32.9), su richiesta esplicita dell'utente

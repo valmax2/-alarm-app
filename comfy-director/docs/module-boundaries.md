@@ -93,7 +93,15 @@ def remove_node(graph, node_id) -> None: ...
 def connect(graph, from_node, from_port, to_node, to_port) -> None: ...
 def validate_structure(graph) -> list[StructuralIssue]: ...   # cicli, porte non collegate richieste, tipi porta incompatibili
 def compile_to_comfy_payload(graph, inventory_snapshot) -> dict: ...   # Fase 6
+def find_prompt_targets(graph, node_schemas) -> PromptTargets: ...   # Fase 9: nodo di testo libero collegato a positive/negative
 ```
+`find_prompt_targets` (`workflow/prompt_targets.py`) individua STRUTTURALMENTE — mai
+per nome di classe hardcodato — il nodo di testo libero collegato a `positive`/
+`negative`: usa lo stesso principio di `compile_to_comfy_payload` (nomi di porta
+risolti dallo schema sincronizzato reale, mai un'assunzione). Zero o più di un campo
+`STRING` candidato ⇒ nessun target, motivo dichiarato in `PromptTargets.issues` — chi
+chiama (`routers/workflows.py: apply-prompt`) decide se questo è un errore bloccante
+(`positive`) o solo un warning (`negative`, opzionale).
 
 ## `compatibility_engine` (Fase 4)
 Vedi `docs/compatibility-engine.md` per il design completo. API pubblica:
@@ -126,6 +134,13 @@ in modo pulito e testabile — da un'altra app dell'utente su sua richiesta espl
 derivati da ComfyUI) e `compiler.py` (`compose_prompt()`/`coherent_identity_block()`,
 puri: prendono `CharacterInfo` già caricato, non toccano mai la sessione DB —
 quell'unico punto resta `routers/prompt_engine.py`, coerente con `characters` sotto).
+
+`prompt_engine` produce solo TESTO (`compose_prompt`, la traduzione) — non conosce
+`workflow` né lo tocca mai direttamente. "Invia al workflow" (Fase 9) è
+deliberatamente fuori da questo modulo: vive in `routers/workflows.py`
+(`POST /{id}/apply-prompt`), che chiama `workflow.find_prompt_targets` sul grafo già
+caricato — lo stesso confine di `characters`/`workflow` sopra, mai una dipendenza
+diretta `prompt_engine → workflow`.
 
 ## `ai_assistant` (Fase 10)
 Unico modulo autorizzato a esporre un "tool layer" (§21) che chiama le funzioni

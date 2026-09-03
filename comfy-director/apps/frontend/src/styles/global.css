@@ -248,6 +248,22 @@ input {
   color: var(--text-dim);
 }
 
+.prompt-engine__apply-to-workflow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.75rem 0;
+  max-width: 100%;
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.prompt-engine__apply-to-workflow h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
 .hair-preview-picker__label {
   display: block;
   font-size: 0.85rem;
