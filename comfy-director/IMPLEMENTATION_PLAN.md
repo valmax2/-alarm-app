@@ -458,9 +458,15 @@ composto contiene `camera positioned directly to the subject's right side, profi
 view` e NON contiene più `FRAMING — STRONG:` — la sostituzione è reale, non solo
 dichiarata.
 
-Anche dal porting di PromptStudio resta da fare: provider Runware.ai alternativo (un
-provider di generazione cloud — da valutare rispetto alla scelta architetturale "solo
-ComfyUI locale" di `ARCHITECTURE_DECISION.md` prima di portarlo).
+Provider Runware.ai alternativo (generazione cloud) — **deliberatamente NON portato**:
+posto esplicitamente all'utente (comporta un secondo motore di generazione a
+pagamento, con una chiave API propria, in aggiunta a ComfyUI locale) e l'utente ha
+scelto di restare solo su ComfyUI locale, coerente con l'identità originale del
+progetto ("un livello di gestione intelligente sopra ComfyUI locale", §0 della spec).
+Con questo si chiude l'intero backlog di porting da PromptStudio individuato in
+questa fase: Smart Prompt Compiler, Coerenza Personaggio, selettore acconciature,
+Body Director, Camera Director, "Invia al workflow" — tutti consegnati e verificati
+dal vivo; solo Runware.ai scartato per scelta esplicita dell'utente.
 
 ## FASE 10 — AI ASSISTANT — 🟨 (v1: solo chat, nessun Tool Layer)
 - ✅ `bridge/ai_providers/chat.py`: chiamata REALE (non simulata) ad Anthropic
