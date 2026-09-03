@@ -91,6 +91,12 @@ class WorkflowImportResponse(BaseModel):
     missing_node_types: list[str]
     inventory_checked: bool
     message: str
+    # Se un workflow è stato trovato E ricostruito con successo come grafo reale
+    # (bridge.workflow_import.import_workflow_json), è già stato salvato come workflow
+    # apribile in canvas — non solo un riassunto di sola lettura. `None` se non è stato
+    # trovato nessun workflow, o se il grafo trovato non era ricostruibile (dichiarato
+    # in `message`, mai un fallimento silenzioso).
+    workflow: WorkflowSummaryOut | None = None
 
 
 class ModelOut(BaseModel):

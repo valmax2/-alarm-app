@@ -99,6 +99,10 @@ export interface WorkflowImportResponse {
   missing_node_types: string[];
   inventory_checked: boolean;
   message: string;
+  // Se il grafo trovato era ricostruibile, è già stato salvato come workflow reale
+  // apribile in canvas — `null` se non trovato, o trovato ma non ricostruibile
+  // (motivo allora incluso in `message`, mai un fallimento silenzioso).
+  workflow: WorkflowSummaryOut | null;
 }
 
 export interface WidgetSpec {

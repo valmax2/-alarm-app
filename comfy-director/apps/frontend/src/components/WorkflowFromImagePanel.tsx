@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { bridgeClient, type WorkflowImportResponse } from "../api/bridgeClient";
+import { useWorkflowStore } from "../store/workflowStore";
 
 type Status = "idle" | "loading" | "done" | "error";
 
@@ -8,14 +9,18 @@ type Status = "idle" | "loading" | "done" | "error";
  * WORKFLOW DA IMMAGINE (spec §8). Legge davvero i metadata ComfyUI incorporati nel
  * PNG caricato — se non ci sono, lo dice chiaramente (mai un workflow inventato).
  *
- * La canvas grafica non esiste ancora (Fase 3): qui il risultato è mostrato come
- * elenco testuale/strutturato, dichiarato esplicitamente come vista provvisoria.
+ * Bug corretto (audit di robustezza): prima, quando un workflow veniva trovato,
+ * questo pannello mostrava solo un elenco testuale senza mai aprirlo sulla canvas
+ * reale (Fase 3) — l'utente restava bloccato con "non vedo nulla". Ora, se il grafo è
+ * ricostruibile (stessa logica di "Importa da file .json"), viene aperto
+ * automaticamente sulla canvas a destra, esattamente come l'import da .json.
  */
 export function WorkflowFromImagePanel() {
   const [status, setStatus] = useState<Status>("idle");
   const [result, setResult] = useState<WorkflowImportResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const openWorkflow = useWorkflowStore((s) => s.openWorkflow);
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -28,6 +33,9 @@ export function WorkflowFromImagePanel() {
       const response = await bridgeClient.workflowFromImage(file);
       setResult(response);
       setStatus("done");
+      if (response.workflow) {
+        await openWorkflow(response.workflow.id);
+      }
     } catch (err) {
       setStatus("error");
       setError(err instanceof Error ? err.message : String(err));
@@ -38,8 +46,8 @@ export function WorkflowFromImagePanel() {
     <section aria-label="Workflow da Immagine">
       <h2>Workflow da Immagine</h2>
       <p className="settings-panel__hint">
-        Carica una PNG generata da ComfyUI: se contiene il workflow incorporato lo
-        leggo davvero. Vista testuale provvisoria — la canvas grafica arriva in Fase 3.
+        Carica una PNG generata da ComfyUI: se contiene il workflow incorporato lo leggo davvero e, se ricostruibile,
+        lo apro subito sulla canvas a destra — come "Importa da file .json".
       </p>
 
       <input
@@ -65,6 +73,12 @@ export function WorkflowFromImagePanel() {
       {status === "done" && result && result.found && (
         <div>
           <p role="status">{result.message}</p>
+          {result.workflow && (
+            <p className="settings-panel__feedback">
+              Aperto sulla canvas come "{result.workflow.name}" ({result.workflow.node_count} nodi,{" "}
+              {result.workflow.edge_count} collegamenti).
+            </p>
+          )}
           <dl className="settings-panel__sync-report">
             <dt>Formato</dt>
             <dd>{result.source === "workflow" ? "UI (con layout)" : "API (senza layout)"}</dd>

@@ -201,6 +201,18 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   },
 
   onNodesChange: (changes) => {
+    // Un nodo isolato (nessun arco collegato) cancellato con Backspace/Delete arriva
+    // qui SENZA passare da `removeNode` (React Flow gestisce da sé il tasto Canc, spec
+    // `deleteKeyCode`) — se non registriamo uno snapshot qui, quella cancellazione non
+    // sarebbe annullabile con "Annulla" (bug reale trovato in audit: un nodo con archi
+    // collegati restava annullabile perché la rimozione degli archi, gestita da
+    // `onEdgesChange`, registrava comunque uno snapshot completo prima che i nodi
+    // venissero rimossi — un nodo isolato non ha quell'arco di salvataggio).
+    const hasRemoval = changes.some((c) => c.type === "remove");
+    if (hasRemoval) {
+      const state = get();
+      set({ past: [...state.past, snapshotOf(state)], future: [] });
+    }
     set((state) => ({ nodes: applyNodeChanges(changes, state.nodes) }));
   },
 

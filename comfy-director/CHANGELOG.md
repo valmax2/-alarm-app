@@ -1,5 +1,36 @@
 # CHANGELOG — Comfy Director
 
+## [Non rilasciato] — Correzione: "Workflow da Immagine" non apriva mai la canvas (2026-09-03)
+
+Bug reale segnalato dall'utente ("carico un'immagine e poi non vedo la fase tre") e
+confermato durante un audit di robustezza: caricando una PNG con un workflow
+ComfyUI incorporato, il Bridge mostrava solo un elenco testuale — non veniva MAI
+creato un workflow apribile sulla canvas reale (Fase 3, costruita da tempo ma mai
+ricollegata a questo flusso).
+
+- `routers/workflow_import.py`: quando il grafo trovato è ricostruibile, viene
+  creato subito come workflow reale — riusando `import_workflow_json` (la stessa
+  logica di "Importa da file .json", mai duplicata) — e restituito nel nuovo campo
+  `workflow` della risposta.
+- Frontend (`WorkflowFromImagePanel.tsx`): apre automaticamente quel workflow sulla
+  canvas a destra, come già fa l'import da .json.
+- +2 test backend (328 totali), +1 test frontend (81 totali) — quest'ultimo
+  verifica che il workflow finisca DAVVERO nello store che alimenta la canvas
+  (`useWorkflowStore().workflowId`/`.nodes`), non solo che compaia un messaggio.
+
+## [Non rilasciato] — Correzione: un nodo isolato cancellato con Backspace/Canc non era annullabile (2026-09-03)
+
+Altro bug reale trovato nello stesso audit di robustezza: nella canvas, cancellare
+un nodo SENZA archi collegati con il tasto Backspace/Canc non finiva nello storico
+Undo — "Annulla" non lo recuperava. (Un nodo CON archi collegati funzionava per
+caso: la rimozione dei suoi archi, gestita da un percorso diverso, registrava
+comunque uno snapshot completo prima che il nodo sparisse.)
+
+- `workflowStore.ts::onNodesChange`: ora registra uno snapshot Undo quando i
+  cambiamenti includono una rimozione — senza intasare lo storico per un semplice
+  trascinamento del nodo (nessuno snapshot in quel caso).
+- +2 test frontend di regressione.
+
 ## [Non rilasciato] — Invia immagine personaggio al workflow (2026-09-03)
 
 Chiude il divario dichiarato in Fase 7 ("nessun collegamento alla generazione"): le

@@ -95,6 +95,29 @@ describe("workflowStore", () => {
     expect(useWorkflowStore.getState().nodes[0].data.params.foo).toBe("bar");
   });
 
+  it("cancellare un nodo isolato con Backspace/Canc (onNodesChange) resta annullabile con Undo — bug reale trovato in audit", () => {
+    useWorkflowStore.setState({
+      nodes: [{ id: "n1", type: "comfyNode", position: { x: 0, y: 0 }, data: { classType: "A", displayName: "A", params: {} } }],
+      edges: [], // nessun arco collegato: React Flow non passa da onEdgesChange in questo caso
+    });
+
+    // Simula esattamente il NodeChange che React Flow emette per il tasto Canc/Backspace.
+    useWorkflowStore.getState().onNodesChange([{ type: "remove", id: "n1" }]);
+    expect(useWorkflowStore.getState().nodes).toHaveLength(0);
+
+    useWorkflowStore.getState().undo();
+    expect(useWorkflowStore.getState().nodes).toHaveLength(1);
+    expect(useWorkflowStore.getState().nodes[0].id).toBe("n1");
+  });
+
+  it("spostare un nodo (drag, onNodesChange senza rimozioni) non intasa lo storico Undo", () => {
+    useWorkflowStore.setState({
+      nodes: [{ id: "n1", type: "comfyNode", position: { x: 0, y: 0 }, data: { classType: "A", displayName: "A", params: {} } }],
+    });
+    useWorkflowStore.getState().onNodesChange([{ type: "position", id: "n1", position: { x: 50, y: 50 } }]);
+    expect(useWorkflowStore.getState().past).toHaveLength(0);
+  });
+
   it("openWorkflow carica il grafo dal Bridge; save() lo rimanda indietro nello stesso formato (DoD Fase 3)", async () => {
     let savedPayload: { graph: { nodes: unknown[]; edges: unknown[] } } | null = null;
 

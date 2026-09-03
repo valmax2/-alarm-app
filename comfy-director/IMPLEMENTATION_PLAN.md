@@ -341,14 +341,23 @@ Consegnato: **Workflow da Immagine** — lettura reale dei chunk PNG `tEXt`/`zTX
 (`bridge/media/png_metadata.py`, nessuna dipendenza esterna), estrazione del grafo
 ComfyUI incorporato (formato `workflow` UI con layout, o `prompt` API come fallback —
 `bridge/workflow_import/`), confronto con l'inventario nodi sincronizzato (Fase 2) per
-segnalare componenti mancanti, endpoint `POST /workflow-import/from-image`, pannello
-frontend con vista strutturata (**non grafica**: la canvas vera arriva in Fase 3, qui è
-dichiarato esplicitamente come vista provvisoria). Mai un workflow inventato quando i
-metadata non ci sono (spec §8) — verificato con un bug reale di parsing iTXt trovato e
-corretto durante lo sviluppo dei test.
+segnalare componenti mancanti, endpoint `POST /workflow-import/from-image`. Mai un
+workflow inventato quando i metadata non ci sono (spec §8) — verificato con un bug
+reale di parsing iTXt trovato e corretto durante lo sviluppo dei test.
 
-Non ancora consegnato in questa fase: import di workflow JSON standalone (non
-incorporato in un'immagine), lettura metadata WebP (solo PNG per ora).
+**Corretto (audit di robustezza, segnalato dall'utente — "carico un'immagine e poi
+non vedo la fase tre"):** quando il grafo trovato è ricostruibile, l'endpoint lo
+ricostruisce SUBITO come workflow reale (riusando `bridge.workflow_import.
+import_workflow_json`, la stessa logica di "Importa da file .json" — mai duplicata)
+e lo restituisce nel campo `workflow` della risposta; il frontend lo apre
+automaticamente sulla canvas reale (Fase 3), esattamente come l'import da .json.
+Prima di questa correzione l'endpoint si fermava a un elenco testuale di sola
+lettura — la canvas era stata costruita da tempo (Fase 3) ma non era mai stata
+ricollegata a questo flusso: un bug concreto, non solo una limitazione dichiarata.
+Se il grafo trovato non è ricostruibile, `workflow` resta `null` e il motivo
+compare nel messaggio (mai un fallimento silenzioso).
+
+Non ancora consegnato in questa fase: lettura metadata WebP (solo PNG per ora).
 
 ## FASE 9 — PROMPT ENGINE — 🟨 (+ preset riutilizzabili + Smart Prompt Compiler)
 Consegnato: **Prompt da Immagine** — tabella `ai_providers` cifrata a riposo (Fernet,

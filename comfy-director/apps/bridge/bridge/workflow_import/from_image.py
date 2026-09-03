@@ -3,11 +3,14 @@
 Legge i metadata PNG incorporati da ComfyUI (`bridge.media.png_metadata`) e, se
 presenti, ricostruisce un riassunto del grafo — MAI un finto workflow quando i
 metadata non ci sono (spec §8: "Non fingere di poter ricostruire esattamente un
-workflow che non è presente").
+workflow che non è presente"). Il `raw_graph` restituito qui viene poi passato a
+`bridge.workflow_import.import_workflow_json` (`routers/workflow_import.py`) per
+ricostruire un grafo reale apribile in canvas — questo modulo resta puramente di
+lettura/riassunto, la ricostruzione vera è condivisa con l'import da file .json,
+mai duplicata qui.
 
 Due formati possibili, in ordine di preferenza:
-1. `workflow` (formato UI, con `nodes`/`links`/posizioni) — più ricco, riusabile in
-   Fase 3 per aprire il grafo sulla canvas reale.
+1. `workflow` (formato UI, con `nodes`/`links`/posizioni) — più ricco.
 2. `prompt` (formato API, `{node_id: {class_type, inputs}}`) — meno ricco (nessuna
    posizione/layout), ma comunque un elenco nodi reale.
 

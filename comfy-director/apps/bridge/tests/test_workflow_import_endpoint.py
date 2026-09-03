@@ -86,3 +86,35 @@ async def test_workflow_from_image_flags_missing_nodes_after_sync(client: AsyncC
     by_type = {n["class_type"]: n["present_in_inventory"] for n in body["nodes"]}
     assert by_type["CheckpointLoaderSimple"] is True
     assert by_type["SomeUninstalledCustomNode"] is False
+
+
+async def test_workflow_from_image_creates_a_real_workflow_openable_in_canvas(client: AsyncClient) -> None:
+    """Bug reale trovato durante l'audit di robustezza: prima di questa correzione
+    l'endpoint si fermava a un riassunto di sola lettura, senza mai creare un
+    workflow apribile — esattamente il vuoto segnalato dall'utente ("carico
+    un'immagine e poi non vedo nulla sulla canvas")."""
+    image = _png_with_workflow(UI_WORKFLOW)
+    response = await client.post(
+        "/workflow-import/from-image", files={"file": ("mio-flusso.png", image, "image/png")}
+    )
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["workflow"] is not None
+    assert body["workflow"]["name"] == "mio-flusso"
+    assert body["workflow"]["node_count"] == 2
+    workflow_id = body["workflow"]["id"]
+
+    # e soprattutto: è DAVVERO apribile in canvas, non solo un id restituito a vuoto.
+    detail = await client.get(f"/workflows/{workflow_id}")
+    assert detail.status_code == 200
+    assert len(detail.json()["graph"]["nodes"]) == 2
+
+
+async def test_workflow_from_image_without_a_workflow_found_has_no_workflow_field(client: AsyncClient) -> None:
+    plain_png = _SIGNATURE + _chunk(b"IEND", b"")
+    response = await client.post(
+        "/workflow-import/from-image", files={"file": ("test.png", plain_png, "image/png")}
+    )
+    assert response.status_code == 200
+    assert response.json()["workflow"] is None
