@@ -9,6 +9,7 @@ import {
   type StructuredPromptRequest,
 } from "../api/bridgeClient";
 import { HAIR_COLOR_PREVIEWS, HAIR_STYLE_PREVIEWS } from "../data/hairPreviews";
+import { BodyZonePicker } from "./BodyZonePicker";
 import { HairPreviewPicker } from "./HairPreviewPicker";
 
 interface Props {
@@ -23,6 +24,10 @@ const EMPTY = "";
  * organizzarla meglio"). Compone il prompt inglese da selezioni guidate invece di
  * scriverlo a mano — il risultato riempie il campo "Prompt (inglese)" del Prompt
  * Engine, restando comunque editabile lì, esattamente come fa la traduzione IT→EN.
+ *
+ * Il corpo usa `BodyZonePicker` (porting di "Body Director" da PromptStudio):
+ * naviga per zona (Corpo/Torace/Vita/Fianchi/Glutei/Gambe/Pelle) invece di un elenco
+ * piatto di 10-13 menu a tendina in fila.
  *
  * Deferito esplicitamente, dichiarato (mai finto): nessun controllo camera
  * interattivo trascinabile (solo i cataloghi framing/angolo/lens); "Coerenza
@@ -210,12 +215,10 @@ export function StructuredPromptBuilder({ onComposed }: Props) {
           </p>
 
           <h4>Corpo</h4>
-          {bodyGroups().map((group) =>
-            optionSelect(
-              `sp-body-${group.key}`, group.label_it, body[group.key] ?? "",
-              (v) => setBody((prev) => ({ ...prev, [group.key]: v })), [...group.options],
-            ),
-          )}
+          <BodyZonePicker
+            groups={bodyGroups()} values={body}
+            onChange={(key, v) => setBody((prev) => ({ ...prev, [key]: v }))}
+          />
 
           {!coherentCharacterId && (
             <>

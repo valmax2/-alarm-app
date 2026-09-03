@@ -264,6 +264,69 @@ input {
   font-size: 0.95rem;
 }
 
+.body-zone-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.body-zone-picker__zones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.body-zone-picker__zone-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.body-zone-picker__zone-btn--active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.body-zone-picker__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.body-zone-picker__category-label {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin-bottom: 0.2rem;
+}
+
+.body-zone-picker__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.body-zone-picker__option {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.body-zone-picker__option--selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  color: var(--accent);
+}
+
 .hair-preview-picker__label {
   display: block;
   font-size: 0.85rem;

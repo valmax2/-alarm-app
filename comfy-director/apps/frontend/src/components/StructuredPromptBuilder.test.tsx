@@ -73,7 +73,8 @@ describe("StructuredPromptBuilder", () => {
     await waitFor(() => expect(screen.getByLabelText("Genere")).toBeInTheDocument());
     expect(screen.getByRole("option", { name: "Aria" })).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Corporatura"), { target: { value: "athletic body" } });
+    fireEvent.click(screen.getByRole("button", { name: "Corpo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Atletica" }));
     fireEvent.click(screen.getByRole("button", { name: /componi prompt/i }));
 
     await waitFor(() => {

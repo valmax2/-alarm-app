@@ -1,5 +1,27 @@
 # CHANGELOG — Comfy Director
 
+## [Non rilasciato] — Body Director: navigazione a zone per il corpo (2026-09-03)
+
+Porting da PromptStudio (`body_director.js`), su richiesta esplicita dell'utente di
+rendere l'app "il più possibile ottimizzata": sostituisce l'elenco piatto di 10-13
+menu a tendina del corpo in fila nella Costruzione guidata con zone cliccabili.
+
+### Frontend
+- `BodyZonePicker.tsx`: zone (Corpo, Torace/Seno, Vita, Fianchi, Glutei, Gambe,
+  Pelle — stessa mappa zona→categorie dell'originale) che aprono solo le categorie
+  di quella zona come pulsanti selezionabili, con il conteggio delle selezioni già
+  fatte per zona sul pulsante della zona stessa.
+- Pura riorganizzazione UI: riusa lo stesso catalogo body già portato in Fase 9
+  (Task #32) — le chiavi dei gruppi in `catalogs.py` corrispondevano già 1:1 a
+  quelle di `targetGroups` dell'originale — nessun dato nuovo, nessuna chiamata
+  backend aggiuntiva.
+
+### Test
+- Frontend: +6 test (`BodyZonePicker.test.tsx`) — 72 totali, tutti verdi.
+- Verificato dal vivo nel browser con Playwright: 7 zone reali per il genere
+  femminile, zona "Vita" aperta, opzione "Stretta" selezionata (conteggio "Vita (1)"
+  visibile), prompt composto contiene davvero `narrow waist`.
+
 ## [Non rilasciato] — Correzione: `npm run lint` era rotto dallo scaffold (2026-09-03)
 
 `apps/frontend/eslint.config.js` non è mai esistito: ESLint 9 richiede la config flat

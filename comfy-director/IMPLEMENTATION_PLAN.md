@@ -417,9 +417,27 @@ Non ancora consegnato — più significativo: il collegamento riguarda solo il g
 workflow (il testo finisce nel nodo), non ancora `prompts.generation_id` (la
 cronologia prompt e la generazione restano tabelle distinte, mai collegate
 automaticamente) né un percorso "componi → invia → genera" in un solo click (bisogna
-comunque aprire il pannello Workflow e premere GENERA separatamente). Anche dal
-porting di PromptStudio restano da fare: Body Director/Camera Director (editor
-guidati a step, UI grossa e a sé), provider Runware.ai alternativo.
+comunque aprire il pannello Workflow e premere GENERA separatamente).
+
+Consegnato ora — **Body Director** (porting da PromptStudio, `body_director.js`, su
+richiesta esplicita dell'utente di rendere l'app "il più possibile ottimizzata"):
+`BodyZonePicker.tsx` sostituisce l'elenco piatto di 10-13 menu a tendina del corpo in
+fila con zone cliccabili (Corpo/Torace-Seno/Vita/Fianchi/Glutei/Gambe/Pelle, stessa
+mappa zona→categorie dell'originale) che aprono solo le categorie di quella zona come
+pulsanti selezionabili, con il conteggio delle selezioni già fatte per zona.
+Adattamento deliberato: pura riorganizzazione UI dello stesso catalogo già portato in
+Fase 9 (Task #32, le chiavi dei gruppi in `catalogs.py` corrispondono già 1:1 a quelle
+di `targetGroups` nell'originale) — nessun dato nuovo, nessuna chiamata backend
+aggiuntiva. 6 test unitari dedicati (`BodyZonePicker.test.tsx`). Verificato dal vivo
+nel browser con Playwright: 7 zone reali mostrate per il genere femminile, zona "Vita"
+aperta, opzione "Stretta" selezionata (conteggio "Vita (1)" visibile), prompt composto
+contiene davvero `narrow waist`.
+
+Anche dal porting di PromptStudio restano da fare: Camera Director (il controllo
+camera interattivo trascinabile — non i cataloghi framing/angolo/lens, già presenti —
+un editor a sé, non solo riorganizzazione UI come Body Director), provider Runware.ai
+alternativo (un provider di generazione cloud — da valutare rispetto alla scelta
+architetturale "solo ComfyUI locale" di `ARCHITECTURE_DECISION.md` prima di portarlo).
 
 ## FASE 10 — AI ASSISTANT — 🟨 (v1: solo chat, nessun Tool Layer)
 - ✅ `bridge/ai_providers/chat.py`: chiamata REALE (non simulata) ad Anthropic
