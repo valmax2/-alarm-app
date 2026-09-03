@@ -248,6 +248,71 @@ input {
   color: var(--text-dim);
 }
 
+.hair-preview-picker__label {
+  display: block;
+  font-size: 0.85rem;
+  margin-top: 0.3rem;
+}
+
+.hair-preview-picker__group h5 {
+  margin: 0.3rem 0 0.15rem;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+.hair-preview-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 0.35rem;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 0.2rem;
+}
+
+.hair-preview-picker__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.2rem;
+  cursor: pointer;
+  width: 100%;
+}
+
+.hair-preview-picker__item--selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.hair-preview-picker__thumb {
+  width: 100%;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.hair-preview-picker__thumb--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  background: var(--bg-panel);
+  padding: 0.2rem;
+}
+
+.hair-preview-picker__caption {
+  font-size: 0.62rem;
+  text-align: center;
+  line-height: 1.1;
+  color: var(--text-dim);
+}
+
 .settings-panel__feedback {
   color: var(--ok);
   font-size: 0.85rem;

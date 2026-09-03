@@ -1,5 +1,30 @@
 # CHANGELOG — Comfy Director
 
+## [Non rilasciato] — Selettore acconciature con anteprime visive (2026-09-03)
+
+Porting da PromptStudio (v9.7.4-S32.9), su richiesta esplicita dell'utente
+("devo poter oscurare e nascondere le immagini... qui volevo organizzarla meglio"),
+completamento della Costruzione guidata già portata sopra.
+
+### Frontend
+- `HairPreviewPicker.tsx`: griglia di pulsanti fotografici raggruppati per categoria,
+  sostituisce i menu a tendina testuali "Stile capelli"/"Colore capelli" quando la
+  modalità è "Cambia acconciatura".
+- `src/data/hairPreviews.ts`: mappa `value_en -> percorso foto`, generata
+  programmaticamente via regex sull'originale `hair_previews.js` (mai ritrascritta a
+  mano, per evitare errori di trascrizione) — 73 stili + 18 colori su 84 foto totali.
+- `public/hair-previews/{styles,colors}/*.jpg` (84 file, ~2.0MB): asset statici serviti
+  da Vite (`public/`), nessun coinvolgimento del backend.
+- Una voce del catalogo senza foto reale nella mappa resta un pulsante di solo testo —
+  mai un abbinamento indovinato o fuorviante.
+
+### Test
+- Frontend: +9 test (`HairPreviewPicker.test.tsx` ×4, `StructuredPromptBuilder.test.tsx`
+  +1 caso) — 63 totali, tutti verdi.
+- Verificato dal vivo nel browser con Playwright: griglia con foto reali caricate
+  (non segnaposto), stile "Pixie classico" e colore "Rosso" selezionati (evidenziati),
+  prompt composto contiene `classic pixie cut` e `red hair`.
+
 ## [Non rilasciato] — Smart Prompt Compiler + Coerenza Personaggio (2026-09-03)
 
 Portato — riorganizzato in modo pulito e testabile — da un'altra app dell'utente

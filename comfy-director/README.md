@@ -50,7 +50,7 @@ percentuale (v2), nessuna live-preview delle immagini durante il sampling;
 Fase 7: personaggi non ancora collegati alla generazione, nessun drag&drop nella
 canvas; Fase 9: i prompt salvati non sono ancora collegati a un workflow
 specifico, lo Smart Prompt Compiler non ha ancora un controllo camera interattivo
-trascinabile né un selettore acconciature con anteprime visive; Fase 10: nessun AI
+trascinabile; Fase 10: nessun AI
 Tool Layer, l'assistente non legge né modifica il
 workflow; Fase 11: la diagnostica v1 cattura solo le eccezioni non gestite, non un
 log strutturato di ogni richiesta né alert/metriche — backup/versioning completi,

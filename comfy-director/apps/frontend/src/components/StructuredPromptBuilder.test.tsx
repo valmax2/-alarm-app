@@ -128,4 +128,33 @@ describe("StructuredPromptBuilder", () => {
       expect(screen.getByText(/Personaggio coerente non trovato/)).toBeInTheDocument();
     });
   });
+
+  it("scegliere stile e colore dal selettore con anteprime li include nella richiesta di composizione", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init?: RequestInit) => {
+        if (url.endsWith("/prompt-engine/catalog")) return jsonResponse(CATALOG);
+        if (url.endsWith("/characters")) return jsonResponse([]);
+        if (url.endsWith("/prompt-engine/compose") && init?.method === "POST") {
+          const body = JSON.parse(init.body as string) as { hair: string; hair_color: string };
+          expect(body.hair).toBe("pixie cut");
+          expect(body.hair_color).toBe("red hair");
+          return jsonResponse({ text_en: "..." });
+        }
+        return jsonResponse({});
+      }),
+    );
+
+    render(<StructuredPromptBuilder onComposed={() => undefined} />);
+    await waitFor(() => expect(screen.getByText(/Costruzione guidata/)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/Costruzione guidata/));
+    await waitFor(() => expect(screen.getByLabelText("Genere")).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText("Modalità"), { target: { value: "change" } });
+    fireEvent.click(await screen.findByTitle("Pixie"));
+    fireEvent.click(screen.getByTitle("Rosso"));
+    fireEvent.click(screen.getByRole("button", { name: /componi prompt/i }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+  });
 });

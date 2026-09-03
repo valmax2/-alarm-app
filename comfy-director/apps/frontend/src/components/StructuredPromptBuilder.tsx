@@ -8,6 +8,8 @@ import {
   type PromptCatalogOut,
   type StructuredPromptRequest,
 } from "../api/bridgeClient";
+import { HAIR_COLOR_PREVIEWS, HAIR_STYLE_PREVIEWS } from "../data/hairPreviews";
+import { HairPreviewPicker } from "./HairPreviewPicker";
 
 interface Props {
   onComposed: (textEn: string) => void;
@@ -246,8 +248,14 @@ export function StructuredPromptBuilder({ onComposed }: Props) {
           </select>
           {hairMode === "change" && (
             <>
-              {groupedSelect("sp-hair-style", "Stile", hair, setHair, catalog.hair_categories)}
-              {optionSelect("sp-hair-color", "Colore", hairColor, setHairColor, catalog.hair_colors)}
+              <HairPreviewPicker
+                id="sp-hair-style" label="Stile" value={hair} onChange={setHair} previews={HAIR_STYLE_PREVIEWS}
+                groups={Object.entries(catalog.hair_categories).map(([label, options]) => ({ label, options }))}
+              />
+              <HairPreviewPicker
+                id="sp-hair-color" label="Colore" value={hairColor} onChange={setHairColor} previews={HAIR_COLOR_PREVIEWS}
+                groups={[{ label: "", options: catalog.hair_colors }]}
+              />
             </>
           )}
 

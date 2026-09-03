@@ -379,12 +379,26 @@ Verificato dal vivo nel browser con Playwright: personaggio creato, prompt compo
 con corpo/azione/camera/luce reali + blocco di coerenza identità, tutto verificato nel
 campo "Prompt (inglese)".
 
+Consegnato ora — **selettore acconciature con anteprime visive** (porting da
+PromptStudio, su richiesta esplicita dell'utente): `HairPreviewPicker.tsx`, sostituisce
+i due menu a tendina "Stile capelli"/"Colore capelli" della Costruzione guidata (quando
+la modalità è "Cambia acconciatura") con una griglia di pulsanti fotografici, raggruppati
+per categoria, cliccabili per selezionare/deselezionare. `src/data/hairPreviews.ts`
+(generato programmaticamente via regex sull'originale `hair_previews.js`, mai
+ritrascritto a mano) mappa 73 stili + 18 colori (delle 84 foto totali bundlate in
+`public/hair-previews/`) al loro `value_en` del catalogo; una voce del catalogo senza
+foto reale resta un pulsante di solo testo — mai un abbinamento indovinato. Le foto
+sono servite come asset statici Vite (`public/`), nessun coinvolgimento del backend.
+Verificato dal vivo nel browser con Playwright: griglia con foto reali caricate, stile
+e colore selezionati (evidenziati), prompt composto contiene i relativi frammenti
+inglesi.
+
 Non ancora consegnato — più significativo: nessun collegamento a un
 workflow/generazione specifico (`prompts.generation_id` resta sempre `null`): questo
 dipende dal Workflow Builder completo (Fase 5, non ancora costruito), dichiarato
 esplicitamente. Anche dal porting di PromptStudio restano da fare: Body Director/
-Camera Director (editor guidati a step, UI grossa e a sé), selettore acconciature con
-anteprime visive (libreria di 85 immagini), provider Runware.ai alternativo.
+Camera Director (editor guidati a step, UI grossa e a sé), provider Runware.ai
+alternativo.
 
 ## FASE 10 — AI ASSISTANT — 🟨 (v1: solo chat, nessun Tool Layer)
 - ✅ `bridge/ai_providers/chat.py`: chiamata REALE (non simulata) ad Anthropic
