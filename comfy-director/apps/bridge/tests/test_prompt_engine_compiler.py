@@ -3,6 +3,7 @@ from __future__ import annotations
 from bridge.prompt_engine.compiler import (
     CharacterInfo,
     StructuredPromptInput,
+    camera_director_prompt,
     coherent_identity_block,
     compose_prompt,
 )
@@ -146,6 +147,83 @@ def test_camera_fields_use_strong_markers() -> None:
     assert "FRAMING — STRONG: close-up shot" in text
     assert "CAMERA VIEWPOINT — STRONG: top-down overhead shot" in text
     assert "LENS — 50mm natural lens" in text
+
+
+def test_camera_director_active_replaces_catalog_camera_fields_entirely() -> None:
+    text = compose_prompt(
+        StructuredPromptInput(
+            gender="female", camera_framing="close-up shot", camera_angle="top-down overhead shot",
+            camera_lens="50mm natural lens", camera_director_active=True,
+            camera_director_orbit=0, camera_director_elevation=0, camera_director_distance=80,
+            camera_director_fov=50, camera_director_tilt=0,
+        )
+    )
+    assert "FRAMING — STRONG:" not in text
+    assert "CAMERA VIEWPOINT — STRONG:" not in text
+    assert "LENS — 50mm natural lens" not in text
+    assert "CAMERA DIRECTOR — STRONG: camera directly in front of the subject" in text
+
+
+def test_camera_director_inactive_uses_catalog_fields_as_before() -> None:
+    text = compose_prompt(
+        StructuredPromptInput(gender="female", camera_framing="close-up shot", camera_director_active=False)
+    )
+    assert "FRAMING — STRONG: close-up shot" in text
+    assert "CAMERA DIRECTOR" not in text
+
+
+class TestCameraDirectorPrompt:
+    """Porting fedele di `cameraDirectorPrompt()` — un test per ogni confine di bucket
+    dell'originale, sugli stessi cinque parametri (orbita/elevazione/distanza/FOV/tilt)."""
+
+    def test_front_view_near_zero_orbit(self) -> None:
+        text = camera_director_prompt(orbit=0, elevation=0, distance=80, fov=50, tilt=0)
+        assert text.startswith("camera directly in front of the subject, front view")
+
+    def test_orbit_wraps_past_180_and_side_follows_sign(self) -> None:
+        right = camera_director_prompt(orbit=45, elevation=0, distance=80, fov=50, tilt=0)
+        left = camera_director_prompt(orbit=-45, elevation=0, distance=80, fov=50, tilt=0)
+        assert "right side" in right
+        assert "left side" in left
+
+    def test_orbit_near_180_is_rear_view(self) -> None:
+        text = camera_director_prompt(orbit=180, elevation=0, distance=80, fov=50, tilt=0)
+        assert "directly behind the subject, rear view" in text
+
+    def test_orbit_beyond_360_normalizes_the_same_as_within_range(self) -> None:
+        assert camera_director_prompt(orbit=405, elevation=0, distance=80, fov=50, tilt=0) == (
+            camera_director_prompt(orbit=45, elevation=0, distance=80, fov=50, tilt=0)
+        )
+
+    def test_elevation_buckets(self) -> None:
+        assert "bird's-eye view" in camera_director_prompt(orbit=0, elevation=50, distance=80, fov=50, tilt=0)
+        assert "high-angle shot down" in camera_director_prompt(orbit=0, elevation=20, distance=80, fov=50, tilt=0)
+        assert "at the subject's eye level" in camera_director_prompt(orbit=0, elevation=0, distance=80, fov=50, tilt=0)
+        assert "low-angle shot up" in camera_director_prompt(orbit=0, elevation=-20, distance=80, fov=50, tilt=0)
+        assert "worm's-eye view" in camera_director_prompt(orbit=0, elevation=-50, distance=80, fov=50, tilt=0)
+
+    def test_distance_buckets_control_framing(self) -> None:
+        assert "extreme close-up on the face" in camera_director_prompt(orbit=0, elevation=0, distance=30, fov=50, tilt=0)
+        assert "close-up shot framing head and shoulders" in camera_director_prompt(orbit=0, elevation=0, distance=50, fov=50, tilt=0)
+        assert "medium shot framed from the waist up" in camera_director_prompt(orbit=0, elevation=0, distance=70, fov=50, tilt=0)
+        assert "full body shot" in camera_director_prompt(orbit=0, elevation=0, distance=100, fov=50, tilt=0)
+        assert "wide shot with the subject small" in camera_director_prompt(orbit=0, elevation=0, distance=140, fov=50, tilt=0)
+
+    def test_fov_extremes_add_a_lens_phrase_neutral_fov_adds_nothing(self) -> None:
+        assert "telephoto lens" in camera_director_prompt(orbit=0, elevation=0, distance=80, fov=20, tilt=0)
+        assert "wide-angle lens" in camera_director_prompt(orbit=0, elevation=0, distance=80, fov=100, tilt=0)
+        neutral = camera_director_prompt(orbit=0, elevation=0, distance=80, fov=50, tilt=0)
+        assert "telephoto" not in neutral and "wide-angle" not in neutral
+
+    def test_tilt_beyond_threshold_adds_roll_phrase_small_tilt_is_silent(self) -> None:
+        assert "camera roll 10° clockwise" in camera_director_prompt(orbit=0, elevation=0, distance=80, fov=50, tilt=10)
+        assert "camera roll 10° counter-clockwise" in camera_director_prompt(orbit=0, elevation=0, distance=80, fov=50, tilt=-10)
+        silent = camera_director_prompt(orbit=0, elevation=0, distance=80, fov=50, tilt=2)
+        assert "camera roll" not in silent
+
+    def test_always_ends_with_the_pose_independence_safety_clause(self) -> None:
+        text = camera_director_prompt(orbit=0, elevation=0, distance=80, fov=50, tilt=0)
+        assert text.endswith("camera position only, does not change the subject's own pose or body orientation")
 
 
 def test_light_and_custom_photo_appended() -> None:

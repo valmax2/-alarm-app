@@ -327,6 +327,31 @@ input {
   color: var(--accent);
 }
 
+.camera-director {
+  margin: 0.5rem 0;
+}
+
+.camera-director__sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.camera-director__slider {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.8rem;
+}
+
+.camera-director__slider input[type="range"] {
+  width: 100%;
+}
+
 .hair-preview-picker__label {
   display: block;
   font-size: 0.85rem;

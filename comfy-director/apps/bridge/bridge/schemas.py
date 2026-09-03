@@ -284,6 +284,14 @@ class StructuredPromptRequest(BaseModel):
     camera_angle: str | None = None
     camera_lens: str | None = None
     light: str | None = None
+    # Camera Director: quando attivo, sostituisce del tutto camera_framing/angle/lens
+    # sopra — mai una fusione parziale (bridge/prompt_engine/compiler.py).
+    camera_director_active: bool = False
+    camera_director_orbit: float = 0.0
+    camera_director_elevation: float = 0.0
+    camera_director_distance: float = 80.0
+    camera_director_fov: float = 50.0
+    camera_director_tilt: float = 0.0
     # Se valorizzato, il blocco di coerenza identità sostituisce i descrittori del
     # viso (mai sommati — vedi compile_prompt): il personaggio deve esistere nella
     # libreria (Fase 7), altrimenti 404.

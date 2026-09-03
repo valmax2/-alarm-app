@@ -73,6 +73,9 @@ async def compose(payload: StructuredPromptRequest, session: AsyncSession = Depe
         custom_action=payload.custom_action, action=payload.action, pose=payload.pose, custom_scene=payload.custom_scene,
         environment=payload.environment, custom_photo=payload.custom_photo, camera_framing=payload.camera_framing,
         camera_angle=payload.camera_angle, camera_lens=payload.camera_lens, light=payload.light,
+        camera_director_active=payload.camera_director_active, camera_director_orbit=payload.camera_director_orbit,
+        camera_director_elevation=payload.camera_director_elevation, camera_director_distance=payload.camera_director_distance,
+        camera_director_fov=payload.camera_director_fov, camera_director_tilt=payload.camera_director_tilt,
     )
     return StructuredPromptResponse(text_en=compose_prompt(structured, character=character))
 

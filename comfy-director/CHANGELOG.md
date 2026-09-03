@@ -1,5 +1,43 @@
 # CHANGELOG — Comfy Director
 
+## [Non rilasciato] — Camera Director: controllo camera con 5 slider (2026-09-03)
+
+Porting da PromptStudio (`cameraDirectorPrompt()`, `app.js`), su richiesta esplicita
+dell'utente di rendere l'app "il più possibile ottimizzata": cinque parametri
+numerici (orbita, elevazione, distanza, zoom/FOV, tilt) che sostituiscono del tutto i
+menu Taglio/Angolo/Lens del catalogo nella Costruzione guidata.
+
+### Backend
+- `bridge/prompt_engine/compiler.py`: `camera_director_prompt(orbit, elevation,
+  distance, fov, tilt) -> str`, pura e testabile — porting fedele, stessi confini di
+  bucket dell'originale, per ogni frase esplicitamente nominata "camera" all'inizio
+  (evita che il modello legga la frase come istruzione sulla posa del soggetto).
+  Quando attivo, sostituisce del tutto i fragmenti framing/angolo/lens — mai una
+  fusione parziale.
+- `StructuredPromptInput`/`StructuredPromptRequest`: +6 campi
+  (`camera_director_active` + i cinque parametri).
+
+### Frontend
+- `CameraDirector.tsx`: checkbox di attivazione + cinque slider (stessi range
+  dell'originale) nella sezione "Camera e luce".
+
+### Test
+- Backend: +12 test (9 sui confini di bucket della funzione pura, 2 sulla
+  sostituzione/non-sostituzione in `compose_prompt`, 1 endpoint) — 307 totali, tutti
+  verdi.
+- Frontend: +5 test (`CameraDirector.test.tsx`) — 77 totali, tutti verdi.
+- Verificato dal vivo nel browser con Playwright: taglio "Primo piano" impostato dal
+  catalogo, poi Regia attivata con orbita a 90°, prompt composto contiene
+  `camera positioned directly to the subject's right side, profile view` e NON
+  contiene più `FRAMING — STRONG:` — la sostituzione è reale.
+
+### Dichiarato esplicitamente come non ancora implementato (mai finto)
+- Nessuna vista 3D trascinabile (i tre diagrammi SVG top/frontale/destra
+  dell'originale) — solo i cinque slider numerici e il testo che producono davvero.
+- Non portata la versione più sofisticata di `smart_prompt_compiler.js` (token-budget
+  splitting della Regia in singole frasi, fusione parziale lens+Regia in certe
+  condizioni) — qui la Regia sostituisce sempre framing/angolo/lens per intero.
+
 ## [Non rilasciato] — Body Director: navigazione a zone per il corpo (2026-09-03)
 
 Porting da PromptStudio (`body_director.js`), su richiesta esplicita dell'utente di

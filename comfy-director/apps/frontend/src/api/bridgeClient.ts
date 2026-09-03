@@ -354,6 +354,14 @@ export interface StructuredPromptRequest {
   camera_angle?: string | null;
   camera_lens?: string | null;
   light?: string | null;
+  // Camera Director: quando attivo, sostituisce del tutto camera_framing/angle/lens
+  // sopra — mai una fusione parziale (bridge/prompt_engine/compiler.py).
+  camera_director_active?: boolean;
+  camera_director_orbit?: number;
+  camera_director_elevation?: number;
+  camera_director_distance?: number;
+  camera_director_fov?: number;
+  camera_director_tilt?: number;
   coherent_character_id?: string | null;
 }
 

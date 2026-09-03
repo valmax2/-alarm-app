@@ -433,11 +433,34 @@ nel browser con Playwright: 7 zone reali mostrate per il genere femminile, zona 
 aperta, opzione "Stretta" selezionata (conteggio "Vita (1)" visibile), prompt composto
 contiene davvero `narrow waist`.
 
-Anche dal porting di PromptStudio restano da fare: Camera Director (il controllo
-camera interattivo trascinabile — non i cataloghi framing/angolo/lens, già presenti —
-un editor a sé, non solo riorganizzazione UI come Body Director), provider Runware.ai
-alternativo (un provider di generazione cloud — da valutare rispetto alla scelta
-architetturale "solo ComfyUI locale" di `ARCHITECTURE_DECISION.md` prima di portarlo).
+Consegnato ora — **Camera Director** (porting da PromptStudio, `cameraDirectorPrompt()`
+in `app.js`, su richiesta esplicita dell'utente): `bridge/prompt_engine/compiler.py`
+aggiunge `camera_director_prompt(orbit, elevation, distance, fov, tilt) -> str`, pura e
+testabile — cinque parametri numerici mappati fedelmente (stessi confini di bucket
+dell'originale) a frasi inglesi di posizionamento camera. Quando attivo
+(`StructuredPromptInput.camera_director_active`), SOSTITUISCE del tutto i cataloghi
+framing/angolo/lens (mai una fusione parziale — stessa regola dell'originale: "sostituisce
+DEL TUTTO i pulsanti Taglio/Inquadratura"). Frontend: `CameraDirector.tsx` — un
+checkbox di attivazione + cinque slider (stessi range dell'originale: orbita -180/180,
+elevazione -60/60, distanza 30/140, FOV 20/100, tilt -30/30) nella sezione "Camera e
+luce" della Costruzione guidata. Adattamenti deliberati, dichiarati nel modulo: nessuna
+vista 3D trascinabile (i tre diagrammi SVG top/frontale/destra dell'originale — solo i
+cinque slider numerici e il testo che producono davvero); non portata la versione più
+sofisticata di `smart_prompt_compiler.js` (token-budget splitting della Regia in
+singole frasi, fusione parziale lens+Regia in certe condizioni) — qui la Regia è un
+unico frammento e sostituisce sempre framing/angolo/lens quando attiva, mai una
+fusione parziale, comportamento identico alla versione base `composePrompt`/`app.js`.
+9 nuovi test unitari sulla funzione pura (un confine di bucket per test) + 2 test
+sulla sostituzione/non-sostituzione in `compose_prompt` + 1 test endpoint + 5 test
+frontend (`CameraDirector.test.tsx`). Verificato dal vivo nel browser con Playwright: taglio
+"Primo piano" impostato dal catalogo, poi Regia attivata con orbita a 90°, prompt
+composto contiene `camera positioned directly to the subject's right side, profile
+view` e NON contiene più `FRAMING — STRONG:` — la sostituzione è reale, non solo
+dichiarata.
+
+Anche dal porting di PromptStudio resta da fare: provider Runware.ai alternativo (un
+provider di generazione cloud — da valutare rispetto alla scelta architetturale "solo
+ComfyUI locale" di `ARCHITECTURE_DECISION.md` prima di portarlo).
 
 ## FASE 10 — AI ASSISTANT — 🟨 (v1: solo chat, nessun Tool Layer)
 - ✅ `bridge/ai_providers/chat.py`: chiamata REALE (non simulata) ad Anthropic

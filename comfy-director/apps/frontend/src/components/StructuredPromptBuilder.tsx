@@ -10,6 +10,7 @@ import {
 } from "../api/bridgeClient";
 import { HAIR_COLOR_PREVIEWS, HAIR_STYLE_PREVIEWS } from "../data/hairPreviews";
 import { BodyZonePicker } from "./BodyZonePicker";
+import { CAMERA_DIRECTOR_DEFAULTS, CameraDirector, type CameraDirectorValues } from "./CameraDirector";
 import { HairPreviewPicker } from "./HairPreviewPicker";
 
 interface Props {
@@ -29,8 +30,12 @@ const EMPTY = "";
  * naviga per zona (Corpo/Torace/Vita/Fianchi/Glutei/Gambe/Pelle) invece di un elenco
  * piatto di 10-13 menu a tendina in fila.
  *
- * Deferito esplicitamente, dichiarato (mai finto): nessun controllo camera
- * interattivo trascinabile (solo i cataloghi framing/angolo/lens); "Coerenza
+ * La camera usa anche `CameraDirector` (porting di "Camera Director" da
+ * PromptStudio): cinque slider numerici (orbita/elevazione/distanza/FOV/tilt) che,
+ * se attivi, sostituiscono del tutto i menu Taglio/Angolo/Lens del catalogo.
+ *
+ * Deferito esplicitamente, dichiarato (mai finto): nessuna vista 3D trascinabile per
+ * la Regia Camera (solo i cinque slider numerici, niente diagrammi SVG); "Coerenza
  * Personaggio" usa SOLO un Personaggio della libreria (Fase 7) — nessun campo per
  * un'immagine di riferimento generica, perché Comfy Director non allega ancora
  * automaticamente un'immagine a un nodo del workflow (dipende dal Workflow
@@ -63,6 +68,8 @@ export function StructuredPromptBuilder({ onComposed }: Props) {
   const [cameraFraming, setCameraFraming] = useState(EMPTY);
   const [cameraAngle, setCameraAngle] = useState(EMPTY);
   const [cameraLens, setCameraLens] = useState(EMPTY);
+  const [cameraDirectorActive, setCameraDirectorActive] = useState(false);
+  const [cameraDirectorValues, setCameraDirectorValues] = useState<CameraDirectorValues>(CAMERA_DIRECTOR_DEFAULTS);
   const [light, setLight] = useState(EMPTY);
   const [coherentCharacterId, setCoherentCharacterId] = useState(EMPTY);
 
@@ -105,6 +112,12 @@ export function StructuredPromptBuilder({ onComposed }: Props) {
         camera_framing: cameraFraming || null,
         camera_angle: cameraAngle || null,
         camera_lens: cameraLens || null,
+        camera_director_active: cameraDirectorActive,
+        camera_director_orbit: cameraDirectorValues.orbit,
+        camera_director_elevation: cameraDirectorValues.elevation,
+        camera_director_distance: cameraDirectorValues.distance,
+        camera_director_fov: cameraDirectorValues.fov,
+        camera_director_tilt: cameraDirectorValues.tilt,
         light: light || null,
         coherent_character_id: coherentCharacterId || null,
       };
@@ -272,6 +285,12 @@ export function StructuredPromptBuilder({ onComposed }: Props) {
           <input id="sp-custom-scene" type="text" value={customScene} onChange={(e) => setCustomScene(e.target.value)} />
 
           <h4>Camera e luce</h4>
+          {cameraDirectorActive && (
+            <p className="settings-panel__hint">
+              Regia Camera attiva: i menu Taglio/Angolo/Lens qui sotto restano visibili ma senza effetto — vengono
+              sostituiti del tutto dalla Regia.
+            </p>
+          )}
           {catalog.camera.map((group) =>
             optionSelect(
               `sp-camera-${group.key}`, group.label_it,
@@ -280,6 +299,10 @@ export function StructuredPromptBuilder({ onComposed }: Props) {
               [...group.options],
             ),
           )}
+          <CameraDirector
+            active={cameraDirectorActive} values={cameraDirectorValues}
+            onActiveChange={setCameraDirectorActive} onValuesChange={setCameraDirectorValues}
+          />
           {optionSelect("sp-light", "Luce", light, setLight, catalog.lights)}
 
           <label htmlFor="sp-custom-photo">Note fotografiche libere (aggiunte in fondo al prompt)</label>

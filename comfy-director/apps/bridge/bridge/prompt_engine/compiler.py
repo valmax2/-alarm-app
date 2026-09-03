@@ -6,8 +6,18 @@ Portato — riorganizzato in modo pulito, tipizzato e testabile — dalla logica
 `composePrompt`/`coherentIdentityBlock` di PromptStudio, su richiesta esplicita
 dell'utente ("qui volevo organizzarla meglio"). Adattamenti deliberati rispetto
 all'originale, dichiarati:
-- Nessun `cameraDirectorText` (controllo camera interattivo trascinabile): qui la
-  camera è solo tramite i cataloghi framing/angolo/lens — deferito esplicitamente.
+- Camera Director (`camera_director_prompt`): portato fedelmente da
+  `cameraDirectorPrompt()`/`app.js`, cinque parametri numerici (orbita/elevazione/
+  distanza/FOV/tilt) mappati a frasi inglesi — quando attivo SOSTITUISCE del tutto i
+  cataloghi framing/angolo/lens (stessa regola dichiarata nell'originale: "sostituisce
+  DEL TUTTO i pulsanti Taglio/Inquadratura"). Non portata la logica più sofisticata di
+  `smart_prompt_compiler.js` (versione successiva nel codice originale, non quella
+  usata da `composePrompt`/`app.js`): lì il testo della Regia viene spezzato in singole
+  frasi per un troncamento token-aware e un lens del catalogo può convivere col FOV
+  della Regia in certe condizioni — qui, più semplicemente, la Regia è un unico
+  frammento e sostituisce SEMPRE framing/angolo/lens quando attiva, mai una fusione
+  parziale. Anche la vista 3D (i tre diagrammi SVG trascinabili top/frontale/destra)
+  non è portata: solo i cinque controlli numerici e il prompt che producono davvero.
 - Nessuna modalità "viso da immagine di riferimento generica": Comfy Director non ha
   ancora un campo per allegare un'immagine di riferimento diversa da un Personaggio
   della libreria (dipende dal Workflow Intelligence Engine, Fase 5) — la "coerenza"
@@ -75,6 +85,15 @@ class StructuredPromptInput:
     camera_lens: str | None = None
     light: str | None = None
 
+    # Camera Director: quando attivo, i cinque parametri sostituiscono del tutto
+    # camera_framing/camera_angle/camera_lens sopra — mai una fusione parziale.
+    camera_director_active: bool = False
+    camera_director_orbit: float = 0.0
+    camera_director_elevation: float = 0.0
+    camera_director_distance: float = 80.0
+    camera_director_fov: float = 50.0
+    camera_director_tilt: float = 0.0
+
 
 def coherent_identity_block(character: CharacterInfo) -> str:
     meta = " ".join(
@@ -99,6 +118,63 @@ def coherent_identity_block(character: CharacterInfo) -> str:
         "generation."
     )
     return f"{base} {meta}".strip()
+
+
+def camera_director_prompt(orbit: float, elevation: float, distance: float, fov: float, tilt: float) -> str:
+    """Porting fedele di `cameraDirectorPrompt()` (PromptStudio `app.js`): mappa i
+    cinque parametri numerici della Regia Camera a frasi inglesi, ognuna che nomina
+    esplicitamente "camera" all'inizio — nell'originale questo evita che il modello
+    legga la frase come un'istruzione sulla POSA del soggetto invece che sulla
+    posizione della camera (commento originale mantenuto qui per lo stesso motivo)."""
+    o = ((orbit % 360) + 360) % 360
+    if o > 180:
+        o -= 360
+    a = abs(o)
+    side = "right" if o > 0 else "left"
+    if a < 25:
+        orbit_text = "camera directly in front of the subject, front view"
+    elif a < 70:
+        orbit_text = f"camera positioned at a three-quarter front angle, on the subject's {side} side"
+    elif a < 115:
+        orbit_text = f"camera positioned directly to the subject's {side} side, profile view"
+    elif a < 155:
+        orbit_text = f"camera positioned at a three-quarter back angle, on the subject's {side} side"
+    else:
+        orbit_text = "camera positioned directly behind the subject, rear view"
+
+    if elevation >= 45:
+        elevation_text = "camera positioned high above the subject, bird's-eye view"
+    elif elevation >= 15:
+        elevation_text = "camera positioned above eye level, high-angle shot down at the subject"
+    elif elevation > -15:
+        elevation_text = "camera at the subject's eye level"
+    elif elevation > -45:
+        elevation_text = "camera positioned below eye level, low-angle shot up at the subject"
+    else:
+        elevation_text = "camera positioned low near the ground, worm's-eye view up at the subject"
+
+    if distance <= 35:
+        framing_text = "camera very close, extreme close-up on the face"
+    elif distance <= 55:
+        framing_text = "camera close, close-up shot framing head and shoulders"
+    elif distance <= 75:
+        framing_text = "camera at medium distance, medium shot framed from the waist up"
+    elif distance <= 105:
+        framing_text = "camera at full-body distance, full body shot"
+    else:
+        framing_text = "camera far away, wide shot with the subject small in the environment"
+
+    parts = [orbit_text, elevation_text, framing_text]
+    if fov <= 30:
+        parts.append("camera telephoto lens, compressed perspective")
+    elif fov >= 75:
+        parts.append("camera wide-angle lens, expanded perspective")
+    if tilt > 4:
+        parts.append(f"camera roll {tilt:g}° clockwise")
+    elif tilt < -4:
+        parts.append(f"camera roll {abs(tilt):g}° counter-clockwise")
+    parts.append("camera position only, does not change the subject's own pose or body orientation")
+    return ", ".join(parts)
 
 
 def compose_prompt(data: StructuredPromptInput, character: CharacterInfo | None = None) -> str:
@@ -163,12 +239,23 @@ def compose_prompt(data: StructuredPromptInput, character: CharacterInfo | None 
     elif data.environment:
         fragments.append(data.environment)
 
-    if data.camera_framing:
-        fragments.append(f"FRAMING — STRONG: {data.camera_framing}")
-    if data.camera_angle:
-        fragments.append(f"CAMERA VIEWPOINT — STRONG: {data.camera_angle}")
-    if data.camera_lens:
-        fragments.append(f"LENS — {data.camera_lens}")
+    if data.camera_director_active:
+        # La Regia Camera sostituisce DEL TUTTO i cataloghi framing/angolo/lens
+        # sotto — mai una fusione parziale (stessa regola dell'originale).
+        fragments.append(
+            "CAMERA DIRECTOR — STRONG: "
+            + camera_director_prompt(
+                data.camera_director_orbit, data.camera_director_elevation,
+                data.camera_director_distance, data.camera_director_fov, data.camera_director_tilt,
+            )
+        )
+    else:
+        if data.camera_framing:
+            fragments.append(f"FRAMING — STRONG: {data.camera_framing}")
+        if data.camera_angle:
+            fragments.append(f"CAMERA VIEWPOINT — STRONG: {data.camera_angle}")
+        if data.camera_lens:
+            fragments.append(f"LENS — {data.camera_lens}")
 
     if data.light:
         fragments.append(data.light)

@@ -52,6 +52,22 @@ async def test_compose_with_body_and_camera_selections(client: AsyncClient) -> N
     assert "cinematic lighting" in text
 
 
+async def test_compose_with_camera_director_active_ignores_catalog_camera_fields(client: AsyncClient) -> None:
+    response = await client.post(
+        "/prompt-engine/compose",
+        json={
+            "gender": "female", "camera_framing": "close-up shot", "camera_lens": "50mm natural lens",
+            "camera_director_active": True, "camera_director_orbit": 90, "camera_director_elevation": 0,
+            "camera_director_distance": 80, "camera_director_fov": 50, "camera_director_tilt": 0,
+        },
+    )
+    assert response.status_code == 200
+    text = response.json()["text_en"]
+    assert "FRAMING — STRONG:" not in text
+    assert "LENS — 50mm natural lens" not in text
+    assert "CAMERA DIRECTOR — STRONG: camera positioned directly to the subject's right side, profile view" in text
+
+
 async def test_compose_with_coherent_character_uses_real_character_data(client: AsyncClient) -> None:
     created = await client.post(
         "/characters", json={"name": "Aria", "description": "una guerriera", "tags": ["fantasy", "protagonista"]}

@@ -13,7 +13,8 @@ progresso live) + Fase 7 v2 (libreria Personaggi + export/import Character Pack)
 Fase 8 parziale (Workflow da Immagine) + Fase 9 (Prompt da Immagine + Prompt Engine
 con traduzione IT→EN + preset riutilizzabili + Smart Prompt Compiler con Coerenza
 Personaggio + selettore acconciature con anteprime + Body Director (zone del corpo)
-+ invio diretto del prompt a un nodo del workflow) + Fase
++ Camera Director (5 slider) + invio diretto del prompt a un nodo del workflow) +
+Fase
 10 v1 (chat reale con l'Assistente AI) + Fase 11 v1 (diagnostica reale: errori non
 gestiti persistiti + report).**
 Bridge FastAPI reale (health/status/settings/sync/inventory/workflows/workflow-import/
@@ -50,11 +51,12 @@ automatica di nodi; Fase 6: la relay WebSocket copre solo nodo-in-esecuzione e
 percentuale (v2), nessuna live-preview delle immagini durante il sampling;
 Fase 7: personaggi non ancora collegati alla generazione, nessun drag&drop nella
 canvas; Fase 9: il prompt composto può essere inviato direttamente a un nodo del workflow
-("Invia al workflow", individuazione strutturale mai indovinata) e gli attributi del
-corpo si navigano per zone (Body Director) invece di un elenco piatto di menu, ma non
-è ancora collegato a `prompts.generation_id` né a un percorso "componi → invia →
-genera" in un solo click, e lo Smart Prompt Compiler non ha ancora un controllo
-camera interattivo trascinabile; Fase 10: nessun AI
+("Invia al workflow", individuazione strutturale mai indovinata), gli attributi del
+corpo si navigano per zone (Body Director) invece di un elenco piatto di menu, e la
+camera ha anche un controllo a 5 slider (Camera Director, sostituisce del tutto i
+menu Taglio/Angolo/Lens quando attivo) oltre ai cataloghi, ma non è ancora collegato
+a `prompts.generation_id` né a un percorso "componi → invia → genera" in un solo
+click; Fase 10: nessun AI
 Tool Layer, l'assistente non legge né modifica il
 workflow; Fase 11: la diagnostica v1 cattura solo le eccezioni non gestite, non un
 log strutturato di ogni richiesta né alert/metriche — backup/versioning completi,
