@@ -230,6 +230,70 @@ class TranslateResponse(BaseModel):
     text_en: str
 
 
+class PromptCatalogOptionOut(BaseModel):
+    label_it: str
+    value_en: str
+
+
+class PromptCatalogOptionGroupOut(BaseModel):
+    key: str
+    label_it: str
+    options: list[PromptCatalogOptionOut]
+
+
+class PromptCatalogOut(BaseModel):
+    """Vocabolario del compositore di prompt strutturato (Smart Prompt Compiler,
+    portato da PromptStudio) — cataloghi statici, non dati derivati da ComfyUI."""
+
+    body: dict[str, list[PromptCatalogOptionGroupOut]]  # "female" | "male" -> gruppi
+    face: list[PromptCatalogOptionGroupOut]
+    hair_categories: dict[str, list[PromptCatalogOptionOut]]
+    hair_colors: list[PromptCatalogOptionOut]
+    clothing_states: list[PromptCatalogOptionOut]
+    underwear_categories: dict[str, list[PromptCatalogOptionOut]]
+    actions: list[PromptCatalogOptionOut]
+    poses: list[PromptCatalogOptionOut]
+    environments: list[PromptCatalogOptionOut]
+    camera: list[PromptCatalogOptionGroupOut]  # framing | angle | lens
+    lights: list[PromptCatalogOptionOut]
+    negative_default: str
+
+
+class StructuredPromptRequest(BaseModel):
+    """Selezioni guidate inviate a `POST /prompt-engine/compose` — vedi
+    `bridge/prompt_engine/compiler.py` per il significato esatto di ogni campo."""
+
+    gender: Literal["female", "male"] = "female"
+    age: int | None = None
+    clothing_state: str | None = None
+    underwear_item: str | None = None
+    body: dict[str, str] = {}
+    face_mode: Literal["", "create"] = ""
+    face: dict[str, str] = {}
+    hair_mode: Literal["", "keep", "change"] = ""
+    hair: str | None = None
+    custom_hair: str | None = None
+    hair_color: str | None = None
+    custom_action: str | None = None
+    action: str | None = None
+    pose: str | None = None
+    custom_scene: str | None = None
+    environment: str | None = None
+    custom_photo: str | None = None
+    camera_framing: str | None = None
+    camera_angle: str | None = None
+    camera_lens: str | None = None
+    light: str | None = None
+    # Se valorizzato, il blocco di coerenza identità sostituisce i descrittori del
+    # viso (mai sommati — vedi compile_prompt): il personaggio deve esistere nella
+    # libreria (Fase 7), altrimenti 404.
+    coherent_character_id: str | None = None
+
+
+class StructuredPromptResponse(BaseModel):
+    text_en: str
+
+
 class PromptOut(BaseModel):
     id: str
     generation_id: str | None

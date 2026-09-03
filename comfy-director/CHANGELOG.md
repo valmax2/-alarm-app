@@ -1,5 +1,46 @@
 # CHANGELOG — Comfy Director
 
+## [Non rilasciato] — Smart Prompt Compiler + Coerenza Personaggio (2026-09-03)
+
+Portato — riorganizzato in modo pulito e testabile — da un'altra app dell'utente
+("PromptStudio v9.7.4-S32.9"), su sua richiesta esplicita: "qui volevo organizzarla
+meglio". Priorità scelta tra i pezzi possibili: quello con più valore per lo sforzo,
+perché estende direttamente due sistemi già costruiti in Comfy Director (Prompt
+Engine e libreria Personaggi) invece di aggiungere una sezione isolata.
+
+### Backend
+- `bridge/prompt_engine/catalogs.py`: vocabolario tipizzato (corpo per genere, viso,
+  capelli+colore, abbigliamento, azione/posa/ambiente, camera framing/angolo/lens,
+  luce) — dato editoriale, non derivato da ComfyUI (l'hardcoding qui è corretto).
+- `bridge/prompt_engine/compiler.py`: `compose_prompt()`/`coherent_identity_block()`,
+  puri e testabili — 23 test unitari dedicati.
+- `GET /prompt-engine/catalog`, `POST /prompt-engine/compose` (utility pura come
+  `/prompts/translate`, non persiste nulla).
+
+### Frontend
+- Sezione "Costruzione guidata" nel Prompt Engine: menu guidati invece di scrivere il
+  prompt a mano, con un selettore di Personaggio coerente dalla libreria — selezionarne
+  uno sostituisce (mai somma) la descrizione generica del viso con un blocco di
+  coerenza d'identità basato sui dati reali del personaggio.
+
+### Test
+- Backend: +30 test (`test_prompt_engine_compiler.py` ×23, `test_prompt_engine_endpoints.py`
+  ×7) — 283 totali, tutti verdi.
+- Frontend: +4 test (`StructuredPromptBuilder.test.tsx`) — 58 totali, tutti verdi.
+- Verificato dal vivo nel browser con Playwright: personaggio creato, prompt composto
+  con corpo/azione/camera/luce reali + blocco di coerenza identità, tutto confermato
+  nel campo "Prompt (inglese)".
+
+### Dichiarato esplicitamente come non ancora implementato (mai finto)
+- Nessun controllo camera interattivo trascinabile (solo i cataloghi
+  framing/angolo/lens).
+- "Coerenza Personaggio" usa SOLO un Personaggio della libreria — nessun campo per
+  un'immagine di riferimento generica (Comfy Director non allega ancora
+  automaticamente un'immagine a un nodo del workflow, dipende dal Workflow
+  Intelligence Engine completo, Fase 5).
+- Restano da portare da PromptStudio: Body Director/Camera Director (editor guidati a
+  step), selettore acconciature con anteprime visive, provider Runware.ai.
+
 ## [Non rilasciato] — Personaggi: oscuramento per singola immagine (2026-09-03)
 
 Richiesta esplicita dell'utente: il toggle "Privato" del personaggio oscura TUTTE le

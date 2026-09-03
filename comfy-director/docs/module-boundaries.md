@@ -120,6 +120,13 @@ Astrazione provider di traduzione/analisi immagine, indipendente da `ai_assistan
 (la chat) anche se possono condividere la stessa astrazione `AIProvider` sotto il
 cofano (vedi sotto) per non duplicare il codice di gestione credenziali.
 
+Aggiunge (Fase 9, Smart Prompt Compiler + Coerenza Personaggio, porting — riorganizzato
+in modo pulito e testabile — da un'altra app dell'utente su sua richiesta esplicita):
+`catalogs.py` (vocabolario statico di prompt engineering — dato editoriale, mai dati
+derivati da ComfyUI) e `compiler.py` (`compose_prompt()`/`coherent_identity_block()`,
+puri: prendono `CharacterInfo` già caricato, non toccano mai la sessione DB —
+quell'unico punto resta `routers/prompt_engine.py`, coerente con `characters` sotto).
+
 ## `ai_assistant` (Fase 10)
 Unico modulo autorizzato a esporre un "tool layer" (§21) che chiama le funzioni
 pubbliche degli altri moduli (mai la UI direttamente, mai accesso diretto a modifiche

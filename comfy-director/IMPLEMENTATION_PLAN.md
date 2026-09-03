@@ -322,7 +322,7 @@ corretto durante lo sviluppo dei test.
 Non ancora consegnato in questa fase: import di workflow JSON standalone (non
 incorporato in un'immagine), lettura metadata WebP (solo PNG per ora).
 
-## FASE 9 — PROMPT ENGINE — 🟨 (+ preset riutilizzabili con categorie/tag)
+## FASE 9 — PROMPT ENGINE — 🟨 (+ preset riutilizzabili + Smart Prompt Compiler)
 Consegnato: **Prompt da Immagine** — tabella `ai_providers` cifrata a riposo (Fernet,
 chiave locale mai committata — `bridge/ai_providers/crypto.py`), CRUD provider
 (`POST/GET/DELETE /ai-providers`, la chiave non è mai restituita in chiaro né
@@ -360,10 +360,31 @@ il preset negli editor e blocca automaticamente la traduzione (protegge il testo
 inglese curato da un ritraduci accidentale). Verificato dal vivo nel browser con
 Playwright: preset salvato, filtrato per tag, ricaricato correttamente.
 
+Consegnato ora — **Smart Prompt Compiler + Coerenza Personaggio** (portato —
+riorganizzato in modo pulito e testabile — da un'altra app dell'utente, "PromptStudio",
+su sua richiesta esplicita: "qui volevo organizzarla meglio"): `bridge/prompt_engine/`
+(`catalogs.py` — vocabolario di prompt engineering: corpo per genere, viso, capelli+
+colore, abbigliamento, azione/posa/ambiente, camera framing/angolo/lens, luce, tutto
+puro dato tipizzato; `compiler.py` — `compose_prompt()`/`coherent_identity_block()`,
+puro e testabile, 23 test unitari dedicati). `GET /prompt-engine/catalog`,
+`POST /prompt-engine/compose` (utility pura come `/prompts/translate`, non persiste).
+Frontend: sezione "Costruzione guidata" nel Prompt Engine — menu guidati invece di
+scrivere il prompt a mano, con un selettore di **Personaggio coerente** dalla libreria
+(Fase 7): selezionandone uno, il blocco di coerenza d'identità (nome/descrizione/tag/
+note del personaggio) sostituisce la descrizione generica del viso, mai sommato.
+Adattamenti deliberati rispetto all'originale, dichiarati nel modulo: nessun controllo
+camera interattivo trascinabile (solo i cataloghi), nessuna modalità "viso da immagine
+di riferimento generica" (solo Personaggi della libreria, mai un'immagine anonima).
+Verificato dal vivo nel browser con Playwright: personaggio creato, prompt composto
+con corpo/azione/camera/luce reali + blocco di coerenza identità, tutto verificato nel
+campo "Prompt (inglese)".
+
 Non ancora consegnato — più significativo: nessun collegamento a un
 workflow/generazione specifico (`prompts.generation_id` resta sempre `null`): questo
 dipende dal Workflow Builder completo (Fase 5, non ancora costruito), dichiarato
-esplicitamente.
+esplicitamente. Anche dal porting di PromptStudio restano da fare: Body Director/
+Camera Director (editor guidati a step, UI grossa e a sé), selettore acconciature con
+anteprime visive (libreria di 85 immagini), provider Runware.ai alternativo.
 
 ## FASE 10 — AI ASSISTANT — 🟨 (v1: solo chat, nessun Tool Layer)
 - ✅ `bridge/ai_providers/chat.py`: chiamata REALE (non simulata) ad Anthropic

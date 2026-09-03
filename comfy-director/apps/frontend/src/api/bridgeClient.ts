@@ -293,6 +293,57 @@ export interface PromptPresetOut {
   updated_at: string;
 }
 
+export interface PromptCatalogOption {
+  label_it: string;
+  value_en: string;
+}
+
+export interface PromptCatalogOptionGroup {
+  key: string;
+  label_it: string;
+  options: PromptCatalogOption[];
+}
+
+export interface PromptCatalogOut {
+  body: Record<string, PromptCatalogOptionGroup[]>; // "female" | "male" -> gruppi
+  face: PromptCatalogOptionGroup[];
+  hair_categories: Record<string, PromptCatalogOption[]>;
+  hair_colors: PromptCatalogOption[];
+  clothing_states: PromptCatalogOption[];
+  underwear_categories: Record<string, PromptCatalogOption[]>;
+  actions: PromptCatalogOption[];
+  poses: PromptCatalogOption[];
+  environments: PromptCatalogOption[];
+  camera: PromptCatalogOptionGroup[]; // framing | angle | lens
+  lights: PromptCatalogOption[];
+  negative_default: string;
+}
+
+export interface StructuredPromptRequest {
+  gender: "female" | "male";
+  age?: number | null;
+  clothing_state?: string | null;
+  underwear_item?: string | null;
+  body?: Record<string, string>;
+  face_mode?: "" | "create";
+  face?: Record<string, string>;
+  hair_mode?: "" | "keep" | "change";
+  hair?: string | null;
+  custom_hair?: string | null;
+  hair_color?: string | null;
+  custom_action?: string | null;
+  action?: string | null;
+  pose?: string | null;
+  custom_scene?: string | null;
+  environment?: string | null;
+  custom_photo?: string | null;
+  camera_framing?: string | null;
+  camera_angle?: string | null;
+  camera_lens?: string | null;
+  light?: string | null;
+  coherent_character_id?: string | null;
+}
+
 export interface CharacterImageOut {
   id: string;
   character_id: string;
@@ -554,6 +605,11 @@ export const bridgeClient = {
     input: Partial<{ name: string; category: string | null; tags: string[]; text_it: string | null; text_en: string; negative_text_en: string | null }>,
   ) => request<PromptPresetOut>(`/prompt-presets/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(input) }),
   deletePromptPreset: (id: string) => request<void>(`/prompt-presets/${encodeURIComponent(id)}`, { method: "DELETE" }),
+
+  // Smart Prompt Compiler + Coerenza Personaggio (portato da PromptStudio).
+  getPromptCatalog: () => request<PromptCatalogOut>("/prompt-engine/catalog"),
+  composeStructuredPrompt: (input: StructuredPromptRequest) =>
+    request<{ text_en: string }>("/prompt-engine/compose", { method: "POST", body: JSON.stringify(input) }),
 
   listErrors: (limit = 50) => request<ErrorLogOut[]>(`/diagnostics/errors${buildQuery({ limit })}`),
   getDiagnosticsReport: () => request<DiagnosticsReportOut>("/diagnostics/report"),

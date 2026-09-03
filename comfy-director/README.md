@@ -11,7 +11,8 @@ reale) + Fase 4 v1 (filtro per famiglia) + Fase 5 v1 (scelta famiglia + import
 workflow JSON) + Fase 6 v2 (generazione reale via ComfyUI, con relay WebSocket per il
 progresso live) + Fase 7 v2 (libreria Personaggi + export/import Character Pack) +
 Fase 8 parziale (Workflow da Immagine) + Fase 9 (Prompt da Immagine + Prompt Engine
-con traduzione IT→EN + preset riutilizzabili) + Fase
+con traduzione IT→EN + preset riutilizzabili + Smart Prompt Compiler con Coerenza
+Personaggio) + Fase
 10 v1 (chat reale con l'Assistente AI) + Fase 11 v1 (diagnostica reale: errori non
 gestiti persistiti + report).**
 Bridge FastAPI reale (health/status/settings/sync/inventory/workflows/workflow-import/
@@ -48,7 +49,9 @@ automatica di nodi; Fase 6: la relay WebSocket copre solo nodo-in-esecuzione e
 percentuale (v2), nessuna live-preview delle immagini durante il sampling;
 Fase 7: personaggi non ancora collegati alla generazione, nessun drag&drop nella
 canvas; Fase 9: i prompt salvati non sono ancora collegati a un workflow
-specifico; Fase 10: nessun AI Tool Layer, l'assistente non legge né modifica il
+specifico, lo Smart Prompt Compiler non ha ancora un controllo camera interattivo
+trascinabile né un selettore acconciature con anteprime visive; Fase 10: nessun AI
+Tool Layer, l'assistente non legge né modifica il
 workflow; Fase 11: la diagnostica v1 cattura solo le eccezioni non gestite, non un
 log strutturato di ogni richiesta né alert/metriche — backup/versioning completi,
 suite di test estesa e packaging desktop restano da fare).

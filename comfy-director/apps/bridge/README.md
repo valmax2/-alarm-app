@@ -93,7 +93,12 @@ Bridge, verificare manualmente contro un'istanza ComfyUI reale:
     categoria/tag) → deve comparire nella lista preset, il filtro per tag deve
     funzionare, "Usa" deve ricaricarlo negli editor con blocco traduzione attivato.
     Già verificato dal vivo nel browser con Playwright.
-12. Aprire "Diagnostica" → lista vuota su un'installazione pulita. Provocare
+12. Nel "Prompt Engine", aprire "Costruzione guidata" → selezionare un Personaggio
+    coerente dalla libreria deve far sparire i controlli del viso; comporre un
+    prompt con corpo/azione/camera/luce selezionati deve riempire il campo "Prompt
+    (inglese)" con un testo reale che include il blocco di coerenza d'identità del
+    personaggio. Già verificato dal vivo nel browser con Playwright.
+13. Aprire "Diagnostica" → lista vuota su un'installazione pulita. Provocare
     un'eccezione non gestita (es. un dependency override in test, o rompendo
     temporaneamente una configurazione) → deve comparire in `GET /diagnostics/errors`
     con messaggio/contesto redatti (nessuna chiave API in chiaro) e il client deve
@@ -142,12 +147,16 @@ bridge/
                                             # HTTP condiviso con la traduzione)
   characters/                               # Fase 7: storage filesystem immagini;
                                              # Fase 7 v2: pack.py — export/import ZIP
+  prompt_engine/                            # Smart Prompt Compiler + Coerenza
+                                             # Personaggio (catalogs.py + compiler.py,
+                                             # porting da PromptStudio) — puro/testabile
   diagnostics.py                            # Fase 11: cattura eccezioni non gestite
                                              # (exception handler globale in main.py)
   routers/                                  # health, comfy, settings, inventory,
                                              # workflows, workflow_import, ai_providers,
                                              # prompt_from_image, prompts, prompt_presets,
-                                             # generations, chat, characters, diagnostics
+                                             # prompt_engine, generations, chat,
+                                             # characters, diagnostics
 migrations/                                  # Alembic
 tests/                                        # pytest (mock respx, nessuna rete reale
                                                # verso ComfyUI; alcune verifiche manuali

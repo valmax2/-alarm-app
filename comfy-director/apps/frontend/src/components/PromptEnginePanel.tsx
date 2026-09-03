@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { bridgeClient, type AIProviderOut, type PromptOut, type PromptPresetOut } from "../api/bridgeClient";
+import { StructuredPromptBuilder } from "./StructuredPromptBuilder";
 
 /**
  * Prompt Engine (Fase 9, spec §9) — completamento della parte rimasta dopo "Prompt da
@@ -10,6 +11,11 @@ import { bridgeClient, type AIProviderOut, type PromptOut, type PromptPresetOut 
  * Fase 9 v2 aggiunge i preset (nome, categoria, tag) — distinti dalla cronologia: la
  * cronologia si popola automaticamente ad ogni salvataggio, un preset è curato
  * dall'utente per essere richiamato rapidamente.
+ *
+ * Aggiunge la "Costruzione guidata" (`StructuredPromptBuilder`, Smart Prompt
+ * Compiler + Coerenza Personaggio, portato da PromptStudio su richiesta esplicita
+ * dell'utente): compone il prompt inglese da menu guidati invece di scriverlo a
+ * mano, riusando i Personaggi della libreria (Fase 7) per la coerenza d'identità.
  *
  * Non ancora collegato a un workflow/generazione specifico — dipende dal Workflow
  * Builder completo (Fase 5), dichiarato esplicitamente.
@@ -181,6 +187,8 @@ export function PromptEnginePanel() {
           </select>
         </>
       )}
+
+      <StructuredPromptBuilder onComposed={setTextEn} />
 
       <form onSubmit={(e) => e.preventDefault()}>
         <label htmlFor="prompt-it">Prompt (italiano)</label>
