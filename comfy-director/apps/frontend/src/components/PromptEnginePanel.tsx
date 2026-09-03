@@ -113,7 +113,7 @@ export function PromptEnginePanel() {
   useEffect(loadProviders, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(loadHistory, []);
   useEffect(loadWorkflows, []);
-  useEffect(loadPresets, [presetFilterTag, presetSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(loadPresets, [presetFilterTag, presetSearch]);
 
   async function handleTranslate() {
     if (!textIt.trim() || !selectedProviderId || translationLocked) return;

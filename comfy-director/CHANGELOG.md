@@ -1,5 +1,20 @@
 # CHANGELOG — Comfy Director
 
+## [Non rilasciato] — Correzione: `npm run lint` era rotto dallo scaffold (2026-09-03)
+
+`apps/frontend/eslint.config.js` non è mai esistito: ESLint 9 richiede la config flat
+e senza quel file `npm run lint` falliva sempre con "ESLint couldn't find an
+eslint.config.js file", fin dallo scaffold di Fase 1 — mai notato perché nessuna
+verifica precedente lo eseguiva. Aggiunta la config (usa solo i pacchetti già
+dichiarati in `package.json`: `@typescript-eslint/eslint-plugin`+`parser`,
+`eslint-plugin-react-hooks`, `eslint-plugin-react-refresh` — nessuna nuova
+dipendenza). `no-undef` disattivato sui file `.ts`/`.tsx` (raccomandazione ufficiale
+typescript-eslint: non capisce i tipi, `tsc --noEmit` in `npm run build` copre già
+questi casi). Sull'intero codice reale: da 32 errori/2 warning falsi a 0 errori/1
+warning innocuo e pre-esistente (un file che esporta sia un componente sia una
+costante, avviso di Fast Refresh — non toccato). Rimossa anche una direttiva
+`eslint-disable` in `PromptEnginePanel.tsx` che risultava inutilizzata.
+
 ## [Non rilasciato] — Invia al workflow: chiude il divario Prompt Engine → grafo (2026-09-03)
 
 Chiude il divario dichiarato esplicitamente in Fase 9 ("nessun collegamento a un
