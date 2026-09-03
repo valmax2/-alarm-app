@@ -822,3 +822,13 @@ input {
 .characters-panel__thumb--blurred {
   filter: blur(16px);
 }
+
+.characters-panel__send-to-workflow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}

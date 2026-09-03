@@ -91,6 +91,13 @@ def normalize_input_summary(raw_input: dict) -> list[dict]:
                     "min": opts.get("min"),
                     "max": opts.get("max"),
                     "step": opts.get("step"),
+                    # Flag reale che ComfyUI stesso pubblica sui campi enum che sono
+                    # "scegli un file caricabile" (es. LoadImage.image) invece di un
+                    # semplice elenco fisso (es. sampler_name) — usato da
+                    # `bridge.workflow.image_targets` per "Invia immagine personaggio
+                    # al workflow" (Fase 7): mai dedotto dal nome del campo, letto
+                    # dallo schema sincronizzato come tutto il resto qui.
+                    "image_upload": bool(opts.get("image_upload")),
                 }
             )
     return summary

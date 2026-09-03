@@ -94,6 +94,7 @@ def connect(graph, from_node, from_port, to_node, to_port) -> None: ...
 def validate_structure(graph) -> list[StructuralIssue]: ...   # cicli, porte non collegate richieste, tipi porta incompatibili
 def compile_to_comfy_payload(graph, inventory_snapshot) -> dict: ...   # Fase 6
 def find_prompt_targets(graph, node_schemas) -> PromptTargets: ...   # Fase 9: nodo di testo libero collegato a positive/negative
+def find_image_widget(graph, node, node_schemas) -> ImageWidgetTarget | None: ...   # Fase 7: campo "immagine caricabile" su un nodo SCELTO dall'utente
 ```
 `find_prompt_targets` (`workflow/prompt_targets.py`) individua STRUTTURALMENTE — mai
 per nome di classe hardcodato — il nodo di testo libero collegato a `positive`/
@@ -102,6 +103,15 @@ risolti dallo schema sincronizzato reale, mai un'assunzione). Zero o più di un 
 `STRING` candidato ⇒ nessun target, motivo dichiarato in `PromptTargets.issues` — chi
 chiama (`routers/workflows.py: apply-prompt`) decide se questo è un errore bloccante
 (`positive`) o solo un warning (`negative`, opzionale).
+
+`find_image_widget` (`workflow/image_targets.py`, Fase 7) è deliberatamente diverso:
+non individua da solo IL nodo (nessun arco-ancora equivalente a `positive`/`negative`
+esiste per un riferimento immagine — un `LoadImage`/IPAdapter/faceswap ha ruoli
+troppo diversi da workflow a workflow). Il nodo arriva già scelto dal chiamante
+(`routers/characters.py: send-to-workflow`, l'utente lo sceglie in UI); questa
+funzione si limita a trovare, su QUEL nodo, l'unico campo che ComfyUI stesso
+pubblica come `image_upload: true` su `/object_info`
+(`bridge.inventory.sync.normalize_input_summary`) — mai dedotto dal nome del campo.
 
 ## `compatibility_engine` (Fase 4)
 Vedi `docs/compatibility-engine.md` per il design completo. API pubblica:
@@ -121,7 +131,11 @@ def propose_workflows(intent, family, inventory_snapshot, character=None) -> lis
 
 ## `characters` (Fase 7)
 CRUD personaggi + gestione immagini su filesystem (`data/storage/characters/...`), mai
-logica di compatibilità o di rete qui dentro.
+logica di compatibilità o di rete qui dentro. "Invia al workflow" (Fase 7 v3, upload
+reale su ComfyUI + scrittura di un nodo) vive interamente in `routers/characters.py`,
+che orchestra `comfy_client.upload_image` + `workflow.find_image_widget` — lo stesso
+confine di `prompt_engine`/`workflow` sopra: il modulo `characters` resta solo dati e
+filesystem, mai una dipendenza diretta verso `comfy_client`.
 
 ## `prompt_engine` (Fase 9)
 Astrazione provider di traduzione/analisi immagine, indipendente da `ai_assistant`

@@ -118,6 +118,18 @@ Bridge, verificare manualmente contro un'istanza ComfyUI reale:
     stub HTTP locale (`/system_stats`+`/object_info`) dato che l'ambiente di sviluppo
     non ha un ComfyUI reale (vedi sopra), ma la sync stessa e la scrittura nel grafo
     sono chiamate reali, non mockate.
+15. Con un workflow reale che ha un nodo `LoadImage` (o equivalente con un campo
+    `image_upload`), aprire un Personaggio con un'immagine, premere "Invia al
+    workflow", scegliere quel workflow e quel nodo → l'immagine deve essere caricata
+    davvero su ComfyUI (`POST /upload/image`) e il nome che ComfyUI le assegna
+    (verificabile: può differire da quello locale) deve finire nel nodo giusto
+    (`GET /workflows/{id}` deve riportarlo) come nuova versione. Su un nodo senza un
+    unico campo "immagine caricabile", la richiesta deve fallire con 422 e il motivo
+    esatto in UI. Già verificato dal vivo nel browser con Playwright — stub HTTP
+    locale per `/object_info` E `/upload/image` (l'ambiente di sviluppo non ha un
+    ComfyUI reale, vedi sopra), configurato per restituire un nome DIVERSO da quello
+    caricato, a riprova che è davvero quella risposta — non un'eco — a finire nel
+    workflow.
 
 ## Migrazioni
 
@@ -144,16 +156,23 @@ bridge/
   comfy_client/                     # unico punto di contatto HTTP/WS con ComfyUI
                                      # (Fase 6: + queue_prompt/get_queue/get_history/
                                      # interrupt/get_view_bytes; Fase 6 v2: ws_relay.py/
-                                     # ws_manager.py/ws_events.py — relay WS live)
+                                     # ws_manager.py/ws_events.py — relay WS live;
+                                     # Fase 7: upload_image() — POST /upload/image,
+                                     # per "Invia immagine personaggio al workflow")
   inventory/                         # Fase 2: sync (/object_info + filesystem),
-                                      # family detection, node_registry, safetensors
+                                      # family detection, node_registry, safetensors;
+                                      # normalize_input_summary() cattura anche il
+                                      # flag reale image_upload (Fase 7)
   compatibility/                       # Fase 4 v1: resolve() + filter_models_by_family
   workflow/                             # Fase 3: modello grafo + validate_structure();
                                          # Fase 6: compile_to_comfy_payload(); Fase 9:
                                          # prompt_targets.py — find_prompt_targets(),
                                          # individuazione strutturale (mai per nome di
                                          # classe) del nodo di testo libero collegato a
-                                         # positive/negative, per "Invia al workflow"
+                                         # positive/negative, per "Invia al workflow";
+                                         # Fase 7: image_targets.py — find_image_widget(),
+                                         # stesso principio per il campo "immagine
+                                         # caricabile" di un nodo scelto dall'utente
   media/                                 # Fase 8: parser chunk PNG (tEXt/zTXt/iTXt)
   workflow_import/                        # Fase 8: workflow da immagine; Fase 5:
                                            # workflow da file .json standalone
@@ -162,7 +181,10 @@ bridge/
                                             # (send_chat_message — stesso trasporto
                                             # HTTP condiviso con la traduzione)
   characters/                               # Fase 7: storage filesystem immagini;
-                                             # Fase 7 v2: pack.py — export/import ZIP
+                                             # Fase 7 v2: pack.py — export/import ZIP;
+                                             # Fase 7 v3: routers/characters.py aggiunge
+                                             # send-to-workflow (upload reale + scrittura
+                                             # del nodo scelto dall'utente)
   prompt_engine/                            # Smart Prompt Compiler + Coerenza
                                              # Personaggio (catalogs.py + compiler.py,
                                              # porting da PromptStudio) — puro/testabile

@@ -156,6 +156,61 @@ describe("CharactersPanel", () => {
     });
   });
 
+  it("invia un'immagine al nodo scelto di un workflow e mostra dove è stata scritta davvero", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init?: RequestInit) => {
+        if (url.endsWith("/characters/c1")) {
+          return jsonResponse({
+            id: "c1", name: "Elena", description: null, tags: [], is_private: false, image_count: 1,
+            main_image_id: "img1", notes: null,
+            images: [{ id: "img1", character_id: "c1", role: "main", order_index: 0, source: "upload", width: null, height: null, is_hidden: false, created_at: "2026-01-01T00:00:00Z" }],
+            created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z",
+          });
+        }
+        if (url.endsWith("/characters")) {
+          return jsonResponse([
+            { id: "c1", name: "Elena", description: null, tags: [], is_private: false, image_count: 1, main_image_id: "img1", created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z" },
+          ]);
+        }
+        if (url.endsWith("/workflows")) {
+          return jsonResponse([{ id: "w1", name: "Ritratti SDXL", intent: null, family: null, source: "user_created", node_count: 1, edge_count: 0, updated_at: "2026-01-01T00:00:00Z" }]);
+        }
+        if (url.endsWith("/workflows/w1")) {
+          return jsonResponse({
+            id: "w1", name: "Ritratti SDXL", intent: null, family: null, source: "user_created", version_number: 2,
+            graph: { nodes: [{ id: "loader", class_type: "LoadImage", position: { x: 0, y: 0 }, params: {} }], edges: [] },
+            validation_issues: [], updated_at: "2026-01-01T00:00:00Z",
+          });
+        }
+        if (url.endsWith("/characters/c1/images/img1/send-to-workflow") && init?.method === "POST") {
+          const body = JSON.parse(init.body as string) as { workflow_id: string; node_id: string };
+          expect(body).toEqual({ workflow_id: "w1", node_id: "loader" });
+          return jsonResponse({
+            workflow_id: "w1", node_id: "loader", class_type: "LoadImage", param_name: "image",
+            uploaded_filename: "elena (1).png", version_number: 3,
+          });
+        }
+        return jsonResponse({});
+      }),
+    );
+
+    render(<CharactersPanel />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /apri/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /apri/i }));
+
+    fireEvent.click(await screen.findByRole("button", { name: /invia al workflow/i }));
+    await waitFor(() => expect(screen.getByLabelText("Nodo target")).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText("Nodo target"), { target: { value: "loader" } });
+    fireEvent.click(screen.getByRole("button", { name: /^invia$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Immagine caricata su ComfyUI come "elena \(1\)\.png"/)).toBeInTheDocument();
+      expect(screen.getByText(/versione 3 del/)).toBeInTheDocument();
+    });
+  });
+
   it("mostra l'errore reale se l'import di un pack non valido fallisce", async () => {
     vi.stubGlobal(
       "fetch",

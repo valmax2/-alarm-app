@@ -90,7 +90,12 @@ Scarica un'immagine/video di output. `type` è tipicamente `output`, `input` o `
 
 ### `POST /upload/image`
 Upload di un'immagine di input (es. reference per Coerenza Personaggio, Image-to-Image)
-— multipart/form-data.
+— multipart/form-data. **Implementato in Fase 7 v3** (`bridge/comfy_client/client.py:
+upload_image()`), usato da "Invia immagine personaggio al workflow"
+(`routers/characters.py: send-to-workflow`): carica i byte reali nella cartella
+`input/` di ComfyUI e restituisce `{name, subfolder, type}` — il `name` può differire
+dal filename caricato (ComfyUI rinomina per evitare collisioni): il codice scrive
+sempre quel `name`, mai il filename locale, nel widget del nodo target.
 
 ### `WS /ws?clientId=<uuid>`
 Canale eventi realtime. Eventi osservati (il client li tratta come union discriminata su

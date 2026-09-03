@@ -1,5 +1,48 @@
 # CHANGELOG — Comfy Director
 
+## [Non rilasciato] — Invia immagine personaggio al workflow (2026-09-03)
+
+Chiude il divario dichiarato in Fase 7 ("nessun collegamento alla generazione"): le
+immagini di un Personaggio possono ora essere inviate direttamente a un nodo di un
+workflow aperto — l'immagine viene caricata davvero su ComfyUI, non solo referenziata.
+
+### Backend
+- `bridge/comfy_client/client.py`: `upload_image()` — chiamata reale a
+  `POST /upload/image` di ComfyUI. Usa sempre il nome che ComfyUI assegna
+  all'immagine (può differire da quello locale per evitare collisioni), mai quello
+  locale.
+- `bridge/inventory/sync.py::normalize_input_summary`: cattura anche il flag reale
+  `image_upload` che ComfyUI pubblica su `/object_info` — il segnale che distingue
+  "scegli un file da caricare" (es. `LoadImage.image`) da un semplice elenco fisso
+  (es. `sampler_name`).
+- `bridge/workflow/image_targets.py` (`find_image_widget()`): individua il campo
+  "immagine caricabile" su un nodo scelto ESPLICITAMENTE dall'utente (mai
+  auto-individuato — a differenza di `positive`/`negative` per il testo, qui non
+  c'è un arco-ancora equivalente: un nodo di terze parti può avere ruoli troppo
+  diversi da workflow a workflow). Zero o più di un campo così ⇒ 422 con il motivo
+  esatto.
+- `POST /characters/{id}/images/{id}/send-to-workflow`: upload + scrittura del nodo
+  + nuova versione del workflow.
+
+### Frontend
+- Scheda personaggio: ogni immagine ha "Invia al workflow" → scelta workflow +
+  scelta nodo (dalla lista reale dei nodi di quel workflow) + conferma con il vero
+  nome file assegnato da ComfyUI.
+
+### Test
+- Backend: +19 test (`test_normalize_input_summary.py` ×3, upload_image in
+  `test_comfy_client.py` ×4, `test_workflow_image_targets.py` ×6,
+  `test_characters_send_to_workflow_endpoint.py` ×6) — 326 totali, tutti verdi.
+- Frontend: +1 test (`CharactersPanel.test.tsx`) — 78 totali, tutti verdi.
+- Verificato dal vivo nel browser con Playwright contro un Bridge reale (stub HTTP
+  locale per `/object_info` E `/upload/image`, non mockato a livello Python): il
+  nome ASSEGNATO DA COMFYUI (deliberatamente diverso da quello locale nello stub)
+  è finito nel nodo giusto, confermato in UI e rileggendo il workflow dal Bridge.
+
+### Dichiarato esplicitamente come non ancora implementato (mai finto)
+- Nessuna proposta automatica di "quale workflow/nodo usare per questo
+  personaggio" — dipende dal Workflow Intelligence Engine completo (Fase 5).
+
 ## [Non rilasciato] — Camera Director: controllo camera con 5 slider (2026-09-03)
 
 Porting da PromptStudio (`cameraDirectorPrompt()`, `app.js`), su richiesta esplicita

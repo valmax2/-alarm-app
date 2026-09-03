@@ -379,6 +379,15 @@ export interface CharacterImageOut {
   created_at: string;
 }
 
+export interface SendImageToWorkflowResponse {
+  workflow_id: string;
+  node_id: string;
+  class_type: string;
+  param_name: string;
+  uploaded_filename: string;
+  version_number: number;
+}
+
 export interface CharacterSummaryOut {
   id: string;
   name: string;
@@ -596,6 +605,11 @@ export const bridgeClient = {
     }),
   characterImageUrl: (characterId: string, imageId: string) =>
     `${BRIDGE_BASE_URL}/characters/${encodeURIComponent(characterId)}/images/${encodeURIComponent(imageId)}/file`,
+  sendCharacterImageToWorkflow: (characterId: string, imageId: string, workflowId: string, nodeId: string) =>
+    request<SendImageToWorkflowResponse>(
+      `/characters/${encodeURIComponent(characterId)}/images/${encodeURIComponent(imageId)}/send-to-workflow`,
+      { method: "POST", body: JSON.stringify({ workflow_id: workflowId, node_id: nodeId }) },
+    ),
   // Fase 7 v2: export/import Character Pack. L'URL di export è usato direttamente in
   // un <a href download> (come generationOutputUrl) — non passa da request<T>, è il
   // browser a scaricare i byte del ZIP che il Bridge produce.

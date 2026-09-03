@@ -62,6 +62,18 @@ class QueueState:
     pending_prompt_ids: list[str]
 
 
+@dataclass(frozen=True)
+class ComfyUploadResult:
+    """Vista normalizzata della risposta di `POST /upload/image` — il `name` che
+    ComfyUI assegna davvero può differire dal filename originale (rinominato per
+    evitare collisioni nella sua cartella `input/`), quindi è questo valore, non
+    quello locale, che va scritto nel widget `image` del nodo target."""
+
+    name: str
+    subfolder: str
+    type: str
+
+
 class ComfyClient:
     def __init__(self, base_url: str, timeout_seconds: float = 5.0):
         self._base_url = base_url.rstrip("/")
@@ -231,3 +243,36 @@ class ComfyClient:
         if response.status_code >= 400:
             raise ComfyHTTPError(response.status_code, response.text)
         return response.content
+
+    async def upload_image(self, filename: str, content: bytes, content_type: str) -> ComfyUploadResult:
+        """Chiama `POST /upload/image`: carica un'immagine nella cartella `input/` di
+        ComfyUI, così un nodo `LoadImage` (o equivalente) possa referenziarla per nome
+        — passo necessario per "Invia immagine personaggio al workflow" (Fase 7), dato
+        che ComfyUI legge le immagini di input dal proprio filesystem, mai da un path
+        arbitrario del Bridge."""
+        url = f"{self._base_url}/upload/image"
+        try:
+            async with httpx.AsyncClient(timeout=self._timeout_seconds) as client:
+                response = await client.post(url, files={"image": (filename, content, content_type)})
+        except httpx.TimeoutException as exc:
+            raise ComfyTimeout(f"Timeout contattando {url}") from exc
+        except httpx.ConnectError as exc:
+            raise ComfyUnreachable(f"ComfyUI non raggiungibile su {url}") from exc
+        except httpx.HTTPError as exc:
+            raise ComfyUnreachable(f"Errore di connessione verso {url}: {exc}") from exc
+
+        if response.status_code >= 400:
+            raise ComfyHTTPError(response.status_code, response.text)
+        try:
+            body = response.json()
+        except ValueError as exc:
+            raise ComfyProtocolError(f"Risposta non JSON da {url}") from exc
+
+        name = body.get("name")
+        if not isinstance(name, str) or not name:
+            raise ComfyProtocolError(f"Risposta di {url} senza un campo 'name' valido: {body!r}")
+        return ComfyUploadResult(
+            name=name,
+            subfolder=body.get("subfolder") or "",
+            type=body.get("type") or "input",
+        )

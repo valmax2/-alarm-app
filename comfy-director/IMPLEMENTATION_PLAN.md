@@ -257,7 +257,7 @@ confermato sia a schermo (screenshot) sia con endpoint chiamati direttamente. La
 verifica contro un ComfyUI reale (non simulato) resta a carico dell'utente — checklist
 in `docs/test-plan.md` e in `apps/bridge/README.md`.
 
-## FASE 7 — PERSONAGGI — 🟨 (v2: + export/import Character Pack, nessun collegamento alla generazione)
+## FASE 7 — PERSONAGGI — 🟨 (v3: + export/import Character Pack + invio immagini al workflow)
 - ✅ Tabelle `characters`/`character_images` (migrazione `0007`) — `character_images.
   storage_path` è sempre relativo a `Settings.storage_dir`, mai base64 in DB.
   `characters.main_image_id` non è una vera FK a livello DB (evita un riferimento
@@ -299,14 +299,42 @@ in `docs/test-plan.md` e in `apps/bridge/README.md`.
   libreria. Verificato dal vivo nel browser: download reale del .zip
   (intercettato da Playwright), reimportato, personaggio duplicato indipendente
   confermato (due righe distinte, stessi dati, immagine identica byte-per-byte).
-- 🟨 **Deferito esplicitamente, dichiarato** (mai finto): **nessun collegamento al
-  Workflow Builder / "Coerenza Personaggio"** — un personaggio qui è solo dati
-  (nome, tag, immagini), non ancora utilizzabile per guidare una generazione;
-  quel flusso dipende dal Workflow Intelligence Engine (Fase 5 completa, non
-  ancora costruito). Nessun drag&drop nella canvas, nessuna riordinabilità delle
-  immagini (`order_index` è assegnato in ordine di caricamento), nessuna
-  dimensione (`width`/`height`) derivata automaticamente dall'immagine (nessuna
-  dipendenza Pillow aggiunta per questo — dichiarato, non un dato inventato).
+- ✅ **"Invia al workflow"** (chiude il divario appena sotto dichiarato "nessun
+  collegamento alla generazione", su richiesta esplicita dell'utente di rendere
+  l'app "il più possibile ottimizzata"): `bridge/comfy_client/client.py` aggiunge
+  `upload_image()` — chiamata REALE (non mockata) a `POST /upload/image` di
+  ComfyUI, che carica i byte dell'immagine nella sua cartella `input/` e restituisce
+  il nome che ComfyUI le assegna davvero (può differire dal filename locale, per
+  evitare collisioni — il codice usa SEMPRE quel nome, mai quello locale).
+  `bridge/workflow/image_targets.py` (`find_image_widget()`, puro e testabile — 6
+  test unitari dedicati): individua il campo "immagine caricabile" su un nodo del
+  workflow scelto ESPLICITAMENTE dall'utente (mai auto-individuato — a differenza di
+  `positive`/`negative` per il testo, qui non c'è un arco-ancora equivalente: un
+  `LoadImage`/IPAdapter/faceswap può avere ruoli troppo diversi da workflow a
+  workflow per essere indovinato senza rischiare di inventare compatibilità). Il
+  segnale usato è il flag REALE `image_upload` che ComfyUI stesso pubblica su
+  `/object_info` (`bridge/inventory/sync.py::normalize_input_summary`, esteso per
+  catturarlo) — mai dedotto dal nome del campo. Zero o più di un campo così sul nodo
+  scelto ⇒ 422 con il motivo esatto, mai un abbinamento indovinato.
+  `POST /characters/{id}/images/{id}/send-to-workflow` (5 test endpoint dedicati)
+  fa upload + scrive il nodo + salva una nuova versione del workflow (stessa logica
+  di checkpoint già usata da "Invia al workflow" del Prompt Engine). Frontend: nella
+  scheda personaggio, ogni immagine ha "Invia al workflow" → scelta workflow +
+  scelta nodo (dalla lista reale dei nodi di quel workflow) + conferma che cita il
+  vero nome file assegnato da ComfyUI. Verificato dal vivo nel browser con
+  Playwright contro un Bridge reale (stub HTTP locale per `/object_info` E
+  `/upload/image`, non mockato a livello Python): l'immagine è stata caricata
+  davvero, il nome ASSEGNATO DA COMFYUI (deliberatamente diverso da quello locale
+  nello stub, per provare che non è un'eco) è finito nel nodo giusto, confermato sia
+  in UI sia rileggendo il workflow dal Bridge.
+- 🟨 **Deferito esplicitamente, dichiarato** (mai finto): nessuna proposta
+  automatica di "quale workflow/nodo usare per questo personaggio" — l'utente porta
+  già un workflow aperto e sceglie lui il nodo target; quel suggerimento automatico
+  dipende dal Workflow Intelligence Engine completo (Fase 5, non ancora costruito).
+  Nessun drag&drop nella canvas, nessuna riordinabilità delle immagini (`order_index`
+  è assegnato in ordine di caricamento), nessuna dimensione (`width`/`height`)
+  derivata automaticamente dall'immagine (nessuna dipendenza Pillow aggiunta per
+  questo — dichiarato, non un dato inventato).
 
 ## FASE 8 — IMPORT — 🟨 (Workflow da Immagine consegnato, portato avanti su richiesta esplicita)
 Consegnato: **Workflow da Immagine** — lettura reale dei chunk PNG `tEXt`/`zTXt`/`iTXt`

@@ -65,3 +65,42 @@ async def test_get_system_stats_protocol_error_on_non_object_json() -> None:
     client = ComfyClient(BASE_URL)
     with pytest.raises(ComfyProtocolError):
         await client.get_system_stats()
+
+
+@respx.mock
+async def test_upload_image_returns_the_name_comfy_assigns() -> None:
+    # ComfyUI può rinominare il file per evitare collisioni nella sua cartella
+    # input/ — il test verifica che venga usato IL SUO nome, non quello locale.
+    respx.post(f"{BASE_URL}/upload/image").mock(
+        return_value=httpx.Response(200, json={"name": "aria (1).png", "subfolder": "", "type": "input"})
+    )
+    client = ComfyClient(BASE_URL)
+    result = await client.upload_image("aria.png", b"\x89PNG\r\n\x1a\n", "image/png")
+    assert result.name == "aria (1).png"
+    assert result.subfolder == ""
+    assert result.type == "input"
+
+
+@respx.mock
+async def test_upload_image_unreachable() -> None:
+    respx.post(f"{BASE_URL}/upload/image").mock(side_effect=httpx.ConnectError("boom"))
+    client = ComfyClient(BASE_URL)
+    with pytest.raises(ComfyUnreachable):
+        await client.upload_image("aria.png", b"data", "image/png")
+
+
+@respx.mock
+async def test_upload_image_http_error() -> None:
+    respx.post(f"{BASE_URL}/upload/image").mock(return_value=httpx.Response(400, text="bad file"))
+    client = ComfyClient(BASE_URL)
+    with pytest.raises(ComfyHTTPError) as exc_info:
+        await client.upload_image("aria.png", b"data", "image/png")
+    assert exc_info.value.status_code == 400
+
+
+@respx.mock
+async def test_upload_image_protocol_error_when_name_missing() -> None:
+    respx.post(f"{BASE_URL}/upload/image").mock(return_value=httpx.Response(200, json={"subfolder": "", "type": "input"}))
+    client = ComfyClient(BASE_URL)
+    with pytest.raises(ComfyProtocolError):
+        await client.upload_image("aria.png", b"data", "image/png")

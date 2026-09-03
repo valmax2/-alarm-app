@@ -188,6 +188,24 @@ class CharacterImageUpdateRequest(BaseModel):
     is_hidden: bool
 
 
+class SendImageToWorkflowRequest(BaseModel):
+    """Chiude il divario "nessun collegamento alla generazione" (Fase 7): l'utente
+    sceglie ESPLICITAMENTE il workflow e il nodo target — vedi
+    `bridge/workflow/image_targets.py` per perché non viene individuato in automatico."""
+
+    workflow_id: str
+    node_id: str
+
+
+class SendImageToWorkflowResponse(BaseModel):
+    workflow_id: str
+    node_id: str
+    class_type: str
+    param_name: str
+    uploaded_filename: str  # nome che ComfyUI ha assegnato davvero (può differire dal locale)
+    version_number: int
+
+
 class CharacterCreateRequest(BaseModel):
     name: str
     description: str | None = None

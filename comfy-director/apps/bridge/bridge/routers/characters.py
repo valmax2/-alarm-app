@@ -1,14 +1,18 @@
 """Libreria Personaggi (Fase 7, spec §7/§17): CRUD + immagini reali su filesystem.
 
-Nessun collegamento al Workflow Builder / "Coerenza Personaggio" in questa consegna —
-quel flusso dipende dal Workflow Intelligence Engine (Fase 5 completa, non ancora
-costruito): un personaggio qui è solo dati (nome, tag, immagini), non ancora
-utilizzabile per guidare una generazione. Dichiarato esplicitamente, mai finto.
-
 Fase 7 v2 aggiunge export/import Character Pack (`bridge/characters/pack.py`): un
 personaggio si può scaricare come archivio ZIP autonomo e reimportare — sempre come
 riga NUOVA (mai riusando gli ID originali, che potrebbero già esistere
 sull'installazione di destinazione).
+
+"Invia immagine al workflow" (chiude il divario "nessun collegamento alla
+generazione" dichiarato in precedenza): carica i byte reali di un'immagine del
+personaggio su ComfyUI (`POST /upload/image`) e li scrive nel nodo che l'utente ha
+scelto ESPLICITAMENTE nel workflow aperto — vedi `bridge/workflow/image_targets.py`
+per il perché non viene individuato in automatico. Resta dichiarato esplicitamente,
+mai finto: nessuna proposta automatica di workflow "adatto a un personaggio" (quel
+flusso dipende dal Workflow Intelligence Engine completo, Fase 5, non ancora
+costruito) — qui l'utente porta già un workflow aperto e sceglie lui il nodo.
 """
 
 from __future__ import annotations
@@ -31,9 +35,25 @@ from bridge.characters import (
     parse_character_pack,
     save_character_image,
 )
+from bridge.comfy_client import (
+    ComfyClient,
+    ComfyHTTPError,
+    ComfyProtocolError,
+    ComfyTimeout,
+    ComfyUnreachable,
+)
 from bridge.config import Settings
 from bridge.deps import get_db_session, get_settings
-from bridge.models import CharacterImageRecord, CharacterRecord
+from bridge.inventory.sync import DEFAULT_INSTANCE_ID
+from bridge.models import (
+    CharacterImageRecord,
+    CharacterRecord,
+    ComfyInstanceRecord,
+    NodeRecord,
+    NodeSchemaRecord,
+    WorkflowRecord,
+    WorkflowVersionRecord,
+)
 from bridge.schemas import (
     CharacterCreateRequest,
     CharacterDetailOut,
@@ -41,9 +61,44 @@ from bridge.schemas import (
     CharacterImageUpdateRequest,
     CharacterSummaryOut,
     CharacterUpdateRequest,
+    SendImageToWorkflowRequest,
+    SendImageToWorkflowResponse,
 )
+from bridge.workflow import NodeSchemaInfo, WorkflowGraph, find_image_widget, validate_structure
 
 router = APIRouter(prefix="/characters", tags=["characters"])
+
+
+async def _known_node_schemas(session: AsyncSession) -> dict[str, NodeSchemaInfo]:
+    """Duplicato deliberatamente da `routers/workflows.py`/`routers/generations.py`
+    (stessa query, stesso scopo) — coerente con la scelta già fatta lì di non
+    condividerla via un modulo comune."""
+    stmt = (
+        select(NodeRecord.class_type, NodeSchemaRecord.input_summary, NodeSchemaRecord.output_summary)
+        .join(NodeSchemaRecord, NodeSchemaRecord.node_id == NodeRecord.id)
+        .where(NodeRecord.comfy_instance_id == DEFAULT_INSTANCE_ID)
+    )
+    rows = (await session.execute(stmt)).all()
+    return {
+        class_type: NodeSchemaInfo(input_summary=json.loads(input_json), output_summary=json.loads(output_json))
+        for class_type, input_json, output_json in rows
+    }
+
+
+def _client_for(instance: ComfyInstanceRecord, settings: Settings) -> ComfyClient:
+    """Duplicato deliberatamente da `routers/generations.py` (stesso scopo)."""
+    return ComfyClient(instance.base_url, timeout_seconds=max(settings.comfy_request_timeout_seconds, 10.0))
+
+
+def _map_comfy_error(exc: Exception, base_url: str) -> HTTPException:
+    """Duplicato deliberatamente da `routers/generations.py` (stesso scopo)."""
+    if isinstance(exc, ComfyUnreachable):
+        return HTTPException(status_code=503, detail=f"ComfyUI non raggiungibile su {base_url}")
+    if isinstance(exc, ComfyTimeout):
+        return HTTPException(status_code=504, detail="Timeout durante la comunicazione con ComfyUI")
+    if isinstance(exc, ComfyHTTPError):
+        return HTTPException(status_code=502, detail=f"ComfyUI ha risposto con errore HTTP {exc.status_code}: {exc.body[:300]}")
+    return HTTPException(status_code=502, detail=f"Risposta di ComfyUI non riconosciuta: {exc}")
 
 
 def _safe_filename_slug(name: str) -> str:
@@ -234,6 +289,75 @@ async def update_character_image(
     image.is_hidden = payload.is_hidden
     await session.flush()
     return _image_out(image)
+
+
+@router.post("/{character_id}/images/{image_id}/send-to-workflow", response_model=SendImageToWorkflowResponse)
+async def send_character_image_to_workflow(
+    character_id: str, image_id: str, payload: SendImageToWorkflowRequest,
+    session: AsyncSession = Depends(get_db_session), settings: Settings = Depends(get_settings),
+) -> SendImageToWorkflowResponse:
+    """Carica i byte reali dell'immagine su ComfyUI e li scrive nel nodo che l'utente
+    ha scelto esplicitamente — vedi `bridge/workflow/image_targets.py` per perché il
+    nodo non viene individuato in automatico. 422 con il motivo esatto se quel nodo
+    non ha un unico campo "immagine caricabile" — mai un abbinamento indovinato."""
+    image = await session.get(CharacterImageRecord, image_id)
+    if image is None or image.character_id != character_id:
+        raise HTTPException(status_code=404, detail="Immagine non trovata")
+    path = settings.storage_dir / image.storage_path
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="File immagine mancante su disco")
+
+    workflow = await session.get(WorkflowRecord, payload.workflow_id)
+    if workflow is None or workflow.current_version_id is None:
+        raise HTTPException(status_code=404, detail="Workflow non trovato")
+    version = await session.get(WorkflowVersionRecord, workflow.current_version_id)
+    if version is None:
+        raise HTTPException(status_code=404, detail="Workflow non trovato (versione mancante)")
+
+    graph = WorkflowGraph.model_validate_json(version.graph_json)
+    node = next((n for n in graph.nodes if n.id == payload.node_id), None)
+    if node is None:
+        raise HTTPException(status_code=404, detail=f"Nodo '{payload.node_id}' non trovato in questo workflow")
+
+    schemas = await _known_node_schemas(session)
+    target, issue = find_image_widget(graph, node, schemas)
+    if target is None:
+        raise HTTPException(status_code=422, detail=issue)
+
+    instance = await session.get(ComfyInstanceRecord, DEFAULT_INSTANCE_ID)
+    if instance is None:
+        raise HTTPException(status_code=503, detail="Nessuna istanza ComfyUI configurata — apri Bridge ComfyUI nelle impostazioni")
+    client = _client_for(instance, settings)
+    media_type = mimetypes.guess_type(str(path))[0] or "application/octet-stream"
+    try:
+        uploaded = await client.upload_image(path.name, path.read_bytes(), media_type)
+    except (ComfyUnreachable, ComfyTimeout, ComfyHTTPError, ComfyProtocolError) as exc:
+        raise _map_comfy_error(exc, instance.base_url) from exc
+
+    node.params[target.param_name] = uploaded.name
+    issues = validate_structure(graph, schemas)
+    last_version_number = (
+        await session.execute(
+            select(WorkflowVersionRecord.version_number)
+            .where(WorkflowVersionRecord.workflow_id == workflow.id)
+            .order_by(WorkflowVersionRecord.version_number.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none() or 0
+    new_version = WorkflowVersionRecord(
+        workflow_id=workflow.id, version_number=last_version_number + 1, graph_json=graph.model_dump_json(),
+        validation_result_json=json.dumps([i.model_dump() for i in issues]),
+        note="Immagine personaggio inviata automaticamente dalla libreria Personaggi",
+    )
+    session.add(new_version)
+    await session.flush()
+    workflow.current_version_id = new_version.id
+    await session.flush()
+
+    return SendImageToWorkflowResponse(
+        workflow_id=workflow.id, node_id=node.id, class_type=node.class_type,
+        param_name=target.param_name, uploaded_filename=uploaded.name, version_number=new_version.version_number,
+    )
 
 
 @router.delete("/{character_id}/images/{image_id}", status_code=204)

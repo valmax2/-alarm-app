@@ -1,12 +1,23 @@
 import { useEffect, useState } from "react";
 
-import { bridgeClient, type CharacterDetailOut, type CharacterSummaryOut } from "../api/bridgeClient";
+import {
+  bridgeClient,
+  type CharacterDetailOut,
+  type CharacterSummaryOut,
+  type GraphNode,
+  type SendImageToWorkflowResponse,
+  type WorkflowSummaryOut,
+} from "../api/bridgeClient";
 
 /**
- * Libreria Personaggi (Fase 7, spec §7/§17). SOLO libreria dati + immagini in questa
- * consegna: nessun collegamento al Workflow Builder / "Coerenza Personaggio" (dipende
- * dal Workflow Intelligence Engine, Fase 5 completa, non ancora costruito) —
- * dichiarato esplicitamente, mai finto.
+ * Libreria Personaggi (Fase 7, spec §7/§17).
+ *
+ * "Invia al workflow" (chiude il divario "nessun collegamento alla generazione"
+ * dichiarato in precedenza): l'utente sceglie ESPLICITAMENTE workflow e nodo target
+ * — vedi `bridge/workflow/image_targets.py` per il perché non viene individuato in
+ * automatico. Resta dichiarato esplicitamente, mai finto: nessuna proposta
+ * automatica di "workflow adatto a questo personaggio" (dipende dal Workflow
+ * Intelligence Engine completo, Fase 5, non ancora costruito).
  */
 export function CharactersPanel() {
   const [characters, setCharacters] = useState<CharacterSummaryOut[] | null>(null);
@@ -18,6 +29,15 @@ export function CharactersPanel() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+
+  const [workflows, setWorkflows] = useState<WorkflowSummaryOut[]>([]);
+  const [sendTargetImageId, setSendTargetImageId] = useState<string | null>(null);
+  const [sendWorkflowId, setSendWorkflowId] = useState("");
+  const [sendNodes, setSendNodes] = useState<GraphNode[]>([]);
+  const [sendNodeId, setSendNodeId] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sendResult, setSendResult] = useState<SendImageToWorkflowResponse | null>(null);
 
   function refreshList() {
     bridgeClient
@@ -41,6 +61,14 @@ export function CharactersPanel() {
     if (selectedId) refreshDetail(selectedId);
     else setDetail(null);
   }, [selectedId]);
+  useEffect(() => {
+    bridgeClient
+      .listWorkflows()
+      .then((list) => {
+        if (Array.isArray(list)) setWorkflows(list);
+      })
+      .catch(() => undefined);
+  }, []);
 
   async function handleCreate(event: React.FormEvent) {
     event.preventDefault();
@@ -89,6 +117,49 @@ export function CharactersPanel() {
     if (!detail) return;
     await bridgeClient.updateCharacterImage(detail.id, imageId, { is_hidden: !currentlyHidden });
     refreshDetail(detail.id);
+  }
+
+  function handleOpenSend(imageId: string) {
+    setSendTargetImageId((current) => (current === imageId ? null : imageId));
+    setSendError(null);
+    setSendResult(null);
+    setSendNodeId("");
+    setSendNodes([]);
+    if (workflows.length > 0) {
+      const firstWorkflowId = workflows[0].id;
+      setSendWorkflowId(firstWorkflowId);
+      void loadNodesForWorkflow(firstWorkflowId);
+    } else {
+      setSendWorkflowId("");
+    }
+  }
+
+  async function loadNodesForWorkflow(workflowId: string) {
+    if (!workflowId) {
+      setSendNodes([]);
+      return;
+    }
+    try {
+      const wf = await bridgeClient.getWorkflow(workflowId);
+      setSendNodes(wf.graph.nodes);
+    } catch {
+      setSendNodes([]);
+    }
+  }
+
+  async function handleSendToWorkflow(imageId: string) {
+    if (!detail || !sendWorkflowId || !sendNodeId) return;
+    setSending(true);
+    setSendError(null);
+    setSendResult(null);
+    try {
+      const result = await bridgeClient.sendCharacterImageToWorkflow(detail.id, imageId, sendWorkflowId, sendNodeId);
+      setSendResult(result);
+    } catch (err) {
+      setSendError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSending(false);
+    }
   }
 
   async function handleImportPack(event: React.ChangeEvent<HTMLInputElement>) {
@@ -152,9 +223,65 @@ export function CharactersPanel() {
               <button type="button" onClick={() => void handleToggleImageHidden(img.id, img.is_hidden)}>
                 {img.is_hidden ? "Mostra" : "Nascondi"}
               </button>
+              <button type="button" onClick={() => handleOpenSend(img.id)} disabled={workflows.length === 0}>
+                Invia al workflow
+              </button>
               <button type="button" onClick={() => void handleDeleteImage(img.id)}>
                 Elimina
               </button>
+
+              {sendTargetImageId === img.id && (
+                <div className="characters-panel__send-to-workflow">
+                  <label htmlFor="send-workflow-select">Workflow di destinazione</label>
+                  <select
+                    id="send-workflow-select" value={sendWorkflowId}
+                    onChange={(e) => {
+                      setSendWorkflowId(e.target.value);
+                      setSendNodeId("");
+                      void loadNodesForWorkflow(e.target.value);
+                    }}
+                  >
+                    {workflows.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <label htmlFor="send-node-select">Nodo target</label>
+                  <select id="send-node-select" value={sendNodeId} onChange={(e) => setSendNodeId(e.target.value)}>
+                    <option value="">Scegli un nodo…</option>
+                    {sendNodes.map((n) => (
+                      <option key={n.id} value={n.id}>
+                        {n.class_type} ({n.id})
+                      </option>
+                    ))}
+                  </select>
+                  {sendNodes.length === 0 && sendWorkflowId && (
+                    <p className="settings-panel__hint">Questo workflow non ha ancora nodi — apri prima il pannello Workflow.</p>
+                  )}
+
+                  <button type="button" onClick={() => void handleSendToWorkflow(img.id)} disabled={!sendNodeId || sending}>
+                    {sending ? "Invio…" : "Invia"}
+                  </button>
+                  <p className="settings-panel__note">
+                    Carica davvero l'immagine su ComfyUI e la scrive nell'unico campo "immagine da caricare" di quel
+                    nodo — se il nodo scelto non ne ha uno solo, l'errore reale spiega perché.
+                  </p>
+                  {sendError && (
+                    <p role="alert" className="settings-panel__feedback--error">
+                      {sendError}
+                    </p>
+                  )}
+                  {sendResult && (
+                    <p className="settings-panel__feedback">
+                      Immagine caricata su ComfyUI come "{sendResult.uploaded_filename}" e scritta nel nodo{" "}
+                      {sendResult.class_type} ({sendResult.node_id}) — nuova versione {sendResult.version_number} del
+                      workflow.
+                    </p>
+                  )}
+                </div>
+              )}
             </li>
           ))}
           {detail.images.length === 0 && <p>Nessuna immagine ancora caricata.</p>}
@@ -167,9 +294,8 @@ export function CharactersPanel() {
     <section aria-label="Personaggi">
       <h2>Personaggi</h2>
       <p className="settings-panel__hint">
-        Libreria dati e immagini. Non ancora collegata alla generazione ("Coerenza Personaggio" arriva con il Workflow
-        Builder completo, Fase 5). Esporta/importa un personaggio come Character Pack (.zip) per condividerlo o farne
-        il backup — apri un personaggio per esportarlo.
+        Libreria dati e immagini — apri un personaggio per inviare le sue immagini a un nodo di un workflow aperto.
+        Esporta/importa un personaggio come Character Pack (.zip) per condividerlo o farne il backup.
       </p>
 
       <form onSubmit={handleCreate}>
