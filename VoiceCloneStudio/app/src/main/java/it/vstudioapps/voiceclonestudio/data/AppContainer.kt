@@ -13,6 +13,7 @@ class AppContainer(context: Context) {
     val settingsRepository = SettingsRepository(context)
     val historyRepository = HistoryRepository(context)
     val localVoiceRepository = LocalVoiceRepository(context)
+    val voiceSettingsRepository = VoiceSettingsRepository(context)
     val elevenLabsApi = ElevenLabsApi()
     val xttsServerApi = XttsServerApi()
     // Un solo player condiviso: far partire un clip ferma automaticamente quello precedente,

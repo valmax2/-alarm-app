@@ -55,6 +55,35 @@ class ElevenLabsApi {
         }
     }
 
+    /** Dettagli di una voce, inclusi i campioni originali caricati per clonarla (per riascoltarli e confrontarli col risultato generato). */
+    suspend fun getVoiceDetails(apiKey: String, voiceId: String): Result<VoiceDetails> = withContext(Dispatchers.IO) {
+        runCatching {
+            val request = Request.Builder()
+                .url("$BASE_URL/v1/voices/$voiceId")
+                .header("xi-api-key", apiKey)
+                .get()
+                .build()
+            executeAndParse<VoiceDetails>(request)
+        }
+    }
+
+    /** Scarica l'audio originale di un campione (per riprodurlo, non per rigenerarlo). */
+    suspend fun downloadVoiceSample(
+        apiKey: String,
+        voiceId: String,
+        sampleId: String,
+        outputFile: File
+    ): Result<File> = withContext(Dispatchers.IO) {
+        runCatching {
+            val request = Request.Builder()
+                .url("$BASE_URL/v1/voices/$voiceId/samples/$sampleId/audio")
+                .header("xi-api-key", apiKey)
+                .get()
+                .build()
+            downloadAudio(request, outputFile)
+        }
+    }
+
     suspend fun addVoice(
         apiKey: String,
         name: String,

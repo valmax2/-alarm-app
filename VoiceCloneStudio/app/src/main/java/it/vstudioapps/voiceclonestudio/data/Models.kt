@@ -15,6 +15,20 @@ data class ClonedVoice(
 @Serializable
 data class VoicesResponse(val voices: List<ClonedVoice> = emptyList())
 
+/** Uno dei campioni audio originali caricati per clonare una voce, così come li elenca ElevenLabs. */
+@Serializable
+data class VoiceSample(
+    @SerialName("sample_id") val sampleId: String,
+    @SerialName("file_name") val fileName: String? = null
+)
+
+@Serializable
+data class VoiceDetails(
+    @SerialName("voice_id") val voiceId: String,
+    val name: String,
+    val samples: List<VoiceSample> = emptyList()
+)
+
 @Serializable
 data class UserSubscription(
     val tier: String? = null,

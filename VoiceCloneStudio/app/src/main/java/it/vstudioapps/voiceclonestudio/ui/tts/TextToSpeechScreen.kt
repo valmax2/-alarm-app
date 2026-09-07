@@ -8,11 +8,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -39,6 +44,7 @@ import it.vstudioapps.voiceclonestudio.data.LocalVoice
 import it.vstudioapps.voiceclonestudio.data.SelfHostedGenerationSettings
 import it.vstudioapps.voiceclonestudio.data.TTS_MODELS
 import it.vstudioapps.voiceclonestudio.data.VoiceGenerationSettings
+import it.vstudioapps.voiceclonestudio.data.VoiceSample
 import it.vstudioapps.voiceclonestudio.ui.common.ClipHistoryList
 import it.vstudioapps.voiceclonestudio.ui.common.LocalAppContainer
 import it.vstudioapps.voiceclonestudio.ui.common.LocalVoiceDropdown
@@ -90,14 +96,32 @@ private fun ElevenLabsTextToSpeechScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val defaultModelId by container.settingsRepository.defaultModelId.collectAsState(initial = TTS_MODELS.first().id)
-    val settings by container.settingsRepository.defaultSettings.collectAsState(initial = VoiceGenerationSettings.RECOMMENDED)
     var selectedModel by remember(defaultModelId) {
         mutableStateOf(TTS_MODELS.firstOrNull { it.id == defaultModelId } ?: TTS_MODELS.first())
     }
 
+    // Le slider sono salvate per ciascuna voce separatamente (non un unico default condiviso):
+    // regolare una voce non deve toccare i valori già trovati per un'altra.
+    val allVoiceSettings by container.voiceSettingsRepository.allSettings.collectAsState(initial = emptyMap())
+    val settings = selectedVoice?.let { allVoiceSettings[it.voiceId] } ?: VoiceGenerationSettings.RECOMMENDED
+
     val allClips by container.historyRepository.clips.collectAsState(initial = emptyList())
     val ttsClips = allClips.filter { it.kind == ClipKind.TEXT_TO_SPEECH }
     val playingPath by container.audioPlayer.playingPath.collectAsState()
+
+    // Campioni audio originali caricati per clonare la voce selezionata, per poterli riascoltare
+    // e confrontarli col risultato generato — non serve conservarli in locale: si riscaricano da
+    // ElevenLabs, che li tiene salvati insieme alla voce.
+    var originalSamples by remember { mutableStateOf<List<VoiceSample>>(emptyList()) }
+    LaunchedEffect(selectedVoice?.voiceId) {
+        val voice = selectedVoice
+        originalSamples = if (voice == null) {
+            emptyList()
+        } else {
+            container.elevenLabsApi.getVoiceDetails(apiKey, voice.voiceId)
+                .getOrNull()?.samples ?: emptyList()
+        }
+    }
 
     LaunchedEffect(refreshToken) {
         container.elevenLabsApi.listVoices(apiKey).onSuccess { list ->
@@ -143,6 +167,7 @@ private fun ElevenLabsTextToSpeechScreen(
                     onSelected = { selectedVoice = it },
                     modifier = Modifier.fillMaxWidth()
                 )
+                OriginalSamplesSection(voiceId = selectedVoice?.voiceId, samples = originalSamples)
             }
 
             OutlinedTextField(
@@ -170,7 +195,10 @@ private fun ElevenLabsTextToSpeechScreen(
             VoiceSettingsPanel(
                 settings = settings,
                 showSpeed = selectedModel.supportsSpeed,
-                onSettingsChanged = { scope.launch { container.settingsRepository.setDefaultSettings(it) } }
+                onSettingsChanged = { newSettings ->
+                    val voiceId = selectedVoice?.voiceId ?: return@VoiceSettingsPanel
+                    scope.launch { container.voiceSettingsRepository.setSettingsFor(voiceId, newSettings) }
+                }
             )
 
             errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -250,6 +278,84 @@ private fun ElevenLabsTextToSpeechScreen(
     }
 }
 
+/**
+ * I campioni audio originali caricati per clonare [voiceId], riascoltabili per confrontarli
+ * direttamente col risultato di "Genera audio" qui sopra. Si riscaricano da ElevenLabs al
+ * primo tocco e restano in cache sul telefono per i tocchi successivi.
+ */
+@Composable
+private fun OriginalSamplesSection(voiceId: String?, samples: List<VoiceSample>) {
+    if (voiceId == null || samples.isEmpty()) return
+
+    val container = LocalAppContainer.current
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val apiKey = container.apiKeyStore.getApiKey().orEmpty()
+    val playingPath by container.audioPlayer.playingPath.collectAsState()
+    var loadingSampleId by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val samplesDir = remember(voiceId) {
+        File(context.cacheDir, "voice_originals/$voiceId").apply { mkdirs() }
+    }
+
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                "Campioni originali (per confronto con la voce generata)",
+                style = MaterialTheme.typography.titleSmall
+            )
+            errorMessage?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+            samples.forEach { sample ->
+                val localFile = File(samplesDir, "${sample.sampleId}.mp3")
+                val isPlayingThis = playingPath == localFile.absolutePath
+                val isLoadingThis = loadingSampleId == sample.sampleId
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        sample.fileName ?: "Campione",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        enabled = !isLoadingThis,
+                        onClick = {
+                            when {
+                                isPlayingThis -> container.audioPlayer.stop()
+                                localFile.exists() -> container.audioPlayer.play(localFile)
+                                else -> {
+                                    loadingSampleId = sample.sampleId
+                                    errorMessage = null
+                                    scope.launch {
+                                        container.elevenLabsApi.downloadVoiceSample(apiKey, voiceId, sample.sampleId, localFile)
+                                            .onSuccess { container.audioPlayer.play(it) }
+                                            .onFailure { errorMessage = it.message ?: "Impossibile scaricare il campione" }
+                                        loadingSampleId = null
+                                    }
+                                }
+                            }
+                        }
+                    ) {
+                        if (isLoadingThis) {
+                            CircularProgressIndicator(strokeWidth = 2.dp)
+                        } else {
+                            Icon(
+                                if (isPlayingThis) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+                                contentDescription = if (isPlayingThis) "Ferma" else "Riproduci campione originale"
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SelfHostedTextToSpeechScreen(modifier: Modifier = Modifier) {
@@ -304,6 +410,7 @@ private fun SelfHostedTextToSpeechScreen(modifier: Modifier = Modifier) {
                     onSelected = { selectedVoice = it },
                     modifier = Modifier.fillMaxWidth()
                 )
+                LocalOriginalSamplesSection(voice = selectedVoice)
             }
 
             OutlinedTextField(
@@ -415,6 +522,42 @@ private fun SelfHostedTextToSpeechScreen(modifier: Modifier = Modifier) {
                 onShare = { shareAudioFile(context, File(it.filePath)) },
                 onDelete = { clip -> scope.launch { container.historyRepository.removeClip(clip.id) } }
             )
+        }
+    }
+}
+
+/** Come [OriginalSamplesSection], ma per le voci locali: i campioni sono già sul telefono, nessun download. */
+@Composable
+private fun LocalOriginalSamplesSection(voice: LocalVoice?) {
+    if (voice == null || voice.sampleFilePaths.isEmpty()) return
+
+    val container = LocalAppContainer.current
+    val playingPath by container.audioPlayer.playingPath.collectAsState()
+
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                "Campioni originali (per confronto con la voce generata)",
+                style = MaterialTheme.typography.titleSmall
+            )
+            voice.sampleFilePaths.forEach { path ->
+                val file = File(path)
+                val isPlayingThis = playingPath == file.absolutePath
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(file.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    IconButton(onClick = {
+                        if (isPlayingThis) container.audioPlayer.stop() else container.audioPlayer.play(file)
+                    }) {
+                        Icon(
+                            if (isPlayingThis) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+                            contentDescription = if (isPlayingThis) "Ferma" else "Riproduci campione originale"
+                        )
+                    }
+                }
+            }
         }
     }
 }
