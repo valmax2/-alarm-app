@@ -18,6 +18,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,18 +51,33 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.util.UUID
 
+/** Testo usato come esempio per provare rapidamente una voce: frase breve ma con suoni vari, per giudicare naturalezza e somiglianza senza dover scrivere ogni volta. */
+private const val SAMPLE_PREVIEW_TEXT =
+    "Ciao, questa è una prova della mia voce clonata. Sto verificando quanto suona naturale e quanto assomiglia all'originale."
+
 /** Smista tra la generazione cloud (ElevenLabs) e quella sul server personale, a seconda del backend attivo. */
 @Composable
-fun TextToSpeechScreen(modifier: Modifier = Modifier, backend: Backend, refreshToken: Int) {
+fun TextToSpeechScreen(
+    modifier: Modifier = Modifier,
+    backend: Backend,
+    refreshToken: Int,
+    preselectedVoiceId: String? = null,
+    onPreselectedVoiceConsumed: () -> Unit = {}
+) {
     when (backend) {
-        Backend.ELEVENLABS -> ElevenLabsTextToSpeechScreen(modifier, refreshToken)
+        Backend.ELEVENLABS -> ElevenLabsTextToSpeechScreen(modifier, refreshToken, preselectedVoiceId, onPreselectedVoiceConsumed)
         Backend.SELF_HOSTED -> SelfHostedTextToSpeechScreen(modifier)
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ElevenLabsTextToSpeechScreen(modifier: Modifier = Modifier, refreshToken: Int) {
+private fun ElevenLabsTextToSpeechScreen(
+    modifier: Modifier = Modifier,
+    refreshToken: Int,
+    preselectedVoiceId: String?,
+    onPreselectedVoiceConsumed: () -> Unit
+) {
     val container = LocalAppContainer.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -87,6 +103,19 @@ private fun ElevenLabsTextToSpeechScreen(modifier: Modifier = Modifier, refreshT
         container.elevenLabsApi.listVoices(apiKey).onSuccess { list ->
             voices = list
             if (selectedVoice == null) selectedVoice = list.firstOrNull()
+        }
+    }
+
+    // Arrivo da "regola" nella tab Voci: seleziona subito quella voce e, se il campo testo è
+    // ancora vuoto, riempilo con una frase di prova — pronto a regolare le slider e generare
+    // senza dover ritoccare nient'altro. "Consumato" una volta sola per non riselezionare la
+    // voce se l'utente ne sceglie un'altra dal menu dopo essere arrivato qui.
+    LaunchedEffect(preselectedVoiceId, voices) {
+        if (preselectedVoiceId == null) return@LaunchedEffect
+        voices.firstOrNull { it.voiceId == preselectedVoiceId }?.let { voice ->
+            selectedVoice = voice
+            if (text.isBlank()) text = SAMPLE_PREVIEW_TEXT
+            onPreselectedVoiceConsumed()
         }
     }
 
@@ -125,6 +154,9 @@ private fun ElevenLabsTextToSpeechScreen(modifier: Modifier = Modifier, refreshT
                 trailingIcon = { MicDictationButton(currentText = text, onTextChanged = { text = it }) },
                 modifier = Modifier.fillMaxWidth()
             )
+            TextButton(onClick = { text = SAMPLE_PREVIEW_TEXT }) {
+                Text("Usa frase di prova (per confrontare le regolazioni senza riscrivere)")
+            }
 
             ModelDropdown(
                 selected = selectedModel,

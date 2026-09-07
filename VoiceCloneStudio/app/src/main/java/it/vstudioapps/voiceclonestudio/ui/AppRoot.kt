@@ -70,6 +70,10 @@ fun AppRoot() {
     // "Testo → voce"/"Conversione" (che la usano per il menu a tendina), così non serve
     // ricaricarla dal server ad ogni cambio tab.
     var refreshVoicesToken by remember { mutableStateOf(0) }
+    // Quando l'utente tocca "regola" su una voce nella tab Voci, salta direttamente qui alla
+    // tab Testo → voce con quella voce già selezionata, pronta a modificare i parametri e
+    // riascoltare — senza dover ripassare dalla clonazione.
+    var voiceToTuneId by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         bottomBar = {
@@ -107,9 +111,19 @@ fun AppRoot() {
                 modifier = contentModifier,
                 backend = backend,
                 refreshToken = refreshVoicesToken,
-                onVoicesChanged = { refreshVoicesToken++ }
+                onVoicesChanged = { refreshVoicesToken++ },
+                onTuneVoice = { voice ->
+                    voiceToTuneId = voice.voiceId
+                    selectedTab = Tab.TTS
+                }
             )
-            Tab.TTS -> TextToSpeechScreen(modifier = contentModifier, backend = backend, refreshToken = refreshVoicesToken)
+            Tab.TTS -> TextToSpeechScreen(
+                modifier = contentModifier,
+                backend = backend,
+                refreshToken = refreshVoicesToken,
+                preselectedVoiceId = voiceToTuneId,
+                onPreselectedVoiceConsumed = { voiceToTuneId = null }
+            )
             Tab.CONVERSION -> VoiceConversionScreen(modifier = contentModifier, backend = backend, refreshToken = refreshVoicesToken)
             Tab.SETTINGS -> SettingsScreen(
                 modifier = contentModifier,

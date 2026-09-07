@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -48,10 +49,11 @@ fun VoicesScreen(
     modifier: Modifier = Modifier,
     backend: Backend,
     refreshToken: Int,
-    onVoicesChanged: () -> Unit
+    onVoicesChanged: () -> Unit,
+    onTuneVoice: (ClonedVoice) -> Unit = {}
 ) {
     when (backend) {
-        Backend.ELEVENLABS -> ElevenLabsVoicesScreen(modifier, refreshToken, onVoicesChanged)
+        Backend.ELEVENLABS -> ElevenLabsVoicesScreen(modifier, refreshToken, onVoicesChanged, onTuneVoice)
         Backend.SELF_HOSTED -> LocalVoicesScreen(modifier, onVoicesChanged)
     }
 }
@@ -61,7 +63,8 @@ fun VoicesScreen(
 private fun ElevenLabsVoicesScreen(
     modifier: Modifier = Modifier,
     refreshToken: Int,
-    onVoicesChanged: () -> Unit
+    onVoicesChanged: () -> Unit,
+    onTuneVoice: (ClonedVoice) -> Unit
 ) {
     var showCreate by remember { mutableStateOf(false) }
 
@@ -144,6 +147,14 @@ private fun ElevenLabsVoicesScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    item {
+                        Text(
+                            "Tocca l'icona di regolazione per aggiustare i parametri e provare " +
+                                "una voce già clonata: non serve mai riclonarla per cambiarli.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     items(voices, key = { it.voiceId }) { voice ->
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Row(
@@ -161,12 +172,20 @@ private fun ElevenLabsVoicesScreen(
                                         )
                                     }
                                 }
-                                IconButton(onClick = { voiceToDelete = voice }) {
-                                    Icon(
-                                        Icons.Filled.Delete,
-                                        contentDescription = "Elimina ${voice.name}",
-                                        tint = MaterialTheme.colorScheme.error
-                                    )
+                                Row {
+                                    IconButton(onClick = { onTuneVoice(voice) }) {
+                                        Icon(
+                                            Icons.Filled.Tune,
+                                            contentDescription = "Regola e prova ${voice.name}"
+                                        )
+                                    }
+                                    IconButton(onClick = { voiceToDelete = voice }) {
+                                        Icon(
+                                            Icons.Filled.Delete,
+                                            contentDescription = "Elimina ${voice.name}",
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
                                 }
                             }
                         }
