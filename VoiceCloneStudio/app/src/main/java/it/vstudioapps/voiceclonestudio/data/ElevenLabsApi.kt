@@ -217,15 +217,27 @@ class ElevenLabsApi {
             null
         }
         val friendly = when (response.code) {
-            401 -> "Chiave API non valida o scaduta. Controllala in Impostazioni."
+            401 -> "Chiave API rifiutata da ElevenLabs."
             402, 429 -> "Hai raggiunto il limite del tuo piano ElevenLabs (caratteri o voci disponibili)."
             413 -> "I file audio caricati sono troppo grandi."
             else -> null
         }
-        val detailMessage = bodyString?.let {
-            runCatching { json.decodeFromString<ApiErrorBody>(it).detail?.message }.getOrNull()
+        // Il corpo dell'errore ElevenLabs non ha sempre la stessa forma (a volte "detail" è un
+        // oggetto {status, message}, a volte una semplice stringa) — se il parsing strutturato
+        // fallisce, cadiamo comunque sul testo grezzo piuttosto che perderlo del tutto.
+        val detailMessage = bodyString?.takeIf { it.isNotBlank() }?.let { raw ->
+            runCatching { json.decodeFromString<ApiErrorBody>(raw).detail?.message }.getOrNull()
+                ?: raw.take(200)
         }
-        val message = friendly ?: detailMessage ?: "Errore del server ElevenLabs (${response.code})"
+        // Il messaggio "amichevole" (se c'è) va sempre affiancato al dettaglio grezzo del
+        // server quando disponibile: nasconderlo dietro un testo fisso per i codici comuni
+        // (es. 401) rende impossibile capire la vera causa quando non è quella ovvia.
+        val message = when {
+            friendly != null && detailMessage != null -> "$friendly ($detailMessage)"
+            friendly != null -> friendly
+            detailMessage != null -> detailMessage
+            else -> "Errore del server ElevenLabs (${response.code}): nessun dettaglio"
+        }
         return ElevenLabsException(message, response.code)
     }
 
