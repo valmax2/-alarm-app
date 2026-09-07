@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Informativa sulla privacy — VoiceClone Studio</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+    line-height: 1.6;
+    color: #1a1f26;
+    background: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { color: #ede9f9; background: #130f24; }
+    a { color: #b6a4ff; }
+    hr { border-color: #2a2349; }
+  }
+  h1 { font-size: 1.6rem; margin-bottom: 4px; }
+  .updated { color: #6b7280; font-size: 0.9rem; margin-bottom: 32px; }
+  h2 { font-size: 1.15rem; margin-top: 2.2em; }
+  ul { padding-left: 1.3em; }
+  li { margin-bottom: 0.4em; }
+  hr { margin: 3em 0; opacity: 0.4; }
+  code { font-size: 0.9em; }
+</style>
+</head>
+<body>
+
+<h1>Informativa sulla privacy di VoiceClone Studio</h1>
+<p class="updated">Ultimo aggiornamento: 7 settembre 2026</p>
+
+<p>
+  VoiceClone Studio è un'app Android che clona la voce dell'utente e genera audio (da testo o
+  da un altro audio) con quella voce, appoggiandosi al servizio cloud
+  <a href="https://elevenlabs.io">ElevenLabs</a>. Questa pagina spiega quali dati l'app tratta,
+  dove vanno e perché.
+</p>
+
+<h2>Il principio di base</h2>
+<p>
+  A differenza di altre app di questo sviluppatore, VoiceClone Studio <strong>non è
+  offline</strong>: la clonazione vocale di qualità professionale richiede modelli che non
+  possono girare su un telefono, quindi l'app invia i campioni audio, i testi e gli audio da
+  convertire ai server di ElevenLabs per l'elaborazione. Non esiste un server proprio di questo
+  sviluppatore nel mezzo: l'app comunica direttamente con l'API di ElevenLabs usando la chiave
+  API personale dell'utente.
+</p>
+
+<h2>Dati trattati e dove vanno</h2>
+<ul>
+  <li>
+    <strong>Chiave API ElevenLabs.</strong> Inserita dall'utente, viene salvata
+    <strong>cifrata (AES-256-GCM)</strong> sul dispositivo tramite l'Android Keystore. Non
+    lascia mai il telefono se non come intestazione delle richieste dirette ai server
+    ElevenLabs.
+  </li>
+  <li>
+    <strong>Campioni vocali</strong> registrati in-app o importati dall'utente per creare una
+    voce clonata: vengono caricati sui server ElevenLabs per generare il modello di voce, e
+    restano anche in una cartella temporanea del dispositivo finché l'app non la ripulisce.
+  </li>
+  <li>
+    <strong>Testi da leggere</strong> (scritti o dettati a voce tramite il riconoscimento
+    vocale di sistema Android) inviati ai server ElevenLabs per la sintesi vocale.
+  </li>
+  <li>
+    <strong>Audio da convertire</strong> (registrato in-app o importato) inviato ai server
+    ElevenLabs per la conversione voce→voce.
+  </li>
+  <li>
+    <strong>Audio generati</strong>: i clip risultanti vengono scaricati e salvati nella
+    memoria dedicata dell'app sul dispositivo, insieme a un elenco cronologico (testo/nome
+    file sorgente, voce usata, impostazioni), finché l'utente non li elimina.
+  </li>
+</ul>
+<p>
+  Il trattamento di campioni vocali, testi e audio da parte di ElevenLabs è regolato dalla loro
+  <a href="https://elevenlabs.io/privacy">informativa sulla privacy</a>: questa app non ha
+  controllo su come ElevenLabs elabora o conserva questi dati sui propri server.
+</p>
+
+<h2>Cosa NON facciamo</h2>
+<ul>
+  <li>Non abbiamo un server nostro che riceve o conserva i tuoi dati: l'app parla solo
+    direttamente con ElevenLabs, con la tua chiave.</li>
+  <li>Non usiamo pubblicità né tracciamento pubblicitario.</li>
+  <li>Non vendiamo né condividiamo i tuoi dati con terzi diversi da ElevenLabs (necessario per
+    far funzionare la clonazione stessa).</li>
+</ul>
+
+<h2>Permessi richiesti e a cosa servono</h2>
+<ul>
+  <li><strong>Microfono</strong> — solo per registrare in-app i campioni vocali per la
+    clonazione e l'audio sorgente per la conversione voce→voce. La dettatura del testo usa
+    l'app di riconoscimento vocale di sistema, che gestisce il permesso con la propria app, non
+    con questa.</li>
+  <li><strong>Internet</strong> — per comunicare con l'API di ElevenLabs.</li>
+</ul>
+
+<h2>Uso responsabile</h2>
+<p>
+  L'app è pensata per clonare la propria voce, o quella di persone che vi hanno dato
+  esplicito consenso. Clonare la voce di qualcuno senza permesso, o usare una voce clonata per
+  ingannare o impersonare una persona reale, può essere illegale nella tua giurisdizione — la
+  responsabilità dell'uso che ne fai è tua.
+</p>
+
+<h2>Conservazione ed eliminazione dei dati</h2>
+<p>
+  Chiave API, cronologia e clip generati restano sul dispositivo finché non li elimini
+  dall'app (Impostazioni → "Rimuovi chiave", o eliminando i singoli clip) o disinstallando
+  l'app. Le voci clonate create sul tuo account ElevenLabs restano lì finché non le elimini
+  dalla tab "Voci" dell'app o direttamente dal tuo account ElevenLabs.
+</p>
+
+<h2>Minori</h2>
+<p>
+  VoiceClone Studio non è rivolta a bambini e non raccoglie consapevolmente dati di minori di
+  13 anni.
+</p>
+
+<h2>Modifiche a questa informativa</h2>
+<p>
+  Eventuali modifiche future verranno pubblicate su questa stessa pagina, con la data di
+  aggiornamento in alto.
+</p>
+
+<h2>Contatti</h2>
+<p>
+  Per domande su questa informativa o sul trattamento dei dati puoi scrivere a:
+  <a href="mailto:valmax2@gmail.com">valmax2@gmail.com</a>
+</p>
+
+<hr>
+<p style="color:#6b7280; font-size: 0.85rem;">
+  VoiceClone Studio è un'app indipendente pubblicata dallo sviluppatore individuale che gestisce
+  questo repository. Questa pagina è disponibile pubblicamente come richiesto da Google Play per
+  le app che utilizzano il microfono e condividono dati con un servizio di terze parti.
+</p>
+
+</body>
+</html>

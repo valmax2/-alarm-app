@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- I clip generati (TTS e conversione) vivono in getExternalFilesDir(null)/clips -->
+    <external-files-path name="clips" path="clips/" />
+    <!-- I campioni vocali registrati in-app prima dell'upload -->
+    <cache-path name="recordings" path="recordings/" />
+</paths>
