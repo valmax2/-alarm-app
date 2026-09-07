@@ -144,7 +144,10 @@ private fun ElevenLabsVoicesScreen(
                 }
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
+                    // Il bottom più largo (96dp) lascia spazio al FAB "Nuova voce", che
+                    // altrimenti galleggia sopra l'ultima card della lista e ne copre le
+                    // icone di regolazione/eliminazione quando la lista arriva in fondo.
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     item {
@@ -162,7 +165,7 @@ private fun ElevenLabsVoicesScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column {
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(voice.name, style = MaterialTheme.typography.titleMedium)
                                     if (!voice.category.isNullOrBlank()) {
                                         Text(
