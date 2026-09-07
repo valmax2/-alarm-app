@@ -54,9 +54,15 @@ fun MicDictationButton(
                 Toast.makeText(context, unavailableMessage, Toast.LENGTH_LONG).show()
                 return@IconButton
             }
+            // EXTRA_LANGUAGE vuole un tag IETF BCP 47 ("it-IT", con il trattino) — Locale.toString()
+            // produce invece "it_IT" con l'underscore, che il riconoscimento vocale di sistema non
+            // riconosce e ignora silenziosamente, tornando alla lingua di default del telefono
+            // (da cui il riconoscimento partito in inglese anche se qui si chiedeva l'italiano).
+            val italianTag = Locale.ITALY.toLanguageTag()
             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.ITALY.toString())
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, italianTag)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, italianTag)
                 putExtra(RecognizerIntent.EXTRA_PROMPT, context.getString(R.string.dictation_prompt))
             }
             runCatching { launcher.launch(intent) }
