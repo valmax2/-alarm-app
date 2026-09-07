@@ -8,6 +8,9 @@ on:
       - '.github/workflows/build_voiceclonestudio_apk.yml'
   workflow_dispatch: # Permette di avviare la build manualmente da GitHub
 
+permissions:
+  contents: write # Serve per pubblicare l'APK in docs/downloads/ (vedi ultimo step)
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -54,9 +57,28 @@ jobs:
           cp app/build/outputs/apk/debug/app-debug.apk \
              "app/build/outputs/apk/debug/renamed/${{ steps.version.outputs.filename }}.apk"
 
-      # 9. Carica l'APK tra gli allegati scaricabili della build
+      # 9. Carica l'APK tra gli allegati scaricabili della build (richiede login GitHub per scaricarlo)
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.version.outputs.filename }}
           path: VoiceCloneStudio/app/build/outputs/apk/debug/renamed/${{ steps.version.outputs.filename }}.apk
+
+      # 10. Pubblica l'APK anche in docs/downloads/ del repo (pubblico): un link fisso,
+      #     scaricabile da chiunque senza bisogno di login GitHub — a differenza dell'artifact
+      #     sopra, che richiede l'accesso autenticato alla UI di Actions.
+      - name: Pubblica l'APK per il download diretto
+        run: |
+          mkdir -p ../docs/downloads
+          cp "app/build/outputs/apk/debug/renamed/${{ steps.version.outputs.filename }}.apk" \
+             ../docs/downloads/VoiceCloneStudio-latest.apk
+          cd ..
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/downloads/VoiceCloneStudio-latest.apk
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish latest VoiceCloneStudio debug APK (${{ steps.version.outputs.filename }})"
+            git push
+          else
+            echo "APK invariato, niente da pubblicare."
+          fi
