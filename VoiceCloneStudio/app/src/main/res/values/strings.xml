@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">VoiceClone Studio</string>
+    <string name="dictation_unavailable">Riconoscimento vocale non disponibile su questo dispositivo</string>
+    <string name="dictation_prompt">Parla ora…</string>
+    <string name="dictation_content_description">Detta il testo a voce</string>
+</resources>

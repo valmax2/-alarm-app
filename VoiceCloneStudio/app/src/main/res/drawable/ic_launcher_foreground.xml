@@ -1,0 +1,22 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Capsula del microfono -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M44,32 a10,10 0 0 1 20,0 v16 a10,10 0 0 1 -20,0 z" />
+    <!-- Staffa e base del microfono -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M40,58 a14,14 0 0 0 28,0 M54,72 L54,82 M44,82 L64,82" />
+    <!-- Onde sonore -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M28,34 a26,26 0 0 0 0,24 M80,34 a26,26 0 0 1 0,24" />
+</vector>
