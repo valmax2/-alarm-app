@@ -16,7 +16,10 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.VoiceCloneStudio">
+        android:theme="@style/Theme.VoiceCloneStudio"
+        android:usesCleartextTraffic="true">
+        <!-- Serve solo per parlare con il server personale sulla rete locale (http://192.168.x.x),
+             che non ha senso mettere dietro HTTPS: le chiamate a ElevenLabs restano su https. -->
 
         <activity
             android:name=".MainActivity"

@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import it.vstudioapps.voiceclonestudio.data.Backend
 import it.vstudioapps.voiceclonestudio.data.ClipKind
 import it.vstudioapps.voiceclonestudio.data.ClonedVoice
 import it.vstudioapps.voiceclonestudio.data.GeneratedClip
@@ -54,9 +55,50 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.util.UUID
 
+/**
+ * Smista in base al backend: la conversione voce→voce esiste solo su ElevenLabs (XTTS-v2, il
+ * motore del server personale gratuito, non fa conversione audio→audio, solo testo→voce).
+ */
+@Composable
+fun VoiceConversionScreen(modifier: Modifier = Modifier, backend: Backend, refreshToken: Int) {
+    when (backend) {
+        Backend.ELEVENLABS -> ElevenLabsVoiceConversionScreen(modifier, refreshToken)
+        Backend.SELF_HOSTED -> SelfHostedConversionUnavailable(modifier)
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VoiceConversionScreen(modifier: Modifier = Modifier, refreshToken: Int) {
+private fun SelfHostedConversionUnavailable(modifier: Modifier = Modifier) {
+    Scaffold(
+        modifier = modifier,
+        topBar = { TopAppBar(title = { Text("Conversione voce → voce") }) }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                "Non disponibile col server personale gratuito",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                "XTTS-v2 (il motore che gira gratis sul tuo PC) fa clonazione da testo a voce, " +
+                    "ma non converte un audio già registrato in un'altra voce. Per quella " +
+                    "funzione serve il backend ElevenLabs (a pagamento) — puoi cambiarlo in " +
+                    "Impostazioni.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ElevenLabsVoiceConversionScreen(modifier: Modifier = Modifier, refreshToken: Int) {
     val container = LocalAppContainer.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()

@@ -17,12 +17,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import it.vstudioapps.voiceclonestudio.data.Backend
 import it.vstudioapps.voiceclonestudio.ui.common.LocalAppContainer
 import it.vstudioapps.voiceclonestudio.ui.conversion.VoiceConversionScreen
 import it.vstudioapps.voiceclonestudio.ui.onboarding.OnboardingScreen
 import it.vstudioapps.voiceclonestudio.ui.settings.SettingsScreen
 import it.vstudioapps.voiceclonestudio.ui.tts.TextToSpeechScreen
 import it.vstudioapps.voiceclonestudio.ui.voices.VoicesScreen
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 private enum class Tab(val label: String) {
     VOICES("Voci"),
@@ -34,10 +37,31 @@ private enum class Tab(val label: String) {
 @Composable
 fun AppRoot() {
     val container = LocalAppContainer.current
-    var apiKey by remember { mutableStateOf(container.apiKeyStore.getApiKey()) }
 
-    if (apiKey.isNullOrBlank()) {
-        OnboardingScreen(onKeySaved = { savedKey -> apiKey = savedKey })
+    // Letture una tantum all'avvio (sincrone, dati piccoli e locali) per decidere subito se
+    // mostrare l'onboarding — evitano lo sfarfallio di un frame vuoto in attesa del primo
+    // valore dai Flow di DataStore.
+    var backend by remember {
+        mutableStateOf(runBlocking { container.settingsRepository.backend.first() })
+    }
+    var apiKey by remember { mutableStateOf(container.apiKeyStore.getApiKey()) }
+    var serverUrl by remember {
+        mutableStateOf(runBlocking { container.settingsRepository.serverUrl.first() })
+    }
+
+    val isConfigured = when (backend) {
+        Backend.SELF_HOSTED -> serverUrl.isNotBlank()
+        Backend.ELEVENLABS -> !apiKey.isNullOrBlank()
+    }
+
+    if (!isConfigured) {
+        OnboardingScreen(
+            onConfigured = { newBackend, newApiKey, newServerUrl ->
+                backend = newBackend
+                apiKey = newApiKey
+                serverUrl = newServerUrl
+            }
+        )
         return
     }
 
@@ -81,13 +105,18 @@ fun AppRoot() {
         when (selectedTab) {
             Tab.VOICES -> VoicesScreen(
                 modifier = contentModifier,
+                backend = backend,
                 refreshToken = refreshVoicesToken,
                 onVoicesChanged = { refreshVoicesToken++ }
             )
-            Tab.TTS -> TextToSpeechScreen(modifier = contentModifier, refreshToken = refreshVoicesToken)
-            Tab.CONVERSION -> VoiceConversionScreen(modifier = contentModifier, refreshToken = refreshVoicesToken)
+            Tab.TTS -> TextToSpeechScreen(modifier = contentModifier, backend = backend, refreshToken = refreshVoicesToken)
+            Tab.CONVERSION -> VoiceConversionScreen(modifier = contentModifier, backend = backend, refreshToken = refreshVoicesToken)
             Tab.SETTINGS -> SettingsScreen(
                 modifier = contentModifier,
+                backend = backend,
+                onBackendChanged = { backend = it },
+                serverUrl = serverUrl,
+                onServerUrlChanged = { serverUrl = it },
                 onApiKeyCleared = { apiKey = null }
             )
         }

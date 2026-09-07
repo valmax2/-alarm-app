@@ -99,3 +99,31 @@ data class GeneratedClip(
 
 @Serializable
 enum class ClipKind { TEXT_TO_SPEECH, VOICE_CONVERSION }
+
+/**
+ * Da dove viene generata la voce: un servizio cloud a pagamento (ElevenLabs, qualità e comodità
+ * migliori, serve una chiave API) oppure un server che l'utente fa girare gratis sul proprio PC
+ * (XTTS-v2 via server/xtts_server.py in questo repository — nessun costo, ma va tenuto acceso
+ * e sulla stessa rete del telefono, e non supporta la conversione voce→voce).
+ */
+@Serializable
+enum class Backend { ELEVENLABS, SELF_HOSTED }
+
+/** Una voce gestita interamente in locale: solo un nome e i campioni audio usati come riferimento per la clonazione, inviati ad ogni generazione — non c'è nulla da "creare" lato server. */
+@Serializable
+data class LocalVoice(
+    val id: String,
+    val name: String,
+    val sampleFilePaths: List<String>,
+    val createdAtEpochMillis: Long
+)
+
+/** Le uniche due manopole che XTTS-v2 espone in modo affidabile tramite il server locale. */
+@Serializable
+data class SelfHostedGenerationSettings(
+    val speed: Float = 1.0f
+) {
+    companion object {
+        val RECOMMENDED = SelfHostedGenerationSettings()
+    }
+}

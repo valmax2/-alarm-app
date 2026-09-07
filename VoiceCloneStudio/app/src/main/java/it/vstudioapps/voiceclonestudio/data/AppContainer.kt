@@ -12,7 +12,9 @@ class AppContainer(context: Context) {
     val apiKeyStore = ApiKeyStore(context)
     val settingsRepository = SettingsRepository(context)
     val historyRepository = HistoryRepository(context)
+    val localVoiceRepository = LocalVoiceRepository(context)
     val elevenLabsApi = ElevenLabsApi()
+    val xttsServerApi = XttsServerApi()
     // Un solo player condiviso: far partire un clip ferma automaticamente quello precedente,
     // così non si sovrappongono mai due audio in riproduzione nell'app.
     val audioPlayer = AudioPlayer()

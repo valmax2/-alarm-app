@@ -8,13 +8,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -26,25 +31,26 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import it.vstudioapps.voiceclonestudio.BuildConfig
+import it.vstudioapps.voiceclonestudio.data.Backend
 import it.vstudioapps.voiceclonestudio.ui.common.LocalAppContainer
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(modifier: Modifier = Modifier, onApiKeyCleared: () -> Unit) {
+fun SettingsScreen(
+    modifier: Modifier = Modifier,
+    backend: Backend,
+    onBackendChanged: (Backend) -> Unit,
+    serverUrl: String,
+    onServerUrlChanged: (String) -> Unit,
+    onApiKeyCleared: () -> Unit
+) {
     val container = LocalAppContainer.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-
-    val storedKey = container.apiKeyStore.getApiKey().orEmpty()
-    val maskedKey = if (storedKey.length > 8) {
-        "${storedKey.take(4)}••••••••${storedKey.takeLast(4)}"
-    } else "••••••••"
-
-    var statusMessage by remember { mutableStateOf<String?>(null) }
-    var isChecking by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier,
@@ -60,40 +66,35 @@ fun SettingsScreen(modifier: Modifier = Modifier, onApiKeyCleared: () -> Unit) {
         ) {
             Card {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Chiave API ElevenLabs", style = MaterialTheme.typography.titleMedium)
-                    Text(maskedKey, style = MaterialTheme.typography.bodyMedium)
-
-                    statusMessage?.let {
-                        Text(it, style = MaterialTheme.typography.bodySmall)
-                    }
-
-                    OutlinedButton(
-                        onClick = {
-                            isChecking = true
-                            statusMessage = null
-                            scope.launch {
-                                container.elevenLabsApi.validateApiKey(storedKey)
-                                    .onSuccess { statusMessage = "Connessione OK — chiave valida." }
-                                    .onFailure { statusMessage = it.message ?: "Verifica fallita" }
-                                isChecking = false
-                            }
-                        },
-                        enabled = !isChecking,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(if (isChecking) "Verifica in corso…" else "Verifica connessione")
-                    }
-
-                    TextButton(
-                        onClick = {
-                            container.apiKeyStore.clear()
-                            onApiKeyCleared()
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Rimuovi chiave / cambia account", color = MaterialTheme.colorScheme.error)
+                    Text("Motore di generazione", style = MaterialTheme.typography.titleMedium)
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        SegmentedButton(
+                            selected = backend == Backend.SELF_HOSTED,
+                            onClick = {
+                                onBackendChanged(Backend.SELF_HOSTED)
+                                scope.launch { container.settingsRepository.setBackend(Backend.SELF_HOSTED) }
+                            },
+                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                        ) { Text("Gratis (PC)") }
+                        SegmentedButton(
+                            selected = backend == Backend.ELEVENLABS,
+                            onClick = {
+                                onBackendChanged(Backend.ELEVENLABS)
+                                scope.launch { container.settingsRepository.setBackend(Backend.ELEVENLABS) }
+                            },
+                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                        ) { Text("ElevenLabs") }
                     }
                 }
+            }
+
+            if (backend == Backend.SELF_HOSTED) {
+                SelfHostedServerCard(
+                    serverUrl = serverUrl,
+                    onServerUrlChanged = onServerUrlChanged
+                )
+            } else {
+                ElevenLabsKeyCard(onApiKeyCleared = onApiKeyCleared)
             }
 
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
@@ -112,15 +113,21 @@ fun SettingsScreen(modifier: Modifier = Modifier, onApiKeyCleared: () -> Unit) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Dati e privacy", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "I campioni vocali e i testi che generi vengono inviati ai server di ElevenLabs " +
-                            "per l'elaborazione. La chiave API è salvata cifrata solo su questo dispositivo. " +
-                            "I clip generati restano nella memoria dell'app finché non li elimini.",
+                        if (backend == Backend.SELF_HOSTED) {
+                            "Con il server personale, campioni vocali e testi restano sulla tua rete di " +
+                                "casa: vanno solo dal telefono al tuo PC, mai su internet."
+                        } else {
+                            "I campioni vocali e i testi che generi vengono inviati ai server di ElevenLabs " +
+                                "per l'elaborazione. La chiave API è salvata cifrata solo su questo dispositivo."
+                        } + " I clip generati restano nella memoria dell'app finché non li elimini.",
                         style = MaterialTheme.typography.bodySmall
                     )
-                    TextButton(onClick = {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://elevenlabs.io/privacy")))
-                    }) {
-                        Text("Privacy policy di ElevenLabs")
+                    if (backend == Backend.ELEVENLABS) {
+                        TextButton(onClick = {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://elevenlabs.io/privacy")))
+                        }) {
+                            Text("Privacy policy di ElevenLabs")
+                        }
                     }
                 }
             }
@@ -130,6 +137,112 @@ fun SettingsScreen(modifier: Modifier = Modifier, onApiKeyCleared: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+@Composable
+private fun SelfHostedServerCard(serverUrl: String, onServerUrlChanged: (String) -> Unit) {
+    val container = LocalAppContainer.current
+    val scope = rememberCoroutineScope()
+
+    var urlInput by remember(serverUrl) { mutableStateOf(serverUrl) }
+    var statusMessage by remember { mutableStateOf<String?>(null) }
+    var isChecking by remember { mutableStateOf(false) }
+
+    Card {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Server personale", style = MaterialTheme.typography.titleMedium)
+            OutlinedTextField(
+                value = urlInput,
+                onValueChange = { urlInput = it; statusMessage = null },
+                label = { Text("Indirizzo (es. http://192.168.1.23:8020)") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            statusMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+
+            OutlinedButton(
+                onClick = {
+                    val trimmed = urlInput.trim()
+                    isChecking = true
+                    statusMessage = null
+                    scope.launch {
+                        container.xttsServerApi.checkConnection(trimmed)
+                            .onSuccess {
+                                statusMessage = "Connessione OK."
+                                container.settingsRepository.setServerUrl(trimmed)
+                                onServerUrlChanged(trimmed)
+                            }
+                            .onFailure { statusMessage = it.message ?: "Verifica fallita" }
+                        isChecking = false
+                    }
+                },
+                enabled = !isChecking,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (isChecking) "Verifica in corso…" else "Verifica e salva")
+            }
+
+            Text(
+                "Vedi VoiceCloneStudio/server/README.md nel repository per installare e avviare il server sul PC.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun ElevenLabsKeyCard(onApiKeyCleared: () -> Unit) {
+    val container = LocalAppContainer.current
+    val scope = rememberCoroutineScope()
+
+    val storedKey = container.apiKeyStore.getApiKey().orEmpty()
+    val maskedKey = if (storedKey.length > 8) {
+        "${storedKey.take(4)}••••••••${storedKey.takeLast(4)}"
+    } else "••••••••"
+
+    var statusMessage by remember { mutableStateOf<String?>(null) }
+    var isChecking by remember { mutableStateOf(false) }
+
+    Card {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Chiave API ElevenLabs", style = MaterialTheme.typography.titleMedium)
+            Text(maskedKey, style = MaterialTheme.typography.bodyMedium)
+
+            statusMessage?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall)
+            }
+
+            OutlinedButton(
+                onClick = {
+                    isChecking = true
+                    statusMessage = null
+                    scope.launch {
+                        container.elevenLabsApi.validateApiKey(storedKey)
+                            .onSuccess { statusMessage = "Connessione OK — chiave valida." }
+                            .onFailure { statusMessage = it.message ?: "Verifica fallita" }
+                        isChecking = false
+                    }
+                },
+                enabled = !isChecking,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (isChecking) "Verifica in corso…" else "Verifica connessione")
+            }
+
+            TextButton(
+                onClick = {
+                    container.apiKeyStore.clear()
+                    onApiKeyCleared()
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Rimuovi chiave / cambia account", color = MaterialTheme.colorScheme.error)
+            }
         }
     }
 }
