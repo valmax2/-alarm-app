@@ -113,14 +113,23 @@ private fun ElevenLabsTextToSpeechScreen(
     // e confrontarli col risultato generato — non serve conservarli in locale: si riscaricano da
     // ElevenLabs, che li tiene salvati insieme alla voce.
     var originalSamples by remember { mutableStateOf<List<VoiceSample>>(emptyList()) }
+    var originalSamplesError by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(selectedVoice?.voiceId) {
         val voice = selectedVoice
-        originalSamples = if (voice == null) {
-            emptyList()
-        } else {
-            container.elevenLabsApi.getVoiceDetails(apiKey, voice.voiceId)
-                .getOrNull()?.samples ?: emptyList()
+        if (voice == null) {
+            originalSamples = emptyList()
+            originalSamplesError = null
+            return@LaunchedEffect
         }
+        container.elevenLabsApi.getVoiceDetails(apiKey, voice.voiceId)
+            .onSuccess {
+                originalSamples = it.samples
+                originalSamplesError = null
+            }
+            .onFailure {
+                originalSamples = emptyList()
+                originalSamplesError = it.message ?: "Impossibile caricare i campioni originali"
+            }
     }
 
     LaunchedEffect(refreshToken) {
@@ -167,7 +176,11 @@ private fun ElevenLabsTextToSpeechScreen(
                     onSelected = { selectedVoice = it },
                     modifier = Modifier.fillMaxWidth()
                 )
-                OriginalSamplesSection(voiceId = selectedVoice?.voiceId, samples = originalSamples)
+                OriginalSamplesSection(
+                    voiceId = selectedVoice?.voiceId,
+                    samples = originalSamples,
+                    loadError = originalSamplesError
+                )
             }
 
             OutlinedTextField(
@@ -284,8 +297,8 @@ private fun ElevenLabsTextToSpeechScreen(
  * primo tocco e restano in cache sul telefono per i tocchi successivi.
  */
 @Composable
-private fun OriginalSamplesSection(voiceId: String?, samples: List<VoiceSample>) {
-    if (voiceId == null || samples.isEmpty()) return
+private fun OriginalSamplesSection(voiceId: String?, samples: List<VoiceSample>, loadError: String?) {
+    if (voiceId == null || (samples.isEmpty() && loadError == null)) return
 
     val container = LocalAppContainer.current
     val context = LocalContext.current
@@ -305,6 +318,13 @@ private fun OriginalSamplesSection(voiceId: String?, samples: List<VoiceSample>)
                 "Campioni originali (per confronto con la voce generata)",
                 style = MaterialTheme.typography.titleSmall
             )
+            loadError?.let {
+                Text(
+                    "Non riesco a caricare i campioni originali: $it",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
             errorMessage?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
