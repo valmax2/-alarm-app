@@ -37,16 +37,12 @@ class ElevenLabsApi {
         .writeTimeout(120, TimeUnit.SECONDS)
         .build()
 
-    suspend fun validateApiKey(apiKey: String): Result<UserResponse> = withContext(Dispatchers.IO) {
-        runCatching {
-            val request = Request.Builder()
-                .url("$BASE_URL/v1/user")
-                .header("xi-api-key", apiKey)
-                .get()
-                .build()
-            executeAndParse<UserResponse>(request)
-        }
-    }
+    // Valida usando /v1/voices invece di /v1/user: quest'ultimo richiede il permesso
+    // "user_read", che una chiave con permessi limitati (creata a mano su ElevenLabs con solo
+    // alcuni permessi selezionati) può non avere pur essendo perfettamente valida e funzionante
+    // per il resto. /v1/voices richiede invece "voices_read", un permesso che l'app usa comunque
+    // per tutto — se manca anche quello, l'app non potrebbe funzionare in ogni caso.
+    suspend fun validateApiKey(apiKey: String): Result<Unit> = listVoices(apiKey).map { }
 
     suspend fun listVoices(apiKey: String): Result<List<ClonedVoice>> = withContext(Dispatchers.IO) {
         runCatching {
