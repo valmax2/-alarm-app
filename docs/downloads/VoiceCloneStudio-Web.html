@@ -1,0 +1,1313 @@
+<title>Voice Clone Studio</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ink: #1b1730;
+    --ink-soft: #4d4570;
+    --paper: #faf8ff;
+    --surface: #ffffff;
+    --surface-variant: #eee8fb;
+    --border: #ddd3f5;
+    --violet: #5b3fcc;
+    --violet-bright: #6f4fe0;
+    --violet-wash: #f1ecfd;
+    --coral: #c23b3b;
+    --coral-wash: #fceaea;
+    --success: #1f8f5f;
+    --success-wash: #e7f7ef;
+    --font-ui: 'Manrope', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    --radius: 14px;
+    --shadow-card: 0 1px 2px rgba(27,23,48,0.06), 0 8px 24px -12px rgba(27,23,48,0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #ede9f9;
+      --ink-soft: #b3a9dd;
+      --paper: #130f24;
+      --surface: #1b1732;
+      --surface-variant: #241d40;
+      --border: #372c5e;
+      --violet: #8f6fff;
+      --violet-bright: #a68bff;
+      --violet-wash: #241d40;
+      --coral: #ff8a8a;
+      --coral-wash: #3a2028;
+      --success: #4fd394;
+      --success-wash: #16302a;
+      --shadow-card: 0 1px 2px rgba(0,0,0,0.3), 0 8px 28px -12px rgba(0,0,0,0.55);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink: #ede9f9;
+    --ink-soft: #b3a9dd;
+    --paper: #130f24;
+    --surface: #1b1732;
+    --surface-variant: #241d40;
+    --border: #372c5e;
+    --violet: #8f6fff;
+    --violet-bright: #a68bff;
+    --violet-wash: #241d40;
+    --coral: #ff8a8a;
+    --coral-wash: #3a2028;
+    --success: #4fd394;
+    --success-wash: #16302a;
+    --shadow-card: 0 1px 2px rgba(0,0,0,0.3), 0 8px 28px -12px rgba(0,0,0,0.55);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  h1, h2, h3 { font-weight: 800; text-wrap: balance; margin: 0; }
+  button, input, textarea, select { font-family: inherit; font-size: inherit; color: inherit; }
+  .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+  /* ---------- Shell layout ---------- */
+  #shell { display: flex; min-height: 100vh; }
+  #rail {
+    width: 236px;
+    flex: none;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 22px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+  }
+  #rail .brand { display: flex; align-items: center; gap: 10px; padding: 0 6px; }
+  #rail .brand .mark {
+    width: 30px; height: 30px; border-radius: 9px;
+    background: linear-gradient(155deg, var(--violet-bright), var(--violet));
+    display: flex; align-items: center; justify-content: center; flex: none;
+  }
+  #rail .brand .mark svg { width: 17px; height: 17px; }
+  #rail .brand strong { font-size: 15.5px; font-weight: 800; letter-spacing: -0.01em; }
+  nav.tabs { display: flex; flex-direction: column; gap: 3px; }
+  nav.tabs button {
+    all: unset;
+    display: flex; align-items: center; gap: 11px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    color: var(--ink-soft);
+    font-weight: 600;
+    font-size: 14px;
+  }
+  nav.tabs button svg { width: 18px; height: 18px; flex: none; }
+  nav.tabs button:hover { background: var(--violet-wash); color: var(--ink); }
+  nav.tabs button[aria-current="page"] { background: var(--violet-wash); color: var(--violet); }
+  nav.tabs button:focus-visible { outline: 2px solid var(--violet); outline-offset: 1px; }
+  #rail .spacer { flex: 1; }
+  .backend-chip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 11px; border-radius: 10px;
+    background: var(--surface-variant);
+    font-size: 12.5px; font-weight: 600; color: var(--ink-soft);
+  }
+  .backend-chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); flex: none; }
+  .backend-chip button { all: unset; margin-left: auto; cursor: pointer; color: var(--violet); font-weight: 700; font-size: 12px; }
+
+  #main { flex: 1; min-width: 0; padding: 34px 40px 80px; max-width: 1100px; }
+  .view { display: none; }
+  .view.active { display: block; }
+  .view-header { margin-bottom: 22px; }
+  .view-header h1 { font-size: 24px; }
+  .view-header p { color: var(--ink-soft); margin: 6px 0 0; max-width: 62ch; }
+
+  /* ---------- Primitives ---------- */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+  }
+  .card.pad { padding: 18px 20px; }
+  .card.wash { background: var(--violet-wash); border-color: transparent; box-shadow: none; }
+  .stack { display: flex; flex-direction: column; gap: 16px; }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .row.between { justify-content: space-between; }
+  .grow { flex: 1; min-width: 0; }
+
+  label.field-label { display: block; font-size: 12.5px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 7px; }
+  input[type="text"], input[type="password"], input[type="url"], textarea, select {
+    width: 100%;
+    background: var(--paper);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 13px;
+    color: var(--ink);
+  }
+  textarea { resize: vertical; min-height: 110px; font-family: var(--font-ui); }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--violet); }
+  select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%234d4570' stroke-width='2'%3E%3Cpath d='M6 8l4 4 4-4'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 34px; }
+
+  .btn {
+    all: unset; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 10px 18px; border-radius: 10px;
+    font-weight: 700; font-size: 14px;
+    border: 1.5px solid transparent;
+    white-space: nowrap;
+  }
+  .btn svg { width: 16px; height: 16px; }
+  .btn:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+  .btn-primary { background: var(--violet); color: #fff; }
+  .btn-primary:hover { background: var(--violet-bright); }
+  .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+  .btn-outline { background: transparent; border-color: var(--border); color: var(--ink); }
+  .btn-outline:hover { border-color: var(--violet); color: var(--violet); }
+  .btn-ghost { background: transparent; color: var(--violet); padding: 8px 10px; }
+  .btn-ghost:hover { background: var(--violet-wash); }
+  .btn-danger { background: transparent; color: var(--coral); padding: 8px 10px; }
+  .btn-danger:hover { background: var(--coral-wash); }
+  .btn-icon { padding: 8px; border-radius: 9px; }
+  .btn-block { width: 100%; }
+  .btn.recording { background: var(--coral); color: #fff; }
+
+  .helper { font-size: 12.5px; color: var(--ink-soft); }
+  .error-text { font-size: 13px; color: var(--coral); }
+  .pill { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+  .pill.cloned { background: var(--success-wash); color: var(--success); }
+  .pill.premade { background: var(--surface-variant); color: var(--ink-soft); }
+
+  /* ---------- Onboarding ---------- */
+  #onboarding { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
+  #onboarding .panel { width: 100%; max-width: 480px; }
+  #onboarding .lockup { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+  #onboarding .lockup .mark { width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(155deg, var(--violet-bright), var(--violet)); display: flex; align-items: center; justify-content: center; }
+  #onboarding .lockup .mark svg { width: 23px; height: 23px; }
+  #onboarding .lockup h1 { font-size: 21px; }
+  .segmented { display: flex; background: var(--surface-variant); border-radius: 11px; padding: 4px; gap: 4px; }
+  .segmented button { all: unset; flex: 1; text-align: center; padding: 9px 10px; border-radius: 8px; font-weight: 700; font-size: 13.5px; cursor: pointer; color: var(--ink-soft); }
+  .segmented button[aria-pressed="true"] { background: var(--surface); color: var(--violet); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+  /* ---------- Sliders ---------- */
+  .slider-row { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+  .slider-row:last-child { margin-bottom: 0; }
+  .slider-row .row.between { font-size: 13.5px; font-weight: 600; }
+  .slider-row .value { font-family: var(--font-mono); color: var(--violet); }
+  input[type="range"] { -webkit-appearance: none; width: 100%; height: 4px; border-radius: 2px; background: var(--border); }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--violet); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--violet); cursor: pointer; margin-top: -6px; }
+  input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--violet); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--violet); cursor: pointer; }
+  input[type="range"]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--border); }
+  .slider-row .help { font-size: 12px; color: var(--ink-soft); }
+  .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .switch { position: relative; width: 40px; height: 23px; flex: none; }
+  .switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+  .switch .track { position: absolute; inset: 0; background: var(--border); border-radius: 999px; transition: background 0.15s; }
+  .switch .thumb { position: absolute; top: 2.5px; left: 2.5px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.25); transition: transform 0.15s; }
+  .switch input:checked + .track { background: var(--violet); }
+  .switch input:checked ~ .thumb { transform: translateX(17px); }
+
+  /* ---------- Voice cards ---------- */
+  .voice-list { display: flex; flex-direction: column; gap: 10px; }
+  .voice-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+  .voice-card .name { font-weight: 700; font-size: 14.5px; }
+  .voice-card .meta { margin-top: 3px; }
+  .voice-card .icons { display: flex; gap: 2px; margin-left: auto; flex: none; }
+
+  .sample-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--border); }
+  .sample-row:first-of-type { border-top: none; }
+  .sample-row .fname { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-soft); }
+
+  .history-item { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
+  .history-item .info { min-width: 0; }
+  .history-item .info .label { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .history-item .info .meta { font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; }
+
+  /* ---------- Modal ---------- */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(19,15,36,0.55); display: none; align-items: flex-start; justify-content: center; padding: 40px 20px; overflow-y: auto; z-index: 40; }
+  .modal-backdrop.open { display: flex; }
+  .modal { width: 100%; max-width: 560px; background: var(--surface); border-radius: 18px; border: 1px solid var(--border); box-shadow: 0 20px 60px -20px rgba(0,0,0,0.4); }
+  .modal .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--border); }
+  .modal .modal-head h2 { font-size: 17px; }
+  .modal .modal-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 16px; max-height: 70vh; overflow-y: auto; }
+
+  .toast { position: fixed; bottom: 22px; right: 22px; background: var(--ink); color: var(--paper); padding: 12px 18px; border-radius: 10px; font-size: 13.5px; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 60; max-width: 360px; }
+
+  @media (max-width: 760px) {
+    #shell { flex-direction: column; }
+    #rail { width: 100%; flex-direction: row; align-items: center; padding: 12px 16px; border-right: none; border-bottom: 1px solid var(--border); overflow-x: auto; }
+    #rail .brand strong { display: none; }
+    nav.tabs { flex-direction: row; }
+    nav.tabs button span.label { display: none; }
+    #rail .spacer { display: none; }
+    .backend-chip { display: none; }
+    #main { padding: 22px 18px 60px; }
+  }
+</style>
+
+<div id="onboarding">
+  <div class="panel stack card pad" style="padding:28px 26px;">
+    <div class="lockup">
+      <div class="mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17v3M9 20h6"/></svg>
+      </div>
+      <h1>Voice Clone Studio</h1>
+    </div>
+    <p class="helper" style="margin:-10px 0 4px;">Clona la tua voce e genera audio in italiano, dal browser del PC — stesso account e stesse voci dell'app Android.</p>
+
+    <div>
+      <label class="field-label">Motore di generazione</label>
+      <div class="segmented" id="ob-backend-toggle">
+        <button type="button" data-backend="self_hosted" aria-pressed="true">Gratis (PC)</button>
+        <button type="button" data-backend="elevenlabs" aria-pressed="false">ElevenLabs</button>
+      </div>
+    </div>
+
+    <div id="ob-self-hosted" class="stack">
+      <p class="helper">Usa lo stesso server locale (XTTS-v2) che magari già usi con l'app Android — <code class="mono">server/xtts_server.py</code> nel repository. Qui puoi scrivere <code class="mono">localhost</code>: il browser gira sullo stesso PC del server.</p>
+      <div>
+        <label class="field-label" for="ob-server-url">Indirizzo del server</label>
+        <input type="url" id="ob-server-url" value="http://localhost:8020" />
+      </div>
+    </div>
+
+    <div id="ob-elevenlabs" class="stack" style="display:none;">
+      <p class="helper">Qualità professionale via cloud. Serve la tua chiave API — la stessa che usi nell'app Android va bene qui.</p>
+      <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener" class="helper" style="color:var(--violet); font-weight:700; text-decoration:none;">Apri elevenlabs.io per copiare la chiave ↗</a>
+      <div>
+        <label class="field-label" for="ob-api-key">Chiave API ElevenLabs</label>
+        <input type="password" id="ob-api-key" autocomplete="off" />
+      </div>
+    </div>
+
+    <p class="error-text" id="ob-error" style="display:none;"></p>
+    <button class="btn btn-primary btn-block" id="ob-submit" type="button">Verifica e continua</button>
+  </div>
+</div>
+
+<div id="shell" style="display:none;">
+  <div id="rail">
+    <div class="brand">
+      <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17v3M9 20h6"/></svg></div>
+      <strong>Voice Clone Studio</strong>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button data-view="voices" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="3.2"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/></svg><span class="label">Voci</span></button>
+      <button data-view="tts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 10v4M8 6v12M12 3v18M16 6v12M20 10v4"/></svg><span class="label">Testo → voce</span></button>
+      <button data-view="conversion"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M17 3l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 21l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg><span class="label">Conversione</span></button>
+      <button data-view="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg><span class="label">Impostazioni</span></button>
+    </nav>
+    <div class="spacer"></div>
+    <div class="backend-chip" id="backend-chip">
+      <span class="dot"></span><span id="backend-chip-label">—</span>
+      <button type="button" id="backend-chip-change">Cambia</button>
+    </div>
+  </div>
+
+  <div id="main">
+    <!-- VOICES -->
+    <section class="view active" id="view-voices">
+      <div class="view-header row between">
+        <div>
+          <h1>Le tue voci</h1>
+          <p>Tocca l'icona di regolazione per aggiustare i parametri e provare una voce già clonata — non serve mai riclonarla per cambiarli.</p>
+        </div>
+        <button class="btn btn-primary" id="voices-new-btn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Nuova voce
+        </button>
+      </div>
+      <p class="error-text" id="voices-error" style="display:none;"></p>
+      <div class="voice-list" id="voices-list"></div>
+    </section>
+
+    <!-- TTS -->
+    <section class="view" id="view-tts">
+      <div class="view-header">
+        <h1>Testo → voce</h1>
+        <p>Scegli una voce, scrivi (o detta) il testo e genera l'audio con le regolazioni salvate per quella voce.</p>
+      </div>
+      <div class="stack" style="max-width:640px;">
+        <div>
+          <label class="field-label" for="tts-voice">Voce</label>
+          <select id="tts-voice"></select>
+        </div>
+
+        <div class="card wash pad" id="tts-samples-card" style="display:none;">
+          <div class="row between" style="margin-bottom:6px;">
+            <strong style="font-size:13.5px;">Campioni originali (per confronto con la voce generata)</strong>
+          </div>
+          <p class="error-text" id="tts-samples-error" style="display:none;"></p>
+          <div id="tts-samples-list"></div>
+        </div>
+
+        <div>
+          <label class="field-label" for="tts-text">Testo da far dire alla voce clonata</label>
+          <textarea id="tts-text" placeholder="Scrivi qui, oppure detta a voce con il microfono →"></textarea>
+          <div class="row" style="margin-top:8px; gap:14px;">
+            <button class="btn-ghost btn" id="tts-sample-phrase" type="button" style="padding:6px 4px;">Usa frase di prova</button>
+            <button class="btn-ghost btn" id="tts-dictate" type="button" style="padding:6px 4px;" title="Detta a voce (italiano)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17v3M9 20h6"/></svg>
+              Detta
+            </button>
+          </div>
+        </div>
+
+        <div id="tts-model-row">
+          <label class="field-label" for="tts-model">Modello</label>
+          <select id="tts-model">
+            <option value="eleven_multilingual_v2">Multilingual v2 — qualità migliore (consigliato per l'italiano)</option>
+            <option value="eleven_turbo_v2_5">Turbo v2.5 — veloce, buon italiano</option>
+            <option value="eleven_flash_v2_5">Flash v2.5 — massima velocità</option>
+          </select>
+        </div>
+
+        <div class="card wash pad" id="tts-settings-card"></div>
+
+        <p class="error-text" id="tts-error" style="display:none;"></p>
+        <button class="btn btn-primary btn-block" id="tts-generate" type="button">Genera audio</button>
+
+        <div id="tts-history"></div>
+      </div>
+    </section>
+
+    <!-- CONVERSION -->
+    <section class="view" id="view-conversion">
+      <div class="view-header">
+        <h1>Conversione voce → voce</h1>
+        <p>Registra o importa un audio con un'altra voce: viene ridoppiato con il timbro della voce clonata, mantenendo tempi e intonazione.</p>
+      </div>
+      <div id="conversion-unavailable" class="card wash pad" style="display:none; max-width:640px;">
+        <strong>Non disponibile col server personale gratuito</strong>
+        <p class="helper" style="margin-top:6px;">XTTS-v2 fa clonazione da testo a voce, ma non converte un audio già registrato in un'altra voce. Per questa funzione serve il backend ElevenLabs — puoi cambiarlo in Impostazioni.</p>
+      </div>
+      <div class="stack" id="conversion-body" style="max-width:640px;">
+        <div>
+          <label class="field-label" for="conv-voice">Voce</label>
+          <select id="conv-voice"></select>
+        </div>
+        <div class="row">
+          <button class="btn btn-outline" id="conv-record" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17v3M9 20h6"/></svg>
+            Registra
+          </button>
+          <label class="btn btn-outline" style="cursor:pointer;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 20h16"/></svg>
+            Importa file
+            <input type="file" accept="audio/*" id="conv-file" class="visually-hidden" />
+          </label>
+        </div>
+        <div class="card pad" id="conv-source-card" style="display:none;"></div>
+        <div class="card wash pad">
+          <div class="switch-row">
+            <div>
+              <div style="font-weight:700; font-size:13.5px;">Rimuovi rumore di fondo</div>
+              <div class="helper">Ripulisce l'audio sorgente prima della conversione.</div>
+            </div>
+            <label class="switch"><input type="checkbox" id="conv-denoise" checked /><span class="track"></span><span class="thumb"></span></label>
+          </div>
+        </div>
+        <div class="card wash pad" id="conv-settings-card"></div>
+        <p class="error-text" id="conv-error" style="display:none;"></p>
+        <button class="btn btn-primary btn-block" id="conv-generate" type="button">Converti</button>
+        <div id="conv-history"></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" id="view-settings">
+      <div class="view-header"><h1>Impostazioni</h1></div>
+      <div class="stack" style="max-width:640px;">
+        <div class="card pad stack">
+          <strong style="font-size:14px;">Motore di generazione</strong>
+          <div class="segmented" id="settings-backend-toggle">
+            <button type="button" data-backend="self_hosted">Gratis (PC)</button>
+            <button type="button" data-backend="elevenlabs">ElevenLabs</button>
+          </div>
+        </div>
+
+        <div class="card pad stack" id="settings-self-hosted">
+          <strong style="font-size:14px;">Server personale</strong>
+          <div>
+            <label class="field-label" for="settings-server-url">Indirizzo</label>
+            <input type="url" id="settings-server-url" />
+          </div>
+          <p class="helper" id="settings-server-status"></p>
+          <button class="btn btn-outline" id="settings-server-verify" type="button">Verifica e salva</button>
+        </div>
+
+        <div class="card pad stack" id="settings-elevenlabs">
+          <strong style="font-size:14px;">Chiave API ElevenLabs</strong>
+          <div>
+            <label class="field-label" for="settings-api-key">Chiave</label>
+            <input type="password" id="settings-api-key" autocomplete="off" />
+          </div>
+          <p class="helper" id="settings-key-status"></p>
+          <button class="btn btn-outline" id="settings-key-verify" type="button">Verifica e salva</button>
+        </div>
+
+        <div class="card wash pad">
+          <strong style="font-size:13.5px;">Usa la voce responsabilmente</strong>
+          <p class="helper" style="margin-top:6px;">Clona solo voci per cui hai un consenso esplicito. Clonare la voce di qualcuno senza permesso e usarla per ingannare o impersonare quella persona può essere illegale.</p>
+        </div>
+
+        <div class="card pad stack">
+          <strong style="font-size:14px;">Dati su questo browser</strong>
+          <p class="helper">Chiave API, indirizzo server e voci create con il backend gratuito restano solo in questo browser (localStorage/IndexedDB) — non vengono sincronizzati con l'app Android.</p>
+          <button class="btn btn-danger" id="settings-reset" type="button" style="align-self:flex-start;">Cancella tutti i dati salvati qui</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="new-voice-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>Nuova voce</h2>
+      <button class="btn btn-ghost btn-icon" id="new-voice-close" type="button" aria-label="Chiudi">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="card wash pad">
+        <strong style="font-size:13px;">Per una voce italiana naturale, non robotica</strong>
+        <p class="helper" style="margin-top:6px; white-space:pre-line;" id="new-voice-tips"></p>
+      </div>
+      <div>
+        <label class="field-label" for="new-voice-name">Nome della voce</label>
+        <input type="text" id="new-voice-name" />
+      </div>
+      <div class="row">
+        <button class="btn btn-outline" id="new-voice-record" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17v3M9 20h6"/></svg>
+          Registra
+        </button>
+        <label class="btn btn-outline" style="cursor:pointer;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 20h16"/></svg>
+          Importa file
+          <input type="file" accept="audio/*" multiple id="new-voice-file" class="visually-hidden" />
+        </label>
+      </div>
+      <div id="new-voice-samples"></div>
+      <p class="error-text" id="new-voice-error" style="display:none;"></p>
+      <button class="btn btn-primary btn-block" id="new-voice-submit" type="button">Crea voce clonata</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-host"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ============================== Storage ============================== */
+  var LS_KEY = "vcs_state_v1";
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (!raw) return {};
+      return JSON.parse(raw);
+    } catch (e) { return {}; }
+  }
+  function saveState() { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+
+  var state = Object.assign({
+    backend: "self_hosted",
+    serverUrl: "http://localhost:8020",
+    apiKey: "",
+    perVoiceSettings: {},     // voice_id -> {stability, similarityBoost, style, speakerBoost, speed}
+    selfHostedSpeed: 1.0,
+    defaultModel: "eleven_multilingual_v2",
+    configured: false
+  }, loadState());
+
+  var RECOMMENDED = { stability: 0.5, similarityBoost: 0.85, style: 0.25, speakerBoost: true, speed: 1.0 };
+  var SAMPLE_TEXT = "Ciao, questa è una prova della mia voce clonata. Sto verificando quanto suona naturale e quanto assomiglia all'originale.";
+  var VOICE_TIPS =
+    "• Registra o carica campioni in italiano, con la tua vera intonazione.\n" +
+    "• Parla come faresti con una persona, con frasi intere e tono variato.\n" +
+    "• Ambiente silenzioso, senza musica o rumori di fondo.\n" +
+    "• Almeno 1-2 minuti in totale danno risultati più fedeli (bastano 10-20 secondi con il server gratuito).";
+
+  function settingsFor(voiceId) {
+    return Object.assign({}, RECOMMENDED, state.perVoiceSettings[voiceId] || {});
+  }
+  function saveSettingsFor(voiceId, s) {
+    state.perVoiceSettings[voiceId] = s;
+    saveState();
+  }
+
+  /* ============================== IndexedDB (self-hosted local voices) ============================== */
+  var dbPromise = new Promise(function (resolve, reject) {
+    var req = indexedDB.open("vcs_local_voices", 1);
+    req.onupgradeneeded = function () {
+      var db = req.result;
+      if (!db.objectStoreNames.contains("voices")) db.createObjectStore("voices", { keyPath: "id" });
+    };
+    req.onsuccess = function () { resolve(req.result); };
+    req.onerror = function () { reject(req.error); };
+  });
+  function idbAll() {
+    return dbPromise.then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction("voices", "readonly");
+        var store = tx.objectStore("voices");
+        var req = store.getAll();
+        req.onsuccess = function () { resolve(req.result || []); };
+        req.onerror = function () { reject(req.error); };
+      });
+    });
+  }
+  function idbPut(voice) {
+    return dbPromise.then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction("voices", "readwrite");
+        tx.objectStore("voices").put(voice);
+        tx.oncomplete = function () { resolve(); };
+        tx.onerror = function () { reject(tx.error); };
+      });
+    });
+  }
+  function idbDelete(id) {
+    return dbPromise.then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction("voices", "readwrite");
+        tx.objectStore("voices").delete(id);
+        tx.oncomplete = function () { resolve(); };
+        tx.onerror = function () { reject(tx.error); };
+      });
+    });
+  }
+
+  /* ============================== Helpers ============================== */
+  function $(sel, root) { return (root || document).querySelector(sel); }
+  function $all(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+  function el(tag, attrs, children) {
+    var e = document.createElement(tag);
+    if (attrs) for (var k in attrs) {
+      if (k === "class") e.className = attrs[k];
+      else if (k === "html") e.innerHTML = attrs[k];
+      else if (k.indexOf("on") === 0 && typeof attrs[k] === "function") e.addEventListener(k.slice(2), attrs[k]);
+      else e.setAttribute(k, attrs[k]);
+    }
+    (children || []).forEach(function (c) { if (c) e.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+    return e;
+  }
+  function toast(msg) {
+    var host = $("#toast-host");
+    var t = el("div", { class: "toast" }, [msg]);
+    host.appendChild(t);
+    setTimeout(function () { t.remove(); }, 3800);
+  }
+  function fmtErr(e) { return (e && e.message) ? e.message : String(e); }
+
+  /* Single shared <audio> so only one thing plays at a time, mirroring the Android app. */
+  var player = new Audio();
+  var playingKey = null;
+  var playStateListeners = [];
+  function notifyPlayState() { playStateListeners.forEach(function (fn) { fn(playingKey); }); }
+  function playAudio(key, srcUrl) {
+    player.pause();
+    player.src = srcUrl;
+    player.play().catch(function () {});
+    playingKey = key;
+    notifyPlayState();
+  }
+  function stopAudio() {
+    player.pause();
+    playingKey = null;
+    notifyPlayState();
+  }
+  player.addEventListener("ended", function () { playingKey = null; notifyPlayState(); });
+
+  /* ============================== ElevenLabs API ============================== */
+  var EL_BASE = "https://api.elevenlabs.io";
+  function elHeaders() { return { "xi-api-key": state.apiKey }; }
+  function elFriendlyError(res, bodyText) {
+    var friendly = null;
+    if (res.status === 401) friendly = "Chiave API rifiutata da ElevenLabs.";
+    else if (res.status === 402 || res.status === 429) friendly = "Hai raggiunto il limite del tuo piano ElevenLabs.";
+    else if (res.status === 413) friendly = "I file audio caricati sono troppo grandi.";
+    var detail = null;
+    try { var j = JSON.parse(bodyText); detail = j && j.detail && j.detail.message; } catch (e) { detail = bodyText ? bodyText.slice(0, 200) : null; }
+    if (friendly && detail) return friendly + " (" + detail + ")";
+    return friendly || detail || ("Errore del server ElevenLabs (" + res.status + ")");
+  }
+  function elRequest(path, opts) {
+    opts = opts || {};
+    var headers = Object.assign({}, elHeaders(), opts.headers || {});
+    return fetch(EL_BASE + path, { method: opts.method || "GET", headers: headers, body: opts.body })
+      .catch(function (e) { throw new Error("Impossibile contattare ElevenLabs (rete/CORS): " + e.message); })
+      .then(function (res) {
+        if (!res.ok) {
+          return res.text().then(function (t) { throw new Error(elFriendlyError(res, t)); });
+        }
+        return res;
+      });
+  }
+  function elListVoices() {
+    return elRequest("/v1/voices").then(function (r) { return r.json(); }).then(function (j) { return j.voices || []; });
+  }
+  function elVoiceDetails(voiceId) {
+    return elRequest("/v1/voices/" + voiceId).then(function (r) { return r.json(); });
+  }
+  function elDownloadSample(voiceId, sampleId) {
+    return elRequest("/v1/voices/" + voiceId + "/samples/" + sampleId + "/audio").then(function (r) { return r.blob(); });
+  }
+  function elAddVoice(name, files) {
+    var fd = new FormData();
+    fd.append("name", name);
+    files.forEach(function (f) { fd.append("files", f, f.name); });
+    return elRequest("/v1/voices/add", { method: "POST", body: fd }).then(function (r) { return r.json(); });
+  }
+  function elDeleteVoice(voiceId) {
+    return elRequest("/v1/voices/" + voiceId, { method: "DELETE" });
+  }
+  function elTextToSpeech(voiceId, text, modelId, languageCode, settings) {
+    var body = {
+      text: text,
+      model_id: modelId,
+      voice_settings: {
+        stability: settings.stability,
+        similarity_boost: settings.similarityBoost,
+        style: settings.style,
+        use_speaker_boost: settings.speakerBoost,
+        speed: settings.speed
+      }
+    };
+    if (modelId !== "eleven_multilingual_v2" && languageCode) body.language_code = languageCode;
+    return elRequest("/v1/text-to-speech/" + voiceId, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "audio/mpeg" },
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.blob(); });
+  }
+  function elSpeechToSpeech(voiceId, file, settings, removeNoise) {
+    var fd = new FormData();
+    fd.append("model_id", "eleven_multilingual_sts_v2");
+    fd.append("voice_settings", JSON.stringify({
+      stability: settings.stability, similarity_boost: settings.similarityBoost,
+      style: settings.style, use_speaker_boost: settings.speakerBoost
+    }));
+    fd.append("remove_background_noise", removeNoise ? "true" : "false");
+    fd.append("audio", file, file.name);
+    return elRequest("/v1/speech-to-speech/" + voiceId, { method: "POST", headers: { "Accept": "audio/mpeg" }, body: fd })
+      .then(function (r) { return r.blob(); });
+  }
+
+  /* ============================== Self-hosted (XTTS) API ============================== */
+  function xttsCheck(url) {
+    return fetch(url.replace(/\/$/, "") + "/health")
+      .catch(function (e) { throw new Error("Impossibile collegarsi al server: " + e.message + " — è acceso ed è sulla stessa rete?"); })
+      .then(function (r) { if (!r.ok) throw new Error("Il server ha risposto con un errore (" + r.status + ")"); return r.json(); });
+  }
+  function xttsSpeak(url, text, speed, sampleBlobs) {
+    var fd = new FormData();
+    fd.append("text", text);
+    fd.append("language", "it");
+    fd.append("speed", String(speed));
+    sampleBlobs.forEach(function (b, i) { fd.append("speaker_wav", b, "speaker_" + i + ".webm"); });
+    return fetch(url.replace(/\/$/, "") + "/tts", { method: "POST", body: fd })
+      .catch(function (e) { throw new Error("Impossibile contattare il server: " + e.message); })
+      .then(function (r) {
+        if (!r.ok) return r.text().then(function (t) { throw new Error(t || ("Errore del server (" + r.status + ")")); });
+        return r.blob();
+      });
+  }
+
+  /* ============================== Mic recording ============================== */
+  function recordMic(onStart, onStop) {
+    return navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      var chunks = [];
+      var rec = new MediaRecorder(stream);
+      rec.ondataavailable = function (e) { if (e.data.size > 0) chunks.push(e.data); };
+      rec.onstop = function () {
+        stream.getTracks().forEach(function (t) { t.stop(); });
+        var blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+        onStop(blob);
+      };
+      rec.start();
+      onStart(rec);
+      return rec;
+    });
+  }
+
+  /* ============================== Dictation (Web Speech API) ============================== */
+  var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  /* ============================== Voice settings panel (shared TTS/conversion) ============================== */
+  function renderSettingsPanel(container, settings, opts, onChange) {
+    container.innerHTML = "";
+    var head = el("div", { class: "row between", style: "margin-bottom:10px;" }, [
+      el("strong", { style: "font-size:13.5px;" }, ["Regolazioni fini"]),
+      el("button", { class: "btn-ghost btn", style: "padding:4px 8px; font-size:12.5px;", onclick: function () { onChange(Object.assign({}, RECOMMENDED)); } }, ["Ripristina consigliati"])
+    ]);
+    container.appendChild(head);
+
+    function slider(labelText, key, help, min, max, step) {
+      var row = el("div", { class: "slider-row" });
+      var top = el("div", { class: "row between" }, [
+        el("span", {}, [labelText]),
+        el("span", { class: "value mono" }, [settings[key].toFixed(2)])
+      ]);
+      var input = el("input", { type: "range", min: min, max: max, step: step, value: settings[key] });
+      input.addEventListener("input", function () {
+        var v = parseFloat(input.value);
+        top.querySelector(".value").textContent = v.toFixed(2);
+        var next = Object.assign({}, settings); next[key] = v;
+        onChange(next);
+      });
+      row.appendChild(top); row.appendChild(input);
+      row.appendChild(el("div", { class: "help" }, [help]));
+      container.appendChild(row);
+    }
+
+    slider("Stabilità", "stability",
+      "Bassa = più espressiva ma meno prevedibile. Alta = più costante ma può suonare piatta.",
+      0, 1, 0.01);
+    slider("Somiglianza al timbro originale", "similarityBoost",
+      "Alzala se il risultato non assomiglia abbastanza; abbassala se senti artefatti.",
+      0, 1, 0.01);
+    slider("Stile / espressività", "style",
+      "Valori alti possono introdurre un accento innaturale: tienilo basso per l'italiano.",
+      0, 1, 0.01);
+    if (opts.showSpeed) {
+      slider("Velocità", "speed", "1.0 è il ritmo naturale della voce originale.", opts.speedMin || 0.7, opts.speedMax || 1.2, 0.01);
+    }
+    if (opts.showSpeakerBoost) {
+      var sw = el("div", { class: "switch-row", style: "margin-top:6px;" }, [
+        el("div", {}, [
+          el("div", { style: "font-weight:700; font-size:13.5px;" }, ["Potenziamento voce"]),
+          el("div", { class: "helper" }, ["Migliora l'aderenza al timbro, con un piccolo aumento del tempo di generazione."])
+        ])
+      ]);
+      var label = el("label", { class: "switch" });
+      var cb = el("input", { type: "checkbox" });
+      cb.checked = settings.speakerBoost;
+      cb.addEventListener("change", function () {
+        var next = Object.assign({}, settings); next.speakerBoost = cb.checked; onChange(next);
+      });
+      label.appendChild(cb); label.appendChild(el("span", { class: "track" })); label.appendChild(el("span", { class: "thumb" }));
+      sw.appendChild(label);
+      container.appendChild(sw);
+    }
+  }
+
+  /* ============================== Onboarding ============================== */
+  var obBackend = state.backend || "self_hosted";
+  function obSetBackend(b) {
+    obBackend = b;
+    $all("#ob-backend-toggle button").forEach(function (btn) { btn.setAttribute("aria-pressed", btn.dataset.backend === b ? "true" : "false"); });
+    $("#ob-self-hosted").style.display = b === "self_hosted" ? "" : "none";
+    $("#ob-elevenlabs").style.display = b === "elevenlabs" ? "" : "none";
+  }
+  $all("#ob-backend-toggle button").forEach(function (btn) { btn.addEventListener("click", function () { obSetBackend(btn.dataset.backend); }); });
+  obSetBackend(obBackend);
+
+  $("#ob-submit").addEventListener("click", function () {
+    var btn = this;
+    var errEl = $("#ob-error");
+    errEl.style.display = "none";
+    btn.disabled = true; btn.textContent = "Verifica in corso…";
+    var done = function () { btn.disabled = false; btn.textContent = "Verifica e continua"; };
+
+    if (obBackend === "self_hosted") {
+      var url = $("#ob-server-url").value.trim();
+      if (!url) { errEl.textContent = "Inserisci l'indirizzo del server"; errEl.style.display = ""; done(); return; }
+      xttsCheck(url).then(function () {
+        state.backend = "self_hosted"; state.serverUrl = url; state.configured = true; saveState();
+        enterApp();
+      }).catch(function (e) { errEl.textContent = fmtErr(e); errEl.style.display = ""; }).then(done);
+    } else {
+      var key = $("#ob-api-key").value.trim();
+      if (!key) { errEl.textContent = "Inserisci una chiave API"; errEl.style.display = ""; done(); return; }
+      var prevKey = state.apiKey; state.apiKey = key;
+      elListVoices().then(function () {
+        state.backend = "elevenlabs"; state.configured = true; saveState();
+        enterApp();
+      }).catch(function (e) { state.apiKey = prevKey; errEl.textContent = fmtErr(e); errEl.style.display = ""; }).then(done);
+    }
+  });
+
+  /* ============================== Navigation ============================== */
+  function switchView(name) {
+    $all(".view").forEach(function (v) { v.classList.toggle("active", v.id === "view-" + name); });
+    $all("#tabs button").forEach(function (b) {
+      if (b.dataset.view === name) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+    });
+    if (name === "voices") refreshVoicesView();
+    if (name === "tts") refreshTtsView();
+    if (name === "conversion") refreshConversionView();
+    if (name === "settings") refreshSettingsView();
+  }
+  $all("#tabs button").forEach(function (b) { b.addEventListener("click", function () { switchView(b.dataset.view); }); });
+
+  var pendingTuneVoiceId = null;
+
+  function updateBackendChip() {
+    var label = state.backend === "elevenlabs" ? "ElevenLabs" : "Server locale";
+    $("#backend-chip-label").textContent = label;
+  }
+  $("#backend-chip-change").addEventListener("click", function () { switchView("settings"); });
+
+  function enterApp() {
+    $("#onboarding").style.display = "none";
+    $("#shell").style.display = "flex";
+    updateBackendChip();
+    switchView("voices");
+  }
+
+  /* ============================== VOICES view ============================== */
+  var voicesCache = [];
+  function refreshVoicesView() {
+    var listEl = $("#voices-list");
+    var errEl = $("#voices-error");
+    errEl.style.display = "none";
+    listEl.innerHTML = '<p class="helper">Carico…</p>';
+
+    var loadFn = state.backend === "elevenlabs"
+      ? elListVoices().then(function (voices) { voicesCache = voices; return voices; })
+      : idbAll().then(function (voices) { voicesCache = voices; return voices; });
+
+    loadFn.then(function (voices) {
+      listEl.innerHTML = "";
+      if (!voices.length) {
+        listEl.appendChild(el("p", { class: "helper" }, ['Nessuna voce ancora. Tocca "Nuova voce" per crearne una.']));
+        return;
+      }
+      voices.forEach(function (v) {
+        var id = state.backend === "elevenlabs" ? v.voice_id : v.id;
+        var name = v.name;
+        var meta = state.backend === "elevenlabs" ? v.category : (v.samples ? v.samples.length + " campioni" : "");
+        var card = el("div", { class: "card voice-card" });
+        var info = el("div", { class: "grow" }, [
+          el("div", { class: "name" }, [name]),
+        ]);
+        if (meta) {
+          var metaWrap = el("div", { class: "meta" });
+          if (state.backend === "elevenlabs") {
+            metaWrap.appendChild(el("span", { class: "pill " + (meta === "cloned" ? "cloned" : "premade") }, [meta === "cloned" ? "clonata" : "libreria"]));
+          } else {
+            metaWrap.appendChild(el("span", { class: "helper" }, [meta]));
+          }
+          info.appendChild(metaWrap);
+        }
+        card.appendChild(info);
+        var icons = el("div", { class: "icons" });
+        icons.appendChild(el("button", {
+          class: "btn btn-ghost btn-icon", title: "Regola e prova",
+          onclick: function () { pendingTuneVoiceId = id; switchView("tts"); }
+        }, [svgTune()]));
+        if (state.backend === "elevenlabs" ? meta === "cloned" : true) {
+          icons.appendChild(el("button", {
+            class: "btn btn-danger btn-icon", title: "Elimina",
+            onclick: function () { deleteVoice(id, name); }
+          }, [svgTrash()]));
+        }
+        card.appendChild(icons);
+        listEl.appendChild(card);
+      });
+    }).catch(function (e) {
+      listEl.innerHTML = "";
+      errEl.textContent = fmtErr(e);
+      errEl.style.display = "";
+    });
+  }
+  function deleteVoice(id, name) {
+    if (!confirm('Eliminare "' + name + '"? ' + (state.backend === "elevenlabs" ? "Verrà rimossa dal tuo account ElevenLabs." : "I campioni salvati verranno cancellati da questo browser.") + " L'operazione non è reversibile.")) return;
+    var p = state.backend === "elevenlabs" ? elDeleteVoice(id) : idbDelete(id);
+    p.then(function () { refreshVoicesView(); }).catch(function (e) { toast(fmtErr(e)); });
+  }
+  function svgTune() { return svg('<line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="7" cy="18" r="2"/>'); }
+  function svgTrash() { return svg('<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/>'); }
+  function svgPlay() { return svg('<path d="M7 5l12 7-12 7V5Z" fill="currentColor" stroke="none"/>'); }
+  function svgStop() { return svg('<rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor" stroke="none"/>'); }
+  function svgDownload() { return svg('<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 20h16"/>'); }
+  function svg(inner) {
+    var w = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    w.setAttribute("viewBox", "0 0 24 24"); w.setAttribute("fill", "none"); w.setAttribute("stroke", "currentColor");
+    w.setAttribute("stroke-width", "1.8"); w.setAttribute("stroke-linecap", "round"); w.innerHTML = inner;
+    return w;
+  }
+
+  $("#voices-new-btn").addEventListener("click", openNewVoiceModal);
+
+  /* ---- New voice modal ---- */
+  var newVoiceSamples = []; // {file, name, url}
+  var newVoiceRec = null;
+  function openNewVoiceModal() {
+    newVoiceSamples = [];
+    $("#new-voice-name").value = "";
+    $("#new-voice-tips").textContent = VOICE_TIPS;
+    $("#new-voice-error").style.display = "none";
+    renderNewVoiceSamples();
+    $("#new-voice-modal").classList.add("open");
+  }
+  $("#new-voice-close").addEventListener("click", function () { $("#new-voice-modal").classList.remove("open"); });
+  $("#new-voice-modal").addEventListener("click", function (e) { if (e.target === $("#new-voice-modal")) $("#new-voice-modal").classList.remove("open"); });
+
+  function renderNewVoiceSamples() {
+    var host = $("#new-voice-samples");
+    host.innerHTML = "";
+    if (!newVoiceSamples.length) return;
+    var card = el("div", { class: "card pad" });
+    card.appendChild(el("strong", { style: "font-size:12.5px;" }, ["Campioni (" + newVoiceSamples.length + ")"]));
+    newVoiceSamples.forEach(function (s, i) {
+      var row = el("div", { class: "sample-row" }, [
+        el("button", { class: "btn btn-ghost btn-icon", onclick: function () { playAudio("newvoice-" + i, s.url); } }, [svgPlay()]),
+        el("span", { class: "fname grow" }, [s.name]),
+        el("button", { class: "btn btn-danger btn-icon", onclick: function () { newVoiceSamples.splice(i, 1); renderNewVoiceSamples(); } }, [svgTrash()])
+      ]);
+      card.appendChild(row);
+    });
+    host.appendChild(card);
+  }
+
+  $("#new-voice-file").addEventListener("change", function (e) {
+    Array.prototype.forEach.call(e.target.files, function (f) {
+      newVoiceSamples.push({ file: f, name: f.name, url: URL.createObjectURL(f) });
+    });
+    renderNewVoiceSamples();
+    e.target.value = "";
+  });
+
+  $("#new-voice-record").addEventListener("click", function () {
+    var btn = this;
+    if (newVoiceRec && newVoiceRec.state === "recording") {
+      newVoiceRec.stop();
+      btn.classList.remove("recording");
+      btn.innerHTML = ""; btn.appendChild(svgMic()); btn.appendChild(document.createTextNode(" Registra"));
+      return;
+    }
+    recordMic(
+      function (rec) { newVoiceRec = rec; btn.classList.add("recording"); btn.innerHTML = ""; btn.appendChild(svgStop()); btn.appendChild(document.createTextNode(" Ferma")); },
+      function (blob) {
+        var name = "registrazione_" + (newVoiceSamples.length + 1) + ".webm";
+        var file = new File([blob], name, { type: blob.type });
+        newVoiceSamples.push({ file: file, name: name, url: URL.createObjectURL(blob) });
+        renderNewVoiceSamples();
+      }
+    ).catch(function (e) { $("#new-voice-error").textContent = "Microfono non disponibile: " + fmtErr(e); $("#new-voice-error").style.display = ""; });
+  });
+  function svgMic() { return svg('<path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17v3M9 20h6"/>'); }
+
+  $("#new-voice-submit").addEventListener("click", function () {
+    var errEl = $("#new-voice-error");
+    errEl.style.display = "none";
+    var name = $("#new-voice-name").value.trim();
+    if (!name) { errEl.textContent = "Dai un nome alla voce"; errEl.style.display = ""; return; }
+    if (!newVoiceSamples.length) { errEl.textContent = "Aggiungi almeno un campione audio"; errEl.style.display = ""; return; }
+
+    var btn = this; btn.disabled = true; btn.textContent = "Creazione in corso…";
+    var done = function () { btn.disabled = false; btn.textContent = "Crea voce clonata"; };
+
+    if (state.backend === "elevenlabs") {
+      elAddVoice(name, newVoiceSamples.map(function (s) { return s.file; }))
+        .then(function () { $("#new-voice-modal").classList.remove("open"); refreshVoicesView(); toast('Voce "' + name + '" creata.'); })
+        .catch(function (e) { errEl.textContent = fmtErr(e); errEl.style.display = ""; })
+        .then(done);
+    } else {
+      Promise.all(newVoiceSamples.map(function (s) { return s.file.arrayBuffer().then(function (buf) { return { name: s.name, type: s.file.type, data: buf }; }); }))
+        .then(function (samples) {
+          return idbPut({ id: "local_" + Date.now(), name: name, createdAt: Date.now(), samples: samples });
+        })
+        .then(function () { $("#new-voice-modal").classList.remove("open"); refreshVoicesView(); toast('Voce "' + name + '" salvata su questo browser.'); })
+        .catch(function (e) { errEl.textContent = fmtErr(e); errEl.style.display = ""; })
+        .then(done);
+    }
+  });
+
+  function localVoiceSampleFiles(localVoice) {
+    return localVoice.samples.map(function (s) { return new File([s.data], s.name, { type: s.type }); });
+  }
+  function localVoiceSampleBlobUrls(localVoice) {
+    return localVoice.samples.map(function (s) { return { name: s.name, url: URL.createObjectURL(new Blob([s.data], { type: s.type })) }; });
+  }
+
+  /* ============================== TTS view ============================== */
+  function refreshTtsView() {
+    var voiceSel = $("#tts-voice");
+    $("#tts-model-row").style.display = state.backend === "elevenlabs" ? "" : "none";
+    var loadFn = state.backend === "elevenlabs" ? elListVoices() : idbAll();
+    loadFn.then(function (voices) {
+      voicesCache = voices;
+      voiceSel.innerHTML = "";
+      voices.forEach(function (v) {
+        var id = state.backend === "elevenlabs" ? v.voice_id : v.id;
+        voiceSel.appendChild(el("option", { value: id }, [v.name]));
+      });
+      if (pendingTuneVoiceId && voices.some(function (v) { return (state.backend === "elevenlabs" ? v.voice_id : v.id) === pendingTuneVoiceId; })) {
+        voiceSel.value = pendingTuneVoiceId;
+        if ($("#tts-text").value.trim() === "") $("#tts-text").value = SAMPLE_TEXT;
+        pendingTuneVoiceId = null;
+      }
+      onTtsVoiceChange();
+    }).catch(function (e) { toast(fmtErr(e)); });
+  }
+  $("#tts-voice").addEventListener("change", onTtsVoiceChange);
+  $("#tts-model").addEventListener("change", renderTtsSettings);
+
+  function currentTtsVoice() {
+    var id = $("#tts-voice").value;
+    return voicesCache.find(function (v) { return (state.backend === "elevenlabs" ? v.voice_id : v.id) === id; });
+  }
+
+  function onTtsVoiceChange() {
+    renderTtsSettings();
+    renderTtsSamples();
+  }
+
+  function renderTtsSettings() {
+    var container = $("#tts-settings-card");
+    var v = currentTtsVoice();
+    if (!v) { container.innerHTML = ""; return; }
+    if (state.backend === "elevenlabs") {
+      var id = v.voice_id;
+      var s = settingsFor(id);
+      var model = $("#tts-model").value;
+      renderSettingsPanel(container, s, { showSpeed: model !== "eleven_multilingual_v2" || true, showSpeakerBoost: true }, function (next) {
+        saveSettingsFor(id, next);
+        renderTtsSettings();
+      });
+    } else {
+      var speed = state.selfHostedSpeed;
+      container.innerHTML = "";
+      var row = el("div", { class: "slider-row" });
+      var top = el("div", { class: "row between" }, [el("span", {}, ["Velocità"]), el("span", { class: "value mono" }, [speed.toFixed(2)])]);
+      var input = el("input", { type: "range", min: "0.5", max: "1.8", step: "0.01", value: speed });
+      input.addEventListener("input", function () {
+        state.selfHostedSpeed = parseFloat(input.value); saveState();
+        top.querySelector(".value").textContent = state.selfHostedSpeed.toFixed(2);
+      });
+      row.appendChild(top); row.appendChild(input);
+      container.appendChild(row);
+    }
+  }
+
+  function renderTtsSamples() {
+    var card = $("#tts-samples-card");
+    var listEl = $("#tts-samples-list");
+    var errEl = $("#tts-samples-error");
+    errEl.style.display = "none";
+    listEl.innerHTML = "";
+    var v = currentTtsVoice();
+    if (!v) { card.style.display = "none"; return; }
+
+    if (state.backend === "elevenlabs") {
+      elVoiceDetails(v.voice_id).then(function (details) {
+        var samples = details.samples || [];
+        if (!samples.length) { card.style.display = "none"; return; }
+        card.style.display = "";
+        samples.forEach(function (s) {
+          var key = "orig-" + s.sample_id;
+          var row = el("div", { class: "sample-row" });
+          var playBtn = el("button", { class: "btn btn-ghost btn-icon" }, [svgPlay()]);
+          var cachedUrl = null;
+          playBtn.addEventListener("click", function () {
+            if (playingKey === key) { stopAudio(); return; }
+            if (cachedUrl) { playAudio(key, cachedUrl); return; }
+            playBtn.disabled = true;
+            elDownloadSample(v.voice_id, s.sample_id).then(function (blob) {
+              cachedUrl = URL.createObjectURL(blob);
+              playAudio(key, cachedUrl);
+            }).catch(function (e) { toast(fmtErr(e)); }).then(function () { playBtn.disabled = false; });
+          });
+          playStateListeners.push(function (k) { playBtn.innerHTML = ""; playBtn.appendChild(k === key ? svgStop() : svgPlay()); });
+          row.appendChild(playBtn);
+          row.appendChild(el("span", { class: "fname grow" }, [s.file_name || "campione"]));
+          listEl.appendChild(row);
+        });
+      }).catch(function (e) {
+        card.style.display = "";
+        errEl.textContent = "Non riesco a caricare i campioni originali: " + fmtErr(e);
+        errEl.style.display = "";
+      });
+    } else {
+      if (!v.samples || !v.samples.length) { card.style.display = "none"; return; }
+      card.style.display = "";
+      localVoiceSampleBlobUrls(v).forEach(function (s) {
+        var key = "orig-" + s.url;
+        var row = el("div", { class: "sample-row" });
+        var playBtn = el("button", { class: "btn btn-ghost btn-icon" }, [svgPlay()]);
+        playBtn.addEventListener("click", function () { playingKey === key ? stopAudio() : playAudio(key, s.url); });
+        playStateListeners.push(function (k) { playBtn.innerHTML = ""; playBtn.appendChild(k === key ? svgStop() : svgPlay()); });
+        row.appendChild(playBtn);
+        row.appendChild(el("span", { class: "fname grow" }, [s.name]));
+        listEl.appendChild(row);
+      });
+    }
+  }
+
+  $("#tts-sample-phrase").addEventListener("click", function () { $("#tts-text").value = SAMPLE_TEXT; });
+
+  $("#tts-dictate").addEventListener("click", function () {
+    if (!SpeechRec) { toast("Riconoscimento vocale non disponibile in questo browser (prova Chrome)."); return; }
+    var rec = new SpeechRec();
+    rec.lang = "it-IT"; rec.interimResults = false; rec.maxAlternatives = 1;
+    var btn = this;
+    rec.onstart = function () { btn.classList.add("recording"); };
+    rec.onend = function () { btn.classList.remove("recording"); };
+    rec.onerror = function () { btn.classList.remove("recording"); };
+    rec.onresult = function (e) {
+      var text = e.results[0][0].transcript;
+      var ta = $("#tts-text");
+      ta.value = ta.value.trim() ? ta.value.trim() + " " + text : text;
+    };
+    rec.start();
+  });
+
+  var ttsHistory = []; // {id,label,voiceName,url,createdAt}
+  $("#tts-generate").addEventListener("click", function () {
+    var v = currentTtsVoice();
+    var text = $("#tts-text").value.trim();
+    var errEl = $("#tts-error"); errEl.style.display = "none";
+    if (!v) { errEl.textContent = "Seleziona una voce"; errEl.style.display = ""; return; }
+    if (!text) { errEl.textContent = "Scrivi (o detta) il testo da leggere"; errEl.style.display = ""; return; }
+    if (state.backend === "self_hosted" && !v.samples) { errEl.textContent = "Questa voce non ha campioni"; errEl.style.display = ""; return; }
+
+    var btn = this; btn.disabled = true; btn.textContent = "Genero l'audio…";
+    var done = function () { btn.disabled = false; btn.textContent = "Genera audio"; };
+
+    var task = state.backend === "elevenlabs"
+      ? elTextToSpeech(v.voice_id, text, $("#tts-model").value, "it", settingsFor(v.voice_id))
+      : xttsSpeak(state.serverUrl, text, state.selfHostedSpeed, localVoiceSampleFiles(v));
+
+    task.then(function (blob) {
+      var url = URL.createObjectURL(blob);
+      var entry = { id: "tts_" + Date.now(), label: text, voiceName: v.name, url: url, createdAt: Date.now() };
+      ttsHistory.unshift(entry);
+      renderTtsHistory();
+      playAudio(entry.id, url);
+    }).catch(function (e) { errEl.textContent = fmtErr(e); errEl.style.display = ""; }).then(done);
+  });
+
+  function renderTtsHistory() { renderHistory($("#tts-history"), ttsHistory); }
+  function renderHistory(host, list) {
+    host.innerHTML = "";
+    if (!list.length) return;
+    host.appendChild(el("strong", { style: "font-size:13.5px; display:block; margin:6px 0 10px;" }, ["Cronologia (questa sessione)"]));
+    var wrap = el("div", { class: "stack", style: "gap:8px;" });
+    list.forEach(function (item) {
+      var card = el("div", { class: "card history-item" });
+      var playBtn = el("button", { class: "btn btn-ghost btn-icon" }, [svgPlay()]);
+      playBtn.addEventListener("click", function () { playingKey === item.id ? stopAudio() : playAudio(item.id, item.url); });
+      playStateListeners.push(function (k) { playBtn.innerHTML = ""; playBtn.appendChild(k === item.id ? svgStop() : svgPlay()); });
+      var info = el("div", { class: "info grow" }, [
+        el("div", { class: "label" }, [item.label]),
+        el("div", { class: "meta" }, [item.voiceName + " · " + new Date(item.createdAt).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })])
+      ]);
+      var dl = el("a", { class: "btn btn-ghost btn-icon", href: item.url, download: (item.voiceName + "_" + item.id + ".mp3").replace(/\s+/g, "_") }, [svgDownload()]);
+      card.appendChild(playBtn); card.appendChild(info); card.appendChild(dl);
+      wrap.appendChild(card);
+    });
+    host.appendChild(wrap);
+  }
+
+  /* ============================== Conversion view ============================== */
+  var convSource = null; // {file, url}
+  var convRec = null;
+  function refreshConversionView() {
+    var unavailable = state.backend !== "elevenlabs";
+    $("#conversion-unavailable").style.display = unavailable ? "" : "none";
+    $("#conversion-body").style.display = unavailable ? "none" : "";
+    if (unavailable) return;
+    elListVoices().then(function (voices) {
+      voicesCache = voices;
+      var sel = $("#conv-voice"); sel.innerHTML = "";
+      voices.forEach(function (v) { sel.appendChild(el("option", { value: v.voice_id }, [v.name])); });
+      renderConvSettings();
+    }).catch(function (e) { toast(fmtErr(e)); });
+  }
+  $("#conv-voice").addEventListener("change", renderConvSettings);
+  function renderConvSettings() {
+    var id = $("#conv-voice").value;
+    if (!id) return;
+    renderSettingsPanel($("#conv-settings-card"), settingsFor(id), { showSpeed: false, showSpeakerBoost: true }, function (next) {
+      saveSettingsFor(id, next); renderConvSettings();
+    });
+  }
+  function setConvSource(file) {
+    convSource = { file: file, url: URL.createObjectURL(file) };
+    var card = $("#conv-source-card");
+    card.style.display = "";
+    card.innerHTML = "";
+    card.appendChild(el("div", { class: "row" }, [
+      el("button", { class: "btn btn-ghost btn-icon", onclick: function () { playingKey === "conv-src" ? stopAudio() : playAudio("conv-src", convSource.url); } }, [svgPlay()]),
+      el("span", { class: "fname" }, ["Audio sorgente: " + file.name])
+    ]));
+  }
+  $("#conv-file").addEventListener("change", function (e) { if (e.target.files[0]) setConvSource(e.target.files[0]); e.target.value = ""; });
+  $("#conv-record").addEventListener("click", function () {
+    var btn = this;
+    if (convRec && convRec.state === "recording") { convRec.stop(); btn.classList.remove("recording"); btn.innerHTML = ""; btn.appendChild(svgMic()); btn.appendChild(document.createTextNode(" Registra")); return; }
+    recordMic(
+      function (rec) { convRec = rec; btn.classList.add("recording"); btn.innerHTML = ""; btn.appendChild(svgStop()); btn.appendChild(document.createTextNode(" Ferma")); },
+      function (blob) { setConvSource(new File([blob], "registrazione.webm", { type: blob.type })); }
+    ).catch(function (e) { toast("Microfono non disponibile: " + fmtErr(e)); });
+  });
+
+  var convHistory = [];
+  $("#conv-generate").addEventListener("click", function () {
+    var errEl = $("#conv-error"); errEl.style.display = "none";
+    var voiceId = $("#conv-voice").value;
+    var voiceName = (voicesCache.find(function (v) { return v.voice_id === voiceId; }) || {}).name || "";
+    if (!voiceId) { errEl.textContent = "Seleziona una voce"; errEl.style.display = ""; return; }
+    if (!convSource) { errEl.textContent = "Registra o importa un audio sorgente"; errEl.style.display = ""; return; }
+    var btn = this; btn.disabled = true; btn.textContent = "Converto…";
+    var done = function () { btn.disabled = false; btn.textContent = "Converti"; };
+    elSpeechToSpeech(voiceId, convSource.file, settingsFor(voiceId), $("#conv-denoise").checked)
+      .then(function (blob) {
+        var url = URL.createObjectURL(blob);
+        var entry = { id: "conv_" + Date.now(), label: convSource.file.name, voiceName: voiceName, url: url, createdAt: Date.now() };
+        convHistory.unshift(entry);
+        renderHistory($("#conv-history"), convHistory);
+        playAudio(entry.id, url);
+      }).catch(function (e) { errEl.textContent = fmtErr(e); errEl.style.display = ""; }).then(done);
+  });
+
+  /* ============================== Settings view ============================== */
+  function refreshSettingsView() {
+    $all("#settings-backend-toggle button").forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.backend === state.backend ? "true" : "false"); });
+    $("#settings-self-hosted").style.display = state.backend === "self_hosted" ? "" : "none";
+    $("#settings-elevenlabs").style.display = state.backend === "elevenlabs" ? "" : "none";
+    $("#settings-server-url").value = state.serverUrl || "";
+    $("#settings-api-key").value = state.apiKey || "";
+    $("#settings-server-status").textContent = "";
+    $("#settings-key-status").textContent = "";
+  }
+  $all("#settings-backend-toggle button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      state.backend = b.dataset.backend; saveState(); updateBackendChip(); refreshSettingsView();
+    });
+  });
+  $("#settings-server-verify").addEventListener("click", function () {
+    var url = $("#settings-server-url").value.trim();
+    var status = $("#settings-server-status");
+    xttsCheck(url).then(function () {
+      state.serverUrl = url; saveState(); status.textContent = "Connessione OK."; status.style.color = "var(--success)";
+    }).catch(function (e) { status.textContent = fmtErr(e); status.style.color = "var(--coral)"; });
+  });
+  $("#settings-key-verify").addEventListener("click", function () {
+    var key = $("#settings-api-key").value.trim();
+    var status = $("#settings-key-status");
+    var prev = state.apiKey; state.apiKey = key;
+    elListVoices().then(function () {
+      saveState(); status.textContent = "Connessione OK — chiave valida."; status.style.color = "var(--success)";
+    }).catch(function (e) { state.apiKey = prev; status.textContent = fmtErr(e); status.style.color = "var(--coral)"; });
+  });
+  $("#settings-reset").addEventListener("click", function () {
+    if (!confirm("Cancellare chiave API, indirizzo server e voci locali salvate in questo browser?")) return;
+    localStorage.removeItem(LS_KEY);
+    dbPromise.then(function (db) {
+      var tx = db.transaction("voices", "readwrite");
+      tx.objectStore("voices").clear();
+      tx.oncomplete = function () { location.reload(); };
+    });
+  });
+
+  /* ============================== Boot ============================== */
+  if (state.configured) {
+    enterApp();
+  }
+})();
+</script>
