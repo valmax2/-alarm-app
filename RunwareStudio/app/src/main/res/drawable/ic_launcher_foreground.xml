@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive-icon foreground layer. Kept inside the ~66dp safe zone centered at (54,54) so
+     nothing is clipped by circular, squircle, or rounded-square launcher masks. A stylised
+     "prompt -> image" spark: a text cursor morphing into a picture frame. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Picture frame -->
+    <path
+        android:pathData="M28,34 L80,34 A6,6 0,0 1,86 40 L86,74 A6,6 0,0 1,80 80 L28,80 A6,6 0,0 1,22 74 L22,40 A6,6 0,0 1,28 34 Z"
+        android:strokeColor="#F5A623"
+        android:strokeWidth="4.4"
+        android:fillColor="#00000000" />
+    <!-- Mountain / image glyph inside the frame -->
+    <path
+        android:pathData="M30,70 L46,50 L58,64 L68,52 L80,70"
+        android:strokeColor="#F5A623"
+        android:strokeWidth="4.4"
+        android:fillColor="#00000000"
+        android:strokeLineJoin="round"
+        android:strokeLineCap="round" />
+    <!-- Sun / generation spark -->
+    <path
+        android:pathData="M70,44m-5,0a5,5 0,1 1,10 0a5,5 0,1 1,-10 0"
+        android:fillColor="#F5A623" />
+</vector>

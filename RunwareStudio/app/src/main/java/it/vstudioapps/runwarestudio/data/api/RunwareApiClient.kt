@@ -1,0 +1,229 @@
+package it.vstudioapps.runwarestudio.data.api
+
+import it.vstudioapps.runwarestudio.BuildConfig
+import java.io.IOException
+import java.util.UUID
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
+import kotlin.math.roundToInt
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+
+/**
+ * Thin client for Runware's REST API: a single endpoint (POST /v1) that accepts a JSON array
+ * of tasks and returns a JSON array of results, matched by taskUUID. No SDK dependency —
+ * the protocol is simple enough that OkHttp + kotlinx.serialization cover it directly.
+ *
+ * [apiKeyProvider] is read fresh on every call instead of captured once, so a key the user
+ * just pasted into Settings is picked up immediately without recreating this client.
+ */
+class RunwareApiClient(
+    private val apiKeyProvider: suspend () -> String?,
+    private val baseUrl: String = BuildConfig.RUNWARE_API_BASE_URL
+) {
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(120, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .build()
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        explicitNulls = false
+    }
+
+    /** Uploads one reference image (as a `data:<mime>;base64,...` URI) and returns the
+     *  imageUUID Runware assigns it, which imageInference then references by id — see
+     *  runware.ai/docs/utilities/image-upload. */
+    suspend fun uploadImage(dataUri: String): Result<String> = withContext(Dispatchers.IO) {
+        val taskUUID = UUID.randomUUID().toString()
+        val body = buildJsonArray {
+            addJsonObject {
+                put("taskType", "imageUpload")
+                put("taskUUID", taskUUID)
+                put("image", dataUri)
+            }
+        }
+        executeRaw(body).mapCatching { envelope ->
+            val result = envelope.data?.firstOrNull { it.taskUUID == taskUUID }
+                ?: throw RunwareException(
+                    envelope.errors?.firstOrNull()?.message
+                        ?: envelope.error?.message
+                        ?: "Caricamento immagine di riferimento non riuscito"
+                )
+            result.imageUUID ?: throw RunwareException("Runware non ha restituito un imageUUID")
+        }
+    }
+
+    /** Runs one imageInference task and returns every result image it produced
+     *  (numberResults > 1 means several images share the same taskUUID). */
+    suspend fun generateImages(request: ImageInferenceRequest): Result<List<GeneratedImage>> =
+        withContext(Dispatchers.IO) {
+            val taskUUID = UUID.randomUUID().toString()
+            val body = buildJsonArray {
+                addJsonObject {
+                    put("taskType", "imageInference")
+                    put("taskUUID", taskUUID)
+                    put("positivePrompt", request.positivePrompt)
+                    if (request.negativePrompt.isNotBlank()) {
+                        put("negativePrompt", request.negativePrompt)
+                    }
+                    put("model", request.model)
+                    put("width", request.width)
+                    put("height", request.height)
+                    put("steps", request.steps)
+                    put("CFGScale", request.cfgScale)
+                    put("numberResults", request.numberResults)
+                    if (!request.scheduler.equals("Default", ignoreCase = true)) {
+                        put("scheduler", request.scheduler)
+                    }
+                    request.seed?.let { put("seed", it) }
+                    put("outputType", "URL")
+                    put("outputFormat", "PNG")
+                    put("checkNSFW", request.checkNsfw)
+
+                    if (request.referenceImageUUIDs.isNotEmpty()) {
+                        when (request.referenceMode) {
+                            // Confirmed against Runware's own Python SDK source (runware.ai itself
+                            // is unreachable from this environment): acePlusPlus is a nested object
+                            // on the imageInference task, not a top-level `referenceImages` array —
+                            // sending it as a bare array silently falls through to FLUX Fill's plain
+                            // inpainting mode, which then demands a maskImage we don't have.
+                            // "subject" is the creation workflow (reference photo, no mask) as
+                            // opposed to "local_editing" (requires inputMasks) or "portrait".
+                            // repaintingScale runs opposite to our slider: 0 = keep identity, 1 =
+                            // follow the prompt — so it's inverted from the "Forza del riferimento"
+                            // the user tunes (higher = more identity preserved).
+                            ReferenceMode.ACE_PLUS_PLUS -> putJsonObject("acePlusPlus") {
+                                putJsonArray("inputImages") {
+                                    request.referenceImageUUIDs.forEach { add(it) }
+                                }
+                                put("type", "subject")
+                                put("repaintingScale", 1f - request.referenceStrength)
+                            }
+                            // Same source: puLID.inputImages, not puLID.images — and idWeight is an
+                            // integer 0-3 (default 1), not the 0.1-1.0 fraction our slider uses.
+                            // trueCFGScale and CFGStartStep are mutually exclusive (confirmed live:
+                            // "'puLID.trueCFGScale' cannot be set when puLID.CFGStartStep... is
+                            // provided") — leave both out and let Runware apply its own defaults
+                            // rather than guess which one to keep.
+                            ReferenceMode.PULID -> putJsonObject("puLID") {
+                                putJsonArray("inputImages") {
+                                    request.referenceImageUUIDs.forEach { add(it) }
+                                }
+                                val idWeight = (request.referenceStrength * 3f).roundToInt().coerceIn(0, 3)
+                                put("idWeight", idWeight)
+                            }
+                            ReferenceMode.IMG2IMG -> {
+                                put("seedImage", request.referenceImageUUIDs.first())
+                                put("strength", request.referenceStrength)
+                            }
+                            ReferenceMode.NONE -> {}
+                        }
+                    }
+                }
+            }
+            executeRaw(body).mapCatching { envelope ->
+                val results = envelope.data?.filter { it.taskUUID == taskUUID }
+                if (results.isNullOrEmpty()) {
+                    val message = envelope.errors?.firstOrNull()?.message
+                        ?: envelope.error?.message
+                        ?: "Generazione non riuscita: risposta vuota da Runware"
+                    throw RunwareException(message)
+                }
+                results.map {
+                    GeneratedImage(
+                        taskUUID = it.taskUUID ?: taskUUID,
+                        imageUUID = it.imageUUID,
+                        remoteUrl = it.imageURL,
+                        base64 = it.imageBase64Data,
+                        seed = it.seed
+                    )
+                }
+            }
+        }
+
+    /** Round-trips a trivial 1-step generation just to validate the API key from Settings'
+     *  "Testa connessione" button, without spending real generation credits/time. */
+    suspend fun testConnection(): Result<Unit> = withContext(Dispatchers.IO) {
+        val taskUUID = UUID.randomUUID().toString()
+        val body = buildJsonArray {
+            addJsonObject {
+                put("taskType", "imageInference")
+                put("taskUUID", taskUUID)
+                put("positivePrompt", "connection test")
+                put("model", "runware:100@1")
+                put("width", 512)
+                put("height", 512)
+                put("steps", 1)
+                put("CFGScale", 1)
+                put("numberResults", 1)
+                put("outputType", "URL")
+                put("outputFormat", "PNG")
+                put("checkNSFW", true)
+            }
+        }
+        executeRaw(body).mapCatching { envelope ->
+            if (envelope.data.isNullOrEmpty()) {
+                val message = envelope.errors?.firstOrNull()?.message
+                    ?: envelope.error?.message
+                    ?: "La API key non sembra valida"
+                throw RunwareException(message)
+            }
+        }
+    }
+
+    private suspend fun executeRaw(body: JsonArray): Result<RunwareEnvelope> {
+        val apiKey = apiKeyProvider()
+        if (apiKey.isNullOrBlank()) {
+            return Result.failure(RunwareException("Inserisci la tua API key di Runware nelle Impostazioni"))
+        }
+        val httpRequest = Request.Builder()
+            .url(baseUrl)
+            .addHeader("Authorization", "Bearer $apiKey")
+            .addHeader("Content-Type", "application/json")
+            .post(body.toString().toRequestBody("application/json".toMediaType()))
+            .build()
+
+        // Mobile connections drop mid-request often enough (network switch, brief signal loss)
+        // that a bare IOException ("Software caused connection abort" and friends) on the very
+        // first attempt shouldn't be shown to the user as a failure — one silent retry clears
+        // the vast majority of these. A second failure is treated as real.
+        var lastIoError: IOException? = null
+        repeat(2) { attempt ->
+            try {
+                client.newCall(httpRequest).execute().use { response ->
+                    val text = response.body?.string().orEmpty()
+                    return if (text.isBlank()) {
+                        Result.failure(RunwareException("Errore di rete: HTTP ${response.code}"))
+                    } else {
+                        Result.success(json.decodeFromString(RunwareEnvelope.serializer(), text))
+                    }
+                }
+            } catch (e: IOException) {
+                lastIoError = e
+                if (attempt == 0) delay(1500)
+            } catch (e: Exception) {
+                return Result.failure(RunwareException(e.message ?: "Errore di connessione a Runware", e))
+            }
+        }
+        return Result.failure(
+            RunwareException(
+                "Connessione persa con Runware. Controlla la connessione internet e riprova.",
+                lastIoError
+            )
+        )
+    }
+}
