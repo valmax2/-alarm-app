@@ -1,0 +1,8 @@
+# torch e numpy sono quasi certamente gia' installati dall'ambiente ComfyUI
+# stesso: sono elencati qui solo per completezza.
+torch
+numpy
+opencv-python
+Pillow
+transformers>=4.45.0
+imageio-ffmpeg
