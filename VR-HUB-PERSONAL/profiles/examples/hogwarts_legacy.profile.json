@@ -1,0 +1,29 @@
+{
+  "gameId": "hogwarts_legacy",
+  "title": "Hogwarts Legacy",
+  "engine": "UnrealEngine4",
+  "engineConfidence": "probable",
+  "platforms": ["steam", "manual"],
+  "vrModes": ["pcvr"],
+  "provider": "uevr",
+  "runtime": "openxr",
+  "controllers": {
+    "gamepad": "good",
+    "keyboardMouse": "good",
+    "questTouch": "good",
+    "motionController": "good"
+  },
+  "recommendedSettings": {
+    "motionBlur": "off",
+    "dlssFrameGeneration": "off",
+    "taa": "off",
+    "preset": "UEVR profilo community",
+    "notes": ["Motore Unreal Engine 4: buon candidato per iniezione UEVR generica."]
+  },
+  "launch": null,
+  "sources": [],
+  "schemaVersion": 1,
+  "profileVersion": "0.1.0",
+  "testedStatus": "to_verify",
+  "compatibility": "unknown"
+}

@@ -1,0 +1,49 @@
+{
+  "name": "vr-hub-personal",
+  "version": "0.1.0",
+  "description": "Libreria personale Flat-to-VR: rileva i giochi Steam/Non-Steam, li configura per la VR e li avvia con un tasto.",
+  "private": true,
+  "main": "dist/main/index.js",
+  "author": "valmax2",
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/copy-renderer.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "start": "npm run build && electron .",
+    "dist:win": "npm run build && electron-builder --win --x64"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "electron": "^31.2.0",
+    "electron-builder": "^24.13.3",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  },
+  "build": {
+    "appId": "com.valmax2.vrhubpersonal",
+    "productName": "VR HUB PERSONAL",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "database/**/*",
+      "profiles/**/*",
+      "assets/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

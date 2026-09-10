@@ -1,0 +1,186 @@
+{
+  "schema": 1,
+  "databaseVersion": "2026.09.10",
+  "entries": [
+    {
+      "gameId": "bioshock2",
+      "title": "BioShock 2",
+      "aliases": ["Bioshock 2 Remastered", "BioShock 2 Remastered"],
+      "steamAppId": "8850",
+      "exeNameHints": ["BioShock2", "Bioshock2Launcher"],
+      "profile": {
+        "gameId": "bioshock2",
+        "title": "BioShock 2",
+        "engine": "Unknown",
+        "engineConfidence": "unknown",
+        "platforms": ["steam", "manual"],
+        "vrModes": ["pcvr"],
+        "provider": "native",
+        "runtime": "openxr",
+        "controllers": {
+          "gamepad": "good",
+          "keyboardMouse": "good",
+          "questTouch": "experimental",
+          "motionController": "experimental",
+          "limitations": ["Mod nativa di terze parti richiesta; nessuna iniezione UEVR (motore non Unreal)."]
+        },
+        "recommendedSettings": {
+          "motionBlur": "off",
+          "dlssFrameGeneration": "off",
+          "taa": "off",
+          "notes": ["Usare la mod Flat2VR nativa dedicata a BioShock 2, non UEVR (il gioco non usa Unreal Engine)."]
+        },
+        "launch": null,
+        "sources": [],
+        "schemaVersion": 1,
+        "profileVersion": "0.1.0",
+        "testedStatus": "to_verify",
+        "compatibility": "unknown",
+        "knownIssues": [
+          { "description": "Nessuna fonte ufficiale con release verificata inclusa in questa build.", "workaround": "Verificare manualmente su Flat2VR community prima di installare." }
+        ]
+      }
+    },
+    {
+      "gameId": "quake",
+      "title": "Quake",
+      "aliases": ["Quake Remastered", "Quake 1"],
+      "steamAppId": "2310",
+      "exeNameHints": ["quake", "winquake", "nquake"],
+      "profile": {
+        "gameId": "quake",
+        "title": "Quake",
+        "engine": "idTech",
+        "engineConfidence": "probable",
+        "platforms": ["steam", "manual"],
+        "vrModes": ["pcvr", "quest_standalone"],
+        "provider": "native",
+        "runtime": "openxr",
+        "controllers": {
+          "gamepad": "good",
+          "keyboardMouse": "good",
+          "questTouch": "good",
+          "motionController": "good"
+        },
+        "recommendedSettings": {
+          "motionBlur": "off",
+          "dlssFrameGeneration": "off",
+          "taa": "off",
+          "notes": ["Esistono port/mod VR dedicati per id Tech 1 (es. QuakeVR); nessuna iniezione UEVR (motore non Unreal)."]
+        },
+        "launch": null,
+        "sources": [],
+        "schemaVersion": 1,
+        "profileVersion": "0.1.0",
+        "testedStatus": "to_verify",
+        "compatibility": "unknown"
+      }
+    },
+    {
+      "gameId": "quake2",
+      "title": "Quake II",
+      "aliases": ["Quake 2", "Quake II Remastered"],
+      "steamAppId": "2320",
+      "exeNameHints": ["quake2", "q2"],
+      "profile": {
+        "gameId": "quake2",
+        "title": "Quake II",
+        "engine": "idTech",
+        "engineConfidence": "probable",
+        "platforms": ["steam", "manual"],
+        "vrModes": ["pcvr", "quest_standalone"],
+        "provider": "native",
+        "runtime": "openxr",
+        "controllers": {
+          "gamepad": "good",
+          "keyboardMouse": "good",
+          "questTouch": "good",
+          "motionController": "good"
+        },
+        "recommendedSettings": {
+          "motionBlur": "off",
+          "dlssFrameGeneration": "off",
+          "taa": "off",
+          "notes": ["Esistono port/mod VR dedicati per id Tech 2 (es. Quake2VR); nessuna iniezione UEVR (motore non Unreal)."]
+        },
+        "launch": null,
+        "sources": [],
+        "schemaVersion": 1,
+        "profileVersion": "0.1.0",
+        "testedStatus": "to_verify",
+        "compatibility": "unknown"
+      }
+    },
+    {
+      "gameId": "doom",
+      "title": "DOOM",
+      "aliases": ["DOOM 2016", "DOOM (2016)"],
+      "steamAppId": "379720",
+      "exeNameHints": ["DOOMx64vk", "DOOM"],
+      "profile": {
+        "gameId": "doom",
+        "title": "DOOM",
+        "engine": "idTech",
+        "engineConfidence": "probable",
+        "platforms": ["steam", "manual"],
+        "vrModes": ["pcvr"],
+        "provider": "native",
+        "runtime": "openxr",
+        "controllers": {
+          "gamepad": "good",
+          "keyboardMouse": "good",
+          "questTouch": "experimental",
+          "motionController": "experimental"
+        },
+        "recommendedSettings": {
+          "motionBlur": "off",
+          "dlssFrameGeneration": "off",
+          "taa": "off",
+          "notes": ["id Tech 6: nessuna iniezione UEVR. Verificare mod Flat2VR dedicata prima di procedere."]
+        },
+        "launch": null,
+        "sources": [],
+        "schemaVersion": 1,
+        "profileVersion": "0.1.0",
+        "testedStatus": "to_verify",
+        "compatibility": "unknown"
+      }
+    },
+    {
+      "gameId": "hogwarts_legacy",
+      "title": "Hogwarts Legacy",
+      "aliases": [],
+      "steamAppId": "990080",
+      "exeNameHints": ["HogwartsLegacy-Win64-Shipping"],
+      "profile": {
+        "gameId": "hogwarts_legacy",
+        "title": "Hogwarts Legacy",
+        "engine": "UnrealEngine4",
+        "engineConfidence": "probable",
+        "platforms": ["steam", "manual"],
+        "vrModes": ["pcvr"],
+        "provider": "uevr",
+        "runtime": "openxr",
+        "controllers": {
+          "gamepad": "good",
+          "keyboardMouse": "good",
+          "questTouch": "good",
+          "motionController": "good"
+        },
+        "recommendedSettings": {
+          "motionBlur": "off",
+          "dlssFrameGeneration": "off",
+          "taa": "off",
+          "preset": "UEVR profilo community",
+          "notes": ["Motore Unreal Engine 4: buon candidato per iniezione UEVR generica."]
+        },
+        "launch": null,
+        "sources": [],
+        "schemaVersion": 1,
+        "profileVersion": "0.1.0",
+        "testedStatus": "to_verify",
+        "compatibility": "unknown"
+      }
+    }
+  ]
+}
