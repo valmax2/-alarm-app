@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline';" />
+    <title>VR HUB PERSONAL</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">VR</span>
+          <span class="brand-name">HUB <strong>PERSONAL</strong></span>
+        </div>
+        <div class="search-wrap">
+          <input id="search-input" type="text" placeholder="CERCA GIOCO — titolo, motore, stato, Quest..." />
+        </div>
+        <div class="topbar-actions">
+          <button id="rescan-btn" class="btn btn-ghost" title="Rileva di nuovo Steam e ricontrolla i giochi Non-Steam">
+            RISCAN LIBRERIA
+          </button>
+          <button id="settings-btn" class="btn btn-icon" title="Impostazioni">⚙</button>
+        </div>
+      </header>
+
+      <div class="layout">
+        <aside class="sidebar">
+          <div class="sidebar-title">FILTRI</div>
+          <button class="filter-chip active" data-filter="all">Tutti</button>
+          <button class="filter-chip" data-filter="ready">Pronti VR</button>
+          <button class="filter-chip" data-filter="configuration_required">Da configurare</button>
+          <button class="filter-chip" data-filter="pcvr">PCVR</button>
+          <button class="filter-chip" data-filter="quest">Quest</button>
+          <button class="filter-chip" data-filter="update_available">Aggiornamenti</button>
+          <button class="filter-chip" data-filter="not_compatible">Non compatibili</button>
+
+          <div class="sidebar-footer">
+            <div id="catalog-info" class="catalog-info">Catalogo: caricamento…</div>
+          </div>
+        </aside>
+
+        <main class="content">
+          <section class="library-section">
+            <div class="section-header">
+              <h2>STEAM</h2>
+            </div>
+            <div id="steam-grid" class="game-grid"></div>
+            <p id="steam-empty" class="empty-hint" hidden>
+              Nessun gioco Steam rilevato. Controlla il percorso Steam nelle Impostazioni, poi premi "RISCAN LIBRERIA".
+            </p>
+          </section>
+
+          <section class="library-section">
+            <div class="section-header">
+              <h2>NON-STEAM</h2>
+              <button id="add-nonsteam-btn" class="btn btn-primary">+ AGGIUNGI GIOCO NON-STEAM</button>
+            </div>
+            <div id="nonsteam-grid" class="game-grid"></div>
+            <p id="nonsteam-empty" class="empty-hint" hidden>
+              Nessun gioco Non-Steam in libreria. Usa "+ AGGIUNGI GIOCO NON-STEAM" e scegli la cartella di installazione.
+            </p>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <!-- Overlay scheda gioco -->
+    <div id="detail-overlay" class="overlay" hidden>
+      <div class="panel detail-panel">
+        <button class="panel-close" data-close="detail-overlay">✕</button>
+        <div id="detail-content"></div>
+      </div>
+    </div>
+
+    <!-- Overlay impostazioni -->
+    <div id="settings-overlay" class="overlay" hidden>
+      <div class="panel settings-panel">
+        <button class="panel-close" data-close="settings-overlay">✕</button>
+        <h2>Impostazioni</h2>
+        <div id="settings-content"></div>
+      </div>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

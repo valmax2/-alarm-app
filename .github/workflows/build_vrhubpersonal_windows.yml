@@ -1,0 +1,76 @@
+name: Build VR HUB PERSONAL (Windows)
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'VR-HUB-PERSONAL/**'
+      - '.github/workflows/build_vrhubpersonal_windows.yml'
+  pull_request:
+    paths:
+      - 'VR-HUB-PERSONAL/**'
+      - '.github/workflows/build_vrhubpersonal_windows.yml'
+  workflow_dispatch: # Permette di avviare la build manualmente da GitHub
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # Windows reale: qui, e solo qui, viene verificato che l'app compili davvero
+    # per la sua piattaforma di destinazione (la sandbox di sviluppo è Linux
+    # e non ha Electron Windows disponibile, vedi AUDIT_ORIGINALE.md §3).
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: VR-HUB-PERSONAL
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: VR-HUB-PERSONAL/package-lock.json
+
+      - name: Installa le dipendenze
+        run: npm ci
+
+      # Logica core (Steam scanner, Non-Steam scanner, database, provider UEVR,
+      # backup/manifest, launch planner): stessi test eseguiti in sandbox Linux
+      # durante lo sviluppo, qui rieseguiti su Windows reale.
+      - name: Esegui i test
+        run: npm test
+
+      - name: Verifica i tipi TypeScript
+        run: npx tsc -p tsconfig.json --noEmit
+
+      - name: Leggi la versione dell'app
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Compila l'installer Windows (electron-builder)
+        run: npm run dist:win
+
+      - name: Rinomina l'installer con la versione
+        shell: bash
+        run: |
+          mkdir -p release/renamed
+          SETUP_FILE=$(ls release/*.exe | head -n1)
+          cp "$SETUP_FILE" "release/renamed/VRHubPersonal-v${{ steps.version.outputs.version }}-setup.exe"
+
+      # Pubblicato solo come artifact di Actions (richiede login GitHub per il
+      # download): a differenza delle APK Android di questo stesso repo, non
+      # viene copiato in docs/downloads/ perché un installer Electron/NSIS pesa
+      # tipicamente 80-150MB, troppo per essere committato a ogni build senza far
+      # crescere rapidamente le dimensioni della cronologia Git (vedi KNOWN_ISSUES.md).
+      - name: Carica l'installer come artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VRHubPersonal-v${{ steps.version.outputs.version }}-setup
+          path: VR-HUB-PERSONAL/release/renamed/VRHubPersonal-v${{ steps.version.outputs.version }}-setup.exe
+          retention-days: 30

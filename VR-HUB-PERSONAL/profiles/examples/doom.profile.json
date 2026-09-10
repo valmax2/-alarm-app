@@ -1,0 +1,28 @@
+{
+  "gameId": "doom",
+  "title": "DOOM",
+  "engine": "idTech",
+  "engineConfidence": "probable",
+  "platforms": ["steam", "manual"],
+  "vrModes": ["pcvr"],
+  "provider": "native",
+  "runtime": "openxr",
+  "controllers": {
+    "gamepad": "good",
+    "keyboardMouse": "good",
+    "questTouch": "experimental",
+    "motionController": "experimental"
+  },
+  "recommendedSettings": {
+    "motionBlur": "off",
+    "dlssFrameGeneration": "off",
+    "taa": "off",
+    "notes": ["id Tech 6: nessuna iniezione UEVR. Verificare mod Flat2VR dedicata prima di procedere."]
+  },
+  "launch": null,
+  "sources": [],
+  "schemaVersion": 1,
+  "profileVersion": "0.1.0",
+  "testedStatus": "to_verify",
+  "compatibility": "unknown"
+}
