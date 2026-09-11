@@ -54,8 +54,44 @@ Il video risultante ha la persona ritagliata su sfondo verde puro. Va
 guardato con un player che sa **rimuovere il verde a runtime in
 passthrough** (vedi sezione dedicata più sotto): a quel punto la persona
 sembra fluttuare nella tua stanza reale, senza il rettangolo nero dietro.
-È un **ritaglio piatto** (non un vero ologramma volumetrico): ottimo
-frontalmente, ma non ha "volume" reale se ti sposti molto di lato.
+È un **ritaglio piatto** ("cartone"/cardboard cutout): ottimo
+frontalmente, ma non ha volume reale se ti sposti molto di lato — vedi
+il flusso 3 per aggiungere un po' di profondità reale al ritaglio.
+
+### 3) Persona ritagliata **+ profondità 3D** (cutout meno "piatto")
+
+```
+VRP_LoadVideo
+     │
+     ▼
+VRP_RemoveBackground   (ritaglio su sfondo verde chroma-key)
+     │
+     ▼
+VRP_EstimateDepth      (profondità stimata sulla persona ritagliata)
+     │
+     ▼
+VRP_DepthToStereoPair  (genera L/R con un po' di "pop" 3D)
+     │
+     ▼
+VRP_SideBySideCombine
+     │
+     ▼
+VRP_SaveVideoSBS
+```
+Workflow: `workflows/cutout_stereo_3d_quest3.json`
+
+Combina i due effetti: la persona è ritagliata (niente rettangolo/sfondo)
+**e** ha una minima profondità reale (es. la chitarra leggermente più
+avanti del busto), invece di essere un piano completamente piatto.
+Funziona bene perché lo sfondo, dopo il ritaglio, è un **verde uniforme**:
+anche se il warp stereo lo deforma leggermente, resta verde e non produce
+artefatti visibili — la deformazione "si vede" solo sulla persona, dove
+ha senso. Per guardarlo ti serve un player che supporti **contemporaneamente**
+SBS 3D e chroma-key passthrough (HereSphere lo fa: proiezione SBS +
+sfondo passthrough con chroma key, entrambi nelle impostazioni video del
+file). In questo workflow `max_shift_percent` parte più basso (1.0 invece
+di 1.5) per restare prudenti sui bordi del ritaglio; puoi alzarlo se il
+risultato ti sembra troppo piatto.
 
 Tutti i nodi fanno parte di questo pacchetto (`comfyui_vr_passthrough`) e
 non dipendono da altre estensioni ComfyUI di terze parti: niente rischio
@@ -204,5 +240,6 @@ ComfyUI-VR-Quest3-Passthrough/
 │   └── requirements.txt
 └── workflows/
     ├── 2d_to_sbs_quest3_passthrough.json        ← flusso 1: video 3D SBS
-    └── video_cutout_chromakey_quest3.json       ← flusso 2: persona ritagliata (cutout)
+    ├── video_cutout_chromakey_quest3.json       ← flusso 2: persona ritagliata (cutout piatto)
+    └── cutout_stereo_3d_quest3.json             ← flusso 3: cutout + profondità 3D
 ```
