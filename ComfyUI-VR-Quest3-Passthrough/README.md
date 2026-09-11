@@ -16,7 +16,9 @@ ambiente reale ripreso dalle telecamere del visore.
 > profondità), non una vera ripresa stereo: la qualità dipende da quanto
 > bene il modello stima la profondità della scena.
 
-## Come funziona la pipeline
+## Due flussi disponibili
+
+### 1) Video 3D Side-by-Side (schermo con profondità)
 
 ```
 VRP_LoadVideo
@@ -33,10 +35,35 @@ VRP_SideBySideCombine  (affianca L e R in un unico frame)
      ▼
 VRP_SaveVideoSBS  (scrive l'mp4 finale, rimuxa l'audio originale)
 ```
+Workflow: `workflows/2d_to_sbs_quest3_passthrough.json`
 
-Tutti e 5 i nodi fanno parte di questo pacchetto (`comfyui_vr_passthrough`)
-e non dipendono da altre estensioni ComfyUI di terze parti: niente rischio
-di incompatibilità quando altre estensioni aggiornano i loro nodi.
+### 2) Persona ritagliata senza sfondo ("effetto ologramma nella stanza")
+
+```
+VRP_LoadVideo
+     │
+     ▼
+VRP_RemoveBackground  (Robust Video Matting - rimuove lo sfondo, lo
+     │                  sostituisce con un verde chroma-key puro)
+     ▼
+VRP_SaveVideoSBS  (scrive l'mp4 finale, rimuxa l'audio originale)
+```
+Workflow: `workflows/video_cutout_chromakey_quest3.json`
+
+Il video risultante ha la persona ritagliata su sfondo verde puro. Va
+guardato con un player che sa **rimuovere il verde a runtime in
+passthrough** (vedi sezione dedicata più sotto): a quel punto la persona
+sembra fluttuare nella tua stanza reale, senza il rettangolo nero dietro.
+È un **ritaglio piatto** (non un vero ologramma volumetrico): ottimo
+frontalmente, ma non ha "volume" reale se ti sposti molto di lato.
+
+Tutti i nodi fanno parte di questo pacchetto (`comfyui_vr_passthrough`) e
+non dipendono da altre estensioni ComfyUI di terze parti: niente rischio
+di incompatibilità quando altre estensioni aggiornano i loro nodi (fa
+eccezione `VRP_RemoveBackground`, che al primo utilizzo scarica in
+automatico codice e pesi del modello Robust Video Matting da GitHub
+tramite `torch.hub` — serve una connessione a internet solo la prima
+volta).
 
 ## Installazione
 
@@ -102,6 +129,29 @@ come "video stereo Side-by-Side completo" senza doverlo impostare a mano.
    "Passthrough mode") per vedere lo schermo del video fluttuare nella tua
    stanza reale, mantenendo la profondità 3D generata.
 
+## Guardare il video "ritagliato" (chroma-key) sul Quest 3
+
+A differenza del video 3D SBS, questo file va aperto con un player che
+supporti la rimozione del verde **in modalità passthrough**:
+
+- **HereSphere** — nelle impostazioni video avanzate imposta lo sfondo su
+  "Passthrough" e attiva/regola il "chroma key" con l'icona a ingranaggio
+  vicino all'opzione mask.
+- **PLAY'A VR Video Player** — stessa idea, opzione dedicata alla rimozione
+  del verde per i video in passthrough.
+- **DeoVR** — supporta il passthrough AR con più modalità (tra cui "alpha
+  packing"); per il chroma-key semplice generato da questo workflow usa la
+  modalità passthrough classica del player.
+
+Passaggi tipici:
+1. Copia l'mp4 generato (con suffisso di default `quest3_cutout_...mp4`) sul
+   visore, o mettilo in streaming da PC.
+2. Apri l'app scelta, carica il file.
+3. Attiva la modalità passthrough e il chroma-key/green-screen removal
+   nelle impostazioni video di quel file.
+4. Posiziona/scala il pannello dove vuoi che "stia" la persona nella tua
+   stanza.
+
 ## Parametri principali (tuning)
 
 | Nodo | Parametro | Effetto |
@@ -111,6 +161,9 @@ come "video stereo Side-by-Side completo" senza doverlo impostare a mano.
 | Coppia Stereo L/R | `invert_depth` | Se l'effetto 3D ti sembra "al contrario" (gli oggetti vicini sembrano sprofondare invece di uscire verso di te), attiva questa opzione |
 | Combina Side-by-Side | `eye_width` | Risoluzione per singolo occhio (l'output finale sarà larga il doppio). 1920 è un buon compromesso qualità/peso file per Quest 3 |
 | Salva Video SBS | `crf` | Qualità di compressione H.264: più basso = qualità migliore ma file più grande (18 è visivamente quasi lossless, 23 è lo standard "buona qualità") |
+| Rimuovi Sfondo (Cutout) | `model_variant` | `mobilenetv3` = veloce, buono per la maggior parte dei casi; `resnet50` = più lento ma ritaglia meglio bordi difficili (capelli, dita) |
+| Rimuovi Sfondo (Cutout) | `chroma_color` | Verde di default (standard chroma-key); passa a blu solo se il soggetto indossa qualcosa di verde acceso (altrimenti il player rimuoverebbe anche quello) |
+| Rimuovi Sfondo (Cutout) | `downsample_ratio` | Risoluzione interna usata dal modello per calcolare la maschera: più bassa = più veloce ma bordi meno precisi. 0.25 è il default consigliato dagli autori per video HD |
 
 ## Limiti e cose da sapere
 
@@ -130,6 +183,15 @@ come "video stereo Side-by-Side completo" senza doverlo impostare a mano.
 - Questo flusso non genera video **360°** o **VR180** nativi: è pensato
   per contenuto "quasi piatto" (inquadratura fissa/action cam), non per
   filmati già ripresi con camere 360.
+- Il flusso "ritaglio/cutout" produce un **piano piatto**, non un vero
+  ologramma volumetrico: da davanti fermo l'illusione è convincente, ma
+  spostandoti molto di lato noti che non ha profondità reale (non puoi
+  girargli intorno). Un vero effetto "walk-around" richiederebbe una
+  ripresa multi-camera o un rig di volumetric capture professionale
+  (es. Depthkit/Metastage), non ottenibile da un singolo video normale.
+- `VRP_RemoveBackground` funziona meglio su una **persona ben illuminata,
+  con sfondo relativamente statico**; capelli mossi, motion blur forte o
+  più persone sovrapposte possono creare bordi imprecisi.
 
 ## Struttura dei file in questo progetto
 
@@ -141,5 +203,6 @@ ComfyUI-VR-Quest3-Passthrough/
 │   ├── nodes.py
 │   └── requirements.txt
 └── workflows/
-    └── 2d_to_sbs_quest3_passthrough.json        ← il workflow da caricare in ComfyUI
+    ├── 2d_to_sbs_quest3_passthrough.json        ← flusso 1: video 3D SBS
+    └── video_cutout_chromakey_quest3.json       ← flusso 2: persona ritagliata (cutout)
 ```

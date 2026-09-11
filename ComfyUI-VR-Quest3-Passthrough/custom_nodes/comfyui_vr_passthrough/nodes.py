@@ -4,12 +4,19 @@ video stereoscopico Side-by-Side pronto per essere guardato su Meta Quest 3
 (in passthrough / mixed reality, tramite app di terze parti come SKYBOX VR,
 DeoVR o Pigasus).
 
-Pipeline pensata:
+Pipeline "video 3D SBS":
     VRP_LoadVideo
         -> VRP_EstimateDepth
         -> VRP_DepthToStereoPair
         -> VRP_SideBySideCombine
         -> VRP_SaveVideoSBS
+
+Pipeline "persona ritagliata (cutout) per passthrough":
+    VRP_LoadVideo
+        -> VRP_RemoveBackground   (Robust Video Matting - rimuove lo sfondo,
+                                    lo sostituisce con un verde chroma-key)
+        -> VRP_SaveVideoSBS       (player come HereSphere/PLAY'A/DeoVR
+                                    rimuovono il verde a runtime in passthrough)
 
 Tutti i nodi sono autosufficienti (non dipendono da altre estensioni
 ComfyUI di terze parti), per evitare rotture quando quelle estensioni
@@ -352,12 +359,93 @@ class VRP_SaveVideoSBS:
         return (final_path,)
 
 
+# --------------------------------------------------------------------------- #
+# 6) Rimozione sfondo (persona "ritagliata" per passthrough con chroma-key)
+# --------------------------------------------------------------------------- #
+_RVM_MODEL_CACHE = {}
+
+
+class VRP_RemoveBackground:
+    """Rimuove lo sfondo da un video con una persona usando Robust Video
+    Matting (RVM): non serve un vero green screen, funziona anche su un
+    video normale, ed e' pensato apposta per i video (coerente tra un
+    frame e l'altro, non sfarfalla come farebbe un matting fotogramma per
+    fotogramma). Il risultato ha lo sfondo sostituito con un colore
+    chroma-key puro, pronto per la modalita' "Chroma Key / Green Screen
+    passthrough" di player come HereSphere, PLAY'A o DeoVR: il player
+    rimuove il verde a runtime e la persona sembra fluttuare nella tua
+    stanza reale.
+    """
+
+    _MODEL_VARIANTS = {
+        "mobilenetv3 (veloce)": "mobilenetv3",
+        "resnet50 (qualita' migliore)": "resnet50",
+    }
+    _CHROMA_COLORS = {
+        "Verde (0,255,0)": (0.0, 1.0, 0.0),
+        "Blu (0,0,255)": (0.0, 0.0, 1.0),
+    }
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "images": ("IMAGE",),
+                "model_variant": (list(cls._MODEL_VARIANTS.keys()), {"default": "mobilenetv3 (veloce)"}),
+                "chroma_color": (list(cls._CHROMA_COLORS.keys()), {"default": "Verde (0,255,0)"}),
+                "downsample_ratio": ("FLOAT", {"default": 0.25, "min": 0.1, "max": 1.0, "step": 0.05}),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE", "IMAGE")
+    RETURN_NAMES = ("chromakey_images", "alpha_mask")
+    FUNCTION = "remove_bg"
+    CATEGORY = "VR Passthrough/Cutout"
+
+    def _get_model(self, variant, device):
+        key = (variant, device)
+        if key not in _RVM_MODEL_CACHE:
+            # Scarica automaticamente pesi + codice del modello al primo
+            # utilizzo (richiede connessione a internet la prima volta,
+            # poi resta in cache locale di torch.hub).
+            model = torch.hub.load("PeterL1n/RobustVideoMatting", self._MODEL_VARIANTS[variant])
+            model = model.to(device).eval()
+            _RVM_MODEL_CACHE[key] = model
+        return _RVM_MODEL_CACHE[key]
+
+    def remove_bg(self, images, model_variant, chroma_color, downsample_ratio):
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model = self._get_model(model_variant, device)
+
+        color = self._CHROMA_COLORS[chroma_color]
+        bg_color = torch.tensor(color, device=device).view(1, 3, 1, 1)
+
+        B = images.shape[0]
+        rec = [None] * 4  # stato ricorrente RVM: da riazzerare a ogni nuova clip
+        composited = []
+        alphas = []
+
+        with torch.no_grad():
+            for i in range(B):
+                frame = images[i].to(device).float().permute(2, 0, 1).unsqueeze(0)  # 1,3,H,W
+                fgr, pha, *rec = model(frame, *rec, downsample_ratio)
+                comp = fgr * pha + bg_color * (1.0 - pha)
+                composited.append(comp.squeeze(0).permute(1, 2, 0).cpu())
+                alphas.append(pha.squeeze(0).permute(1, 2, 0).expand(-1, -1, 3).cpu())
+
+        return (
+            torch.stack(composited, dim=0).clamp(0, 1),
+            torch.stack(alphas, dim=0).clamp(0, 1),
+        )
+
+
 NODE_CLASS_MAPPINGS = {
     "VRP_LoadVideo": VRP_LoadVideo,
     "VRP_EstimateDepth": VRP_EstimateDepth,
     "VRP_DepthToStereoPair": VRP_DepthToStereoPair,
     "VRP_SideBySideCombine": VRP_SideBySideCombine,
     "VRP_SaveVideoSBS": VRP_SaveVideoSBS,
+    "VRP_RemoveBackground": VRP_RemoveBackground,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -366,4 +454,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "VRP_DepthToStereoPair": "👀 VR Passthrough - Coppia Stereo L/R",
     "VRP_SideBySideCombine": "🖼️ VR Passthrough - Combina Side-by-Side",
     "VRP_SaveVideoSBS": "💾 VR Passthrough - Salva Video SBS (Quest 3)",
+    "VRP_RemoveBackground": "✂️ VR Passthrough - Rimuovi Sfondo (Cutout)",
 }

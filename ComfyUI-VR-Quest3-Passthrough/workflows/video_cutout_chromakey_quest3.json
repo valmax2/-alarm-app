@@ -1,0 +1,68 @@
+{
+  "last_node_id": 3,
+  "last_link_id": 3,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "VRP_LoadVideo",
+      "pos": [40, 200],
+      "size": [360, 130],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "images", "type": "IMAGE", "links": [1], "slot_index": 0},
+        {"name": "fps", "type": "FLOAT", "links": null, "slot_index": 1},
+        {"name": "source_path", "type": "STRING", "links": [3], "slot_index": 2}
+      ],
+      "properties": {"Node name for S&R": "VRP_LoadVideo"},
+      "widgets_values": ["C:/percorso/completo/al/tuo/video.mp4", 0, 0]
+    },
+    {
+      "id": 2,
+      "type": "VRP_RemoveBackground",
+      "pos": [460, 180],
+      "size": [340, 150],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {"name": "images", "type": "IMAGE", "link": 1}
+      ],
+      "outputs": [
+        {"name": "chromakey_images", "type": "IMAGE", "links": [2], "slot_index": 0},
+        {"name": "alpha_mask", "type": "IMAGE", "links": null, "slot_index": 1}
+      ],
+      "properties": {"Node name for S&R": "VRP_RemoveBackground"},
+      "widgets_values": ["mobilenetv3 (veloce)", "Verde (0,255,0)", 0.25]
+    },
+    {
+      "id": 3,
+      "type": "VRP_SaveVideoSBS",
+      "pos": [860, 200],
+      "size": [340, 170],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {"name": "images", "type": "IMAGE", "link": 2},
+        {"name": "source_path_for_audio", "type": "STRING", "link": 3}
+      ],
+      "outputs": [
+        {"name": "output_path", "type": "STRING", "links": null, "slot_index": 0}
+      ],
+      "properties": {"Node name for S&R": "VRP_SaveVideoSBS"},
+      "widgets_values": [24.0, "quest3_cutout", 18]
+    }
+  ],
+  "links": [
+    [1, 1, 0, 2, 0, "IMAGE"],
+    [2, 2, 0, 3, 0, "IMAGE"],
+    [3, 1, 2, 3, 1, "STRING"]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}
